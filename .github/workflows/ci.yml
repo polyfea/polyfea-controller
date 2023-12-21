@@ -1,0 +1,43 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: ["main"]
+  release:
+    types: [published]
+    
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+env:
+  DOCKER_VERSION: ${{ github.event.release.tag_name }}
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Use Go version 1.20
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.21.x
+        
+    - name: Build Go project
+      run: make build
+      
+    - name: Run the tests
+      run: make test
+  
+    - name: Log in to registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
+    
+    - name: Build and push docker
+      run: make docker-buildx VERSION=${DOCKER_VERSION:-"dev-latest"}
