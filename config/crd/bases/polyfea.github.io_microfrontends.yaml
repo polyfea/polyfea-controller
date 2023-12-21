@@ -78,6 +78,7 @@ spec:
                     type: string
                   port:
                     description: Port is the port of the service being referenced.
+                    maxProperties: 1
                     properties:
                       name:
                         description: Name is the name of the port on the Service.
@@ -92,7 +93,7 @@ spec:
                     type: object
                 type: object
               staticPath:
-                description: Relative path to the CSS file within the service.
+                description: Relative path to the static files within the service.
                 type: string
             required:
             - service

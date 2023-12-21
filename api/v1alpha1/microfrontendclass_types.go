@@ -20,14 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // MicroFrontendClassSpec defines the desired state of MicroFrontendClass
 type MicroFrontendClassSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// BaseUri for which the frontend class will be used
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	BaseUri string `json:"baseUri"`
@@ -38,7 +32,18 @@ type MicroFrontendClassSpec struct {
 
 	// ExtraHeaders that will be used for the frontend class, none if not set
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ExtraHeaders []string `json:"extraHeaders,omitempty"`
+	ExtraHeaders []Header `json:"extraHeaders,omitempty"`
+}
+
+// Header defines the header of the frontend class
+type Header struct {
+	// Name of the header
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// Value of the header
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Value string `json:"value"`
 }
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass

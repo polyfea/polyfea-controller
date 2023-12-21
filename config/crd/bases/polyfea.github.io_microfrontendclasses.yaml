@@ -47,7 +47,18 @@ spec:
                 description: ExtraHeaders that will be used for the frontend class,
                   none if not set
                 items:
-                  type: string
+                  description: Header defines the header of the frontend class
+                  properties:
+                    name:
+                      description: Name of the header
+                      type: string
+                    value:
+                      description: Value of the header
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
                 type: array
             required:
             - baseUri

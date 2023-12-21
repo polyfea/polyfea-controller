@@ -21,14 +21,8 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // WebComponentSpec defines the desired state of WebComponent
 type WebComponentSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Reference to a microfrontend from which the webcomponent would be served.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	MicroFrontend string `json:"microFrontend,omitempty"`
@@ -49,7 +43,6 @@ type WebComponentSpec struct {
 
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
 type Attribute struct {
-
 	// The name of the attribute.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`

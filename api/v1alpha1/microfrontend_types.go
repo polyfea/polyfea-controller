@@ -20,14 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // MicroFrontendSpec defines the desired state of MicroFrontend
 type MicroFrontendSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Reference to a service from which the modules or css would be served.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Service *ServiceReference `json:"service"`
@@ -46,7 +40,7 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ModulePath string `json:"modulePath,omitempty"`
 
-	// Relative path to the CSS file within the service.
+	// Relative path to the static files within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	StaticPath string `json:"staticPath,omitempty"`
 
@@ -67,16 +61,21 @@ type MicroFrontendSpec struct {
 // ServiceReference references a Kubernetes Service as a Backend.
 type ServiceReference struct {
 	// Name is the name of the service being referenced.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name *string `json:"name,omitempty"`
 	// Port is the port of the service being referenced.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Port *Port `json:"port,omitempty"`
 }
 
 // Port is the service port being referenced.
+// +kubebuilder:validation:MaxProperties=1
 type Port struct {
 	// Name is the name of the port on the Service. This is a mutually exclusive setting with "Number".
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name,omitempty"`
 	// Number is the numerical port number (e.g. 80) on the Service. This is a mutually exclusive setting with "Name".
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Number *int32 `json:"number,omitempty"`
 }
 
