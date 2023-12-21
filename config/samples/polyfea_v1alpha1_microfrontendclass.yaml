@@ -1,0 +1,12 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  labels:
+    app.kubernetes.io/name: microfrontendclass
+    app.kubernetes.io/instance: microfrontendclass-sample
+    app.kubernetes.io/part-of: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: polyfea-controller
+  name: microfrontendclass-sample
+spec:
+  # TODO(user): Add fields here

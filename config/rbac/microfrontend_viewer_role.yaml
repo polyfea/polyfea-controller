@@ -1,0 +1,27 @@
+# permissions for end users to view microfrontends.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: microfrontend-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: polyfea-controller
+    app.kubernetes.io/part-of: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: microfrontend-viewer-role
+rules:
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontends
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontends/status
+  verbs:
+  - get

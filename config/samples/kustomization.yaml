@@ -1,0 +1,6 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- polyfea_v1alpha1_microfrontend.yaml
+- polyfea_v1alpha1_webcomponent.yaml
+- polyfea_v1alpha1_microfrontendclass.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
