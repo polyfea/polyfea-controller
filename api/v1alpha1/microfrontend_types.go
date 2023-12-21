@@ -44,11 +44,11 @@ type MicroFrontendSpec struct {
 
 	// Relative path to the module file within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ModulePath string `json:"moduleUri,omitempty"`
+	ModulePath string `json:"modulePath,omitempty"`
 
 	// Relative path to the CSS file within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StaticPath string `json:"cssUri,omitempty"`
+	StaticPath string `json:"staticPath,omitempty"`
 
 	// The modules are not preloaded by default but only when navigating to some of the subpaths mentioned in the 'navigation' list. Setting this property to true ensures that the module is loaded when the application starts.
 	// +kubebuilder:default=false

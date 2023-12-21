@@ -36,7 +36,7 @@ spec:
           spec:
             description: MicroFrontendClassSpec defines the desired state of MicroFrontendClass
             properties:
-              baseUrl:
+              baseUri:
                 description: BaseUri for which the frontend class will be used
                 type: string
               cspHeader:
@@ -50,7 +50,7 @@ spec:
                   type: string
                 type: array
             required:
-            - baseUrl
+            - baseUri
             type: object
           status:
             description: MicroFrontendClassStatus defines the observed state of MicroFrontendClass

@@ -41,9 +41,6 @@ spec:
                 enum:
                 - none
                 type: string
-              cssUri:
-                description: Relative path to the CSS file within the service.
-                type: string
               dependsOn:
                 description: List of dependencies that should be loaded before this
                   micro frontend.
@@ -54,7 +51,7 @@ spec:
                 description: FrontendClass is the name of the frontend class that
                   should be used for this micro frontend.
                 type: string
-              moduleUri:
+              modulePath:
                 description: Relative path to the module file within the service.
                 type: string
               preload:
@@ -94,6 +91,9 @@ spec:
                         type: integer
                     type: object
                 type: object
+              staticPath:
+                description: Relative path to the CSS file within the service.
+                type: string
             required:
             - service
             type: object

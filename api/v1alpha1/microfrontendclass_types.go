@@ -30,7 +30,7 @@ type MicroFrontendClassSpec struct {
 
 	// BaseUri for which the frontend class will be used
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	BaseUri string `json:"baseUrl"`
+	BaseUri string `json:"baseUri"`
 
 	// CspHeader that will be used for the frontend class, none if not set
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
