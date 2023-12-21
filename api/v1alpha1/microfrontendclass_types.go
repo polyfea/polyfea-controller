@@ -28,8 +28,17 @@ type MicroFrontendClassSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of MicroFrontendClass. Edit microfrontendclass_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// BaseUri for which the frontend class will be used
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	BaseUri string `json:"baseUrl"`
+
+	// CspHeader that will be used for the frontend class, none if not set
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CspHeader string `json:"cspHeader,omitempty"`
+
+	// ExtraHeaders that will be used for the frontend class, none if not set
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ExtraHeaders []string `json:"extraHeaders,omitempty"`
 }
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass

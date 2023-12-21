@@ -1,0 +1,107 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  creationTimestamp: null
+  name: microfrontends.polyfea.github.io
+spec:
+  group: polyfea.github.io
+  names:
+    kind: MicroFrontend
+    listKind: MicroFrontendList
+    plural: microfrontends
+    singular: microfrontend
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: MicroFrontend is the Schema for the microfrontends API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MicroFrontendSpec defines the desired state of MicroFrontend
+            properties:
+              cacheStrategy:
+                description: CachingStrategy defines the caching strategy for the
+                  micro frontend.
+                enum:
+                - none
+                type: string
+              cssUri:
+                description: Relative path to the CSS file within the service.
+                type: string
+              dependsOn:
+                description: List of dependencies that should be loaded before this
+                  micro frontend.
+                items:
+                  type: string
+                type: array
+              frontendClass:
+                description: FrontendClass is the name of the frontend class that
+                  should be used for this micro frontend.
+                type: string
+              moduleUri:
+                description: Relative path to the module file within the service.
+                type: string
+              preload:
+                default: false
+                description: The modules are not preloaded by default but only when
+                  navigating to some of the subpaths mentioned in the 'navigation'
+                  list. Setting this property to true ensures that the module is loaded
+                  when the application starts.
+                type: boolean
+              proxy:
+                default: true
+                description: This specifies whether the loading of web components
+                  should be proxied by the controller. This is useful if the web component
+                  is served from within the cluster and cannot be accessed from outside
+                  the cluster network. The module will be served from the URL base_controller_url/web-components/web_component_name.jsm.
+                  This is the recommended approach for the standard assumed use-case.
+                type: boolean
+              service:
+                description: Reference to a service from which the modules or css
+                  would be served.
+                properties:
+                  name:
+                    description: Name is the name of the service being referenced.
+                    type: string
+                  port:
+                    description: Port is the port of the service being referenced.
+                    properties:
+                      name:
+                        description: Name is the name of the port on the Service.
+                          This is a mutually exclusive setting with "Number".
+                        type: string
+                      number:
+                        description: Number is the numerical port number (e.g. 80)
+                          on the Service. This is a mutually exclusive setting with
+                          "Name".
+                        format: int32
+                        type: integer
+                    type: object
+                type: object
+            required:
+            - service
+            type: object
+          status:
+            description: MicroFrontendStatus defines the observed state of MicroFrontend
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

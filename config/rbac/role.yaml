@@ -1,0 +1,85 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontendclasses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontendclasses/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontendclasses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontends
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontends/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - microfrontends/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - webcomponents
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - webcomponents/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - polyfea.github.io
+  resources:
+  - webcomponents/status
+  verbs:
+  - get
+  - patch
+  - update
