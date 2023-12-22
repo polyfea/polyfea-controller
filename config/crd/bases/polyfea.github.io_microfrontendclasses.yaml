@@ -40,8 +40,8 @@ spec:
                 description: BaseUri for which the frontend class will be used
                 type: string
               cspHeader:
-                description: CspHeader that will be used for the frontend class, none
-                  if not set
+                description: CspHeader that will be used for the frontend class, a
+                  default will be used if not set.
                 type: string
               extraHeaders:
                 description: ExtraHeaders that will be used for the frontend class,
@@ -60,6 +60,14 @@ spec:
                   - value
                   type: object
                 type: array
+              rolesHeader:
+                description: UserRolesHeader is the name of the header that contains
+                  the roles of the user.
+                type: string
+              userHeader:
+                description: UserHeader is the name of the header that contains the
+                  user id.
+                type: string
             required:
             - baseUri
             type: object

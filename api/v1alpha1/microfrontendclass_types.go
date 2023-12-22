@@ -26,13 +26,21 @@ type MicroFrontendClassSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	BaseUri string `json:"baseUri"`
 
-	// CspHeader that will be used for the frontend class, none if not set
+	// CspHeader that will be used for the frontend class, a default will be used if not set.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CspHeader string `json:"cspHeader,omitempty"`
 
 	// ExtraHeaders that will be used for the frontend class, none if not set
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExtraHeaders []Header `json:"extraHeaders,omitempty"`
+
+	// UserRolesHeader is the name of the header that contains the roles of the user.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	UserRolesHeader *string `json:"rolesHeader,omitempty"`
+
+	// UserHeader is the name of the header that contains the user id.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	UserHeader *string `json:"userHeader,omitempty"`
 }
 
 // Header defines the header of the frontend class

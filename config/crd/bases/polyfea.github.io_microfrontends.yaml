@@ -35,11 +35,17 @@ spec:
           spec:
             description: MicroFrontendSpec defines the desired state of MicroFrontend
             properties:
+              cacheControl:
+                description: CacheControl defines the cache control header for the
+                  micro frontend. This is only used if the caching strategy is set
+                  to 'cache'.
+                type: string
               cacheStrategy:
                 description: CachingStrategy defines the caching strategy for the
                   micro frontend.
                 enum:
                 - none
+                - cache
                 type: string
               dependsOn:
                 description: List of dependencies that should be loaded before this
@@ -54,13 +60,13 @@ spec:
               modulePath:
                 description: Relative path to the module file within the service.
                 type: string
-              preload:
+              preloadPaths:
                 default: false
-                description: The modules are not preloaded by default but only when
-                  navigating to some of the subpaths mentioned in the 'navigation'
-                  list. Setting this property to true ensures that the module is loaded
-                  when the application starts.
-                type: boolean
+                description: Regular expresions for paths for which the module should
+                  be preloaded. If not specified, the module will not be preloaded.
+                items:
+                  type: string
+                type: array
               proxy:
                 default: true
                 description: This specifies whether the loading of web components
@@ -92,9 +98,11 @@ spec:
                         type: integer
                     type: object
                 type: object
-              staticPath:
+              staticPaths:
                 description: Relative path to the static files within the service.
-                type: string
+                items:
+                  type: string
+                type: array
             required:
             - service
             type: object

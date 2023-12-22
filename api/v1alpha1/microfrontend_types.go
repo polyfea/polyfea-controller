@@ -33,8 +33,12 @@ type MicroFrontendSpec struct {
 
 	// CachingStrategy defines the caching strategy for the micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// +kubebuilder:validation:Enum=none;
+	// +kubebuilder:validation:Enum=none;cache;
 	CacheStrategy string `json:"cacheStrategy,omitempty"`
+
+	// CacheControl defines the cache control header for the micro frontend. This is only used if the caching strategy is set to 'cache'.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheControl string `json:"cacheControl,omitempty"`
 
 	// Relative path to the module file within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -42,12 +46,12 @@ type MicroFrontendSpec struct {
 
 	// Relative path to the static files within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StaticPath string `json:"staticPath,omitempty"`
+	StaticPaths []string `json:"staticPaths,omitempty"`
 
-	// The modules are not preloaded by default but only when navigating to some of the subpaths mentioned in the 'navigation' list. Setting this property to true ensures that the module is loaded when the application starts.
+	// Regular expresions for paths for which the module should be preloaded. If not specified, the module will not be preloaded.
 	// +kubebuilder:default=false
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Preload *bool `json:"preload,omitempty"`
+	PreloadPaths []string `json:"preloadPaths,omitempty"`
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

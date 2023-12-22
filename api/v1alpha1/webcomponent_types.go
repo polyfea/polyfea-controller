@@ -36,9 +36,18 @@ type WebComponentSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	// This is a list of matchers that allows you to define the conditions under which the web component should be loaded.
+	// DisplayRules defines the conditions under which the web component should be loaded. If not specified, the web component will always be loaded.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Matchers []Matcher `json:"matchers,omitempty"`
+	DisplayRules *DisplayRules `json:"displayRules,omitempty"`
+
+	// Priority defines the priority of the webcomponent. Used for ordering the webcomponent within the shell. The higher the number, the higher the priority. The default priority is 0.
+	// +kubebuilder:default=0
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Priority *int32 `json:"priority,omitempty"`
+
+	// Styles defines the styles that should be applied to the webcomponent.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Style string `json:"style,omitempty"`
 }
 
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
@@ -54,7 +63,23 @@ type Attribute struct {
 	Value runtime.RawExtension `json:"value"`
 }
 
+// DisplayRules defines the conditions under which the web component should be loaded.
+type DisplayRules struct {
+	// If all of the matchers in this list are matched, the web component will be loaded.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	AllOf []Matcher `json:"allOf,omitempty"`
+
+	// If any of the matchers in this list are matched, the web component will be loaded.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	AnyOf []Matcher `json:"anyOf,omitempty"`
+
+	// If none of the matchers in this list are matched, the web component will be loaded.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	NoneOf []Matcher `json:"noneOf,omitempty"`
+}
+
 // Matcher defines the conditions under which the web component should be loaded.
+// +kubebuilder:validation:MaxProperties=1
 type Matcher struct {
 	// This is a list of context names in which this element is intended to be shown.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

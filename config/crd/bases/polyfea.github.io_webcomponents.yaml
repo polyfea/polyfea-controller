@@ -57,40 +57,114 @@ spec:
                   - value
                   type: object
                 type: array
+              displayRules:
+                description: DisplayRules defines the conditions under which the web
+                  component should be loaded. If not specified, the web component
+                  will always be loaded.
+                properties:
+                  allOf:
+                    description: If all of the matchers in this list are matched,
+                      the web component will be loaded.
+                    items:
+                      description: Matcher defines the conditions under which the
+                        web component should be loaded.
+                      maxProperties: 1
+                      properties:
+                        context-names:
+                          description: This is a list of context names in which this
+                            element is intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          description: The list of paths in which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        roles:
+                          description: The list of roles for which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  anyOf:
+                    description: If any of the matchers in this list are matched,
+                      the web component will be loaded.
+                    items:
+                      description: Matcher defines the conditions under which the
+                        web component should be loaded.
+                      maxProperties: 1
+                      properties:
+                        context-names:
+                          description: This is a list of context names in which this
+                            element is intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          description: The list of paths in which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        roles:
+                          description: The list of roles for which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                  noneOf:
+                    description: If none of the matchers in this list are matched,
+                      the web component will be loaded.
+                    items:
+                      description: Matcher defines the conditions under which the
+                        web component should be loaded.
+                      maxProperties: 1
+                      properties:
+                        context-names:
+                          description: This is a list of context names in which this
+                            element is intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        paths:
+                          description: The list of paths in which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                        roles:
+                          description: The list of roles for which this element is
+                            intended to be shown.
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    type: array
+                type: object
               element:
                 description: The HTML element tag name to be used when the matcher
                   is matched.
                 type: string
-              matchers:
-                description: This is a list of matchers that allows you to define
-                  the conditions under which the web component should be loaded.
-                items:
-                  description: Matcher defines the conditions under which the web
-                    component should be loaded.
-                  properties:
-                    context-names:
-                      description: This is a list of context names in which this element
-                        is intended to be shown.
-                      items:
-                        type: string
-                      type: array
-                    paths:
-                      description: The list of paths in which this element is intended
-                        to be shown.
-                      items:
-                        type: string
-                      type: array
-                    roles:
-                      description: The list of roles for which this element is intended
-                        to be shown.
-                      items:
-                        type: string
-                      type: array
-                  type: object
-                type: array
               microFrontend:
                 description: Reference to a microfrontend from which the webcomponent
                   would be served.
+                type: string
+              priority:
+                default: 0
+                description: Priority defines the priority of the webcomponent. Used
+                  for ordering the webcomponent within the shell. The higher the number,
+                  the higher the priority. The default priority is 0.
+                format: int32
+                type: integer
+              style:
+                description: Styles defines the styles that should be applied to the
+                  webcomponent.
                 type: string
             required:
             - element
