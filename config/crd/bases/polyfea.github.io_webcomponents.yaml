@@ -73,21 +73,15 @@ spec:
                         context-names:
                           description: This is a list of context names in which this
                             element is intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         paths:
                           description: The list of paths in which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         roles:
                           description: The list of roles for which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                       type: object
                     type: array
                   anyOf:
@@ -101,21 +95,15 @@ spec:
                         context-names:
                           description: This is a list of context names in which this
                             element is intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         paths:
                           description: The list of paths in which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         roles:
                           description: The list of roles for which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                       type: object
                     type: array
                   noneOf:
@@ -129,21 +117,15 @@ spec:
                         context-names:
                           description: This is a list of context names in which this
                             element is intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         paths:
                           description: The list of paths in which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                         roles:
                           description: The list of roles for which this element is
                             intended to be shown.
-                          items:
-                            type: string
-                          type: array
+                          type: string
                       type: object
                     type: array
                 type: object

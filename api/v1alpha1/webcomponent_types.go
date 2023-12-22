@@ -83,17 +83,17 @@ type DisplayRules struct {
 type Matcher struct {
 	// This is a list of context names in which this element is intended to be shown.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ContextNames []string `json:"context-names,omitempty"`
+	ContextName string `json:"context-names,omitempty"`
 
 	// The list of paths in which this element is intended to be shown.
 	// +kubebuilder:example="/my-menu-item"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Paths []string `json:"paths,omitempty"`
+	Path string `json:"paths,omitempty"`
 
 	// The list of roles for which this element is intended to be shown.
 	// +kubebuilder:example="admin"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Roles []string `json:"roles,omitempty"`
+	Role string `json:"roles,omitempty"`
 }
 
 // WebComponentStatus defines the observed state of WebComponent

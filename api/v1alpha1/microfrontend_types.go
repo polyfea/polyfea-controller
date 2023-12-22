@@ -54,7 +54,7 @@ type MicroFrontendSpec struct {
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	FrontendClass *string `json:"frontendClass,omitempty"`
+	FrontendClass string `json:"frontendClass,omitempty"`
 
 	// List of dependencies that should be loaded before this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -65,7 +65,7 @@ type MicroFrontendSpec struct {
 type ServiceReference struct {
 	// Name is the name of the service being referenced.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Name *string `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
 	// Port is the port of the service being referenced.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Port *Port `json:"port,omitempty"`
