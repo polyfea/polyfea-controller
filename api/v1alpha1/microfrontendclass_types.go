@@ -36,11 +36,11 @@ type MicroFrontendClassSpec struct {
 
 	// UserRolesHeader is the name of the header that contains the roles of the user.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	UserRolesHeader *string `json:"rolesHeader,omitempty"`
+	UserRolesHeader string `json:"rolesHeader,omitempty"`
 
 	// UserHeader is the name of the header that contains the user id.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	UserHeader *string `json:"userHeader,omitempty"`
+	UserHeader string `json:"userHeader,omitempty"`
 }
 
 // Header defines the header of the frontend class
