@@ -61,7 +61,6 @@ spec:
                 description: Relative path to the module file within the service.
                 type: string
               preloadPaths:
-                default: false
                 description: Regular expresions for paths for which the module should
                   be preloaded. If not specified, the module will not be preloaded.
                 items:

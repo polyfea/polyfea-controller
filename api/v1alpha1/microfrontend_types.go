@@ -49,7 +49,6 @@ type MicroFrontendSpec struct {
 	StaticPaths []string `json:"staticPaths,omitempty"`
 
 	// Regular expresions for paths for which the module should be preloaded. If not specified, the module will not be preloaded.
-	// +kubebuilder:default=false
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	PreloadPaths []string `json:"preloadPaths,omitempty"`
 
