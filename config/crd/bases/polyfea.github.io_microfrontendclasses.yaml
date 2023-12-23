@@ -40,12 +40,15 @@ spec:
                 description: BaseUri for which the frontend class will be used
                 type: string
               cspHeader:
+                default: default-src 'self'; font-src 'self'; script-src 'strict-dynamic'
+                  'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src
+                  'self' 'strict-dynamic';
                 description: CspHeader that will be used for the frontend class, a
                   default will be used if not set.
                 type: string
               extraHeaders:
                 description: ExtraHeaders that will be used for the frontend class,
-                  none if not set
+                  none if not set.
                 items:
                   description: Header defines the header of the frontend class
                   properties:
@@ -61,12 +64,14 @@ spec:
                   type: object
                 type: array
               rolesHeader:
+                default: x-auth-request-roles
                 description: UserRolesHeader is the name of the header that contains
-                  the roles of the user.
+                  the roles of the user. Defaults to 'x-auth-request-roles'.
                 type: string
               userHeader:
+                default: x-auth-request-user
                 description: UserHeader is the name of the header that contains the
-                  user id.
+                  user id. Defaults to 'x-auth-request-user'.
                 type: string
             required:
             - baseUri

@@ -24,21 +24,24 @@ import (
 type MicroFrontendClassSpec struct {
 	// BaseUri for which the frontend class will be used
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	BaseUri string `json:"baseUri"`
+	BaseUri *string `json:"baseUri"`
 
 	// CspHeader that will be used for the frontend class, a default will be used if not set.
+	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CspHeader string `json:"cspHeader,omitempty"`
 
-	// ExtraHeaders that will be used for the frontend class, none if not set
+	// ExtraHeaders that will be used for the frontend class, none if not set.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExtraHeaders []Header `json:"extraHeaders,omitempty"`
 
-	// UserRolesHeader is the name of the header that contains the roles of the user.
+	// UserRolesHeader is the name of the header that contains the roles of the user. Defaults to 'x-auth-request-roles'.
+	// +kubebuilder:default=x-auth-request-roles
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserRolesHeader string `json:"rolesHeader,omitempty"`
 
-	// UserHeader is the name of the header that contains the user id.
+	// UserHeader is the name of the header that contains the user id. Defaults to 'x-auth-request-user'.
+	// +kubebuilder:default=x-auth-request-user
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserHeader string `json:"userHeader,omitempty"`
 }
