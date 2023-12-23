@@ -67,9 +67,9 @@ var _ = Describe("Microfrontend controller", func() {
 					},
 					Proxy:         &preload,
 					CacheStrategy: "none",
-					ModulePath:    "module.jsm",
+					ModulePath:    &[]string{"module.jsm"}[0],
 					StaticPaths:   []string{"static"},
-					FrontendClass: "test-microfrontendclass",
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
 			}
 			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
@@ -99,5 +99,136 @@ var _ = Describe("Microfrontend controller", func() {
 				return errors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 		})
+
+		It("Should not create if required fields are missing", func() {
+			By("By creating a new MicroFrontend without service")
+			ctx := context.Background()
+
+			preload := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Proxy:         &preload,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticPaths:   []string{"static"},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
+
+			By("By creating a new MicroFrontend without module path")
+			ctx = context.Background()
+
+			preload = true
+			portNumber := int32(8080)
+
+			microFrontend = &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service: &polyfeav1alpha1.ServiceReference{
+						Name: "test-service",
+						Port: &polyfeav1alpha1.Port{
+							Number: &portNumber,
+						},
+					},
+					Proxy:         &preload,
+					CacheStrategy: "none",
+					StaticPaths:   []string{"static"},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
+
+			By("By creating a new MicroFrontend without frontend class")
+			ctx = context.Background()
+
+			preload = true
+			portNumber = int32(8080)
+
+			microFrontend = &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service: &polyfeav1alpha1.ServiceReference{
+						Name: "test-service",
+						Port: &polyfeav1alpha1.Port{
+							Number: &portNumber,
+						},
+					},
+					Proxy:         &preload,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticPaths:   []string{"static"},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
+		})
+
+		It("Should create with defaults if optional fields are not specified", func() {
+			By("By creating a new MicroFrontend with only required fields")
+			ctx := context.Background()
+
+			portNumber := int32(8080)
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service: &polyfeav1alpha1.ServiceReference{
+						Name: "test-service",
+						Port: &polyfeav1alpha1.Port{
+							Number: &portNumber,
+						},
+					},
+					ModulePath:    &[]string{"module.jsm"}[0],
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
+
+			microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+			createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
+			Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
+			Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
+			Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
+			Expect(createdMicroFrontend.Spec.StaticPaths).Should(BeNil())
+			Expect(createdMicroFrontend.Spec.PreloadPaths).Should(BeNil())
+			Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
+		})
 	})
+
 })

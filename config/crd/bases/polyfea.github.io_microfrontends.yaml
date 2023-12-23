@@ -41,6 +41,7 @@ spec:
                   to 'cache'.
                 type: string
               cacheStrategy:
+                default: none
                 description: CachingStrategy defines the caching strategy for the
                   micro frontend.
                 enum:
@@ -103,6 +104,8 @@ spec:
                   type: string
                 type: array
             required:
+            - frontendClass
+            - modulePath
             - service
             type: object
           status:

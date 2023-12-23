@@ -32,17 +32,18 @@ type MicroFrontendSpec struct {
 	Proxy *bool `json:"proxy,omitempty"`
 
 	// CachingStrategy defines the caching strategy for the micro frontend.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +kubebuilder:default=none
 	// +kubebuilder:validation:Enum=none;cache;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheStrategy string `json:"cacheStrategy,omitempty"`
 
 	// CacheControl defines the cache control header for the micro frontend. This is only used if the caching strategy is set to 'cache'.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheControl string `json:"cacheControl,omitempty"`
+	CacheControl *string `json:"cacheControl,omitempty"`
 
 	// Relative path to the module file within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ModulePath string `json:"modulePath,omitempty"`
+	ModulePath *string `json:"modulePath"`
 
 	// Relative path to the static files within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -54,7 +55,7 @@ type MicroFrontendSpec struct {
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	FrontendClass string `json:"frontendClass,omitempty"`
+	FrontendClass *string `json:"frontendClass"`
 
 	// List of dependencies that should be loaded before this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

@@ -272,6 +272,16 @@ func (in *MicroFrontendSpec) DeepCopyInto(out *MicroFrontendSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CacheControl != nil {
+		in, out := &in.CacheControl, &out.CacheControl
+		*out = new(string)
+		**out = **in
+	}
+	if in.ModulePath != nil {
+		in, out := &in.ModulePath, &out.ModulePath
+		*out = new(string)
+		**out = **in
+	}
 	if in.StaticPaths != nil {
 		in, out := &in.StaticPaths, &out.StaticPaths
 		*out = make([]string, len(*in))
@@ -281,6 +291,11 @@ func (in *MicroFrontendSpec) DeepCopyInto(out *MicroFrontendSpec) {
 		in, out := &in.PreloadPaths, &out.PreloadPaths
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.FrontendClass != nil {
+		in, out := &in.FrontendClass, &out.FrontendClass
+		*out = new(string)
+		**out = **in
 	}
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn
