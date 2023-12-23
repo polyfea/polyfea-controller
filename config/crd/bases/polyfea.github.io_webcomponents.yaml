@@ -150,6 +150,7 @@ spec:
                 type: string
             required:
             - element
+            - microFrontend
             type: object
           status:
             description: WebComponentStatus defines the observed state of WebComponent

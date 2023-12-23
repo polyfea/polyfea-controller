@@ -25,12 +25,12 @@ import (
 type WebComponentSpec struct {
 	// Reference to a microfrontend from which the webcomponent would be served.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	MicroFrontend string `json:"microFrontend,omitempty"`
+	MicroFrontend *string `json:"microFrontend"`
 
 	// The HTML element tag name to be used when the matcher is matched.
 	// +kubebuilder:example="my-menu-item"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Element string `json:"element"`
+	Element *string `json:"element"`
 
 	// This is a list of key-value pairs that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -47,7 +47,7 @@ type WebComponentSpec struct {
 
 	// Styles defines the styles that should be applied to the webcomponent.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Style string `json:"style,omitempty"`
+	Style *string `json:"style,omitempty"`
 }
 
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
