@@ -60,75 +60,82 @@ spec:
               displayRules:
                 description: DisplayRules defines the conditions under which the web
                   component should be loaded. If not specified, the web component
-                  will always be loaded.
-                properties:
-                  allOf:
-                    description: If all of the matchers in this list are matched,
-                      the web component will be loaded.
-                    items:
-                      description: Matcher defines the conditions under which the
-                        web component should be loaded.
-                      maxProperties: 1
-                      properties:
-                        context-names:
-                          description: This is a list of context names in which this
-                            element is intended to be shown.
-                          type: string
-                        paths:
-                          description: The list of paths in which this element is
-                            intended to be shown.
-                          type: string
-                        roles:
-                          description: The list of roles for which this element is
-                            intended to be shown.
-                          type: string
-                      type: object
-                    type: array
-                  anyOf:
-                    description: If any of the matchers in this list are matched,
-                      the web component will be loaded.
-                    items:
-                      description: Matcher defines the conditions under which the
-                        web component should be loaded.
-                      maxProperties: 1
-                      properties:
-                        context-names:
-                          description: This is a list of context names in which this
-                            element is intended to be shown.
-                          type: string
-                        paths:
-                          description: The list of paths in which this element is
-                            intended to be shown.
-                          type: string
-                        roles:
-                          description: The list of roles for which this element is
-                            intended to be shown.
-                          type: string
-                      type: object
-                    type: array
-                  noneOf:
-                    description: If none of the matchers in this list are matched,
-                      the web component will be loaded.
-                    items:
-                      description: Matcher defines the conditions under which the
-                        web component should be loaded.
-                      maxProperties: 1
-                      properties:
-                        context-names:
-                          description: This is a list of context names in which this
-                            element is intended to be shown.
-                          type: string
-                        paths:
-                          description: The list of paths in which this element is
-                            intended to be shown.
-                          type: string
-                        roles:
-                          description: The list of roles for which this element is
-                            intended to be shown.
-                          type: string
-                      type: object
-                    type: array
-                type: object
+                  will always be loaded. There is an or opperation between the elements
+                  of the DisplayRules list. If any of the DisplayRules is matched,
+                  the web component will be loaded.
+                items:
+                  description: DisplayRules defines the conditions under which the
+                    web component should be loaded. There is an and opperation between
+                    AllOf, AnyOf and NoneOf lists.
+                  properties:
+                    allOf:
+                      description: If all of the matchers in this list are matched,
+                        the web component will be loaded.
+                      items:
+                        description: Matcher defines the conditions under which the
+                          web component should be loaded.
+                        maxProperties: 1
+                        properties:
+                          context-names:
+                            description: This is a list of context names in which
+                              this element is intended to be shown.
+                            type: string
+                          paths:
+                            description: The list of paths in which this element is
+                              intended to be shown.
+                            type: string
+                          roles:
+                            description: The list of roles for which this element
+                              is intended to be shown.
+                            type: string
+                        type: object
+                      type: array
+                    anyOf:
+                      description: If any of the matchers in this list are matched,
+                        the web component will be loaded.
+                      items:
+                        description: Matcher defines the conditions under which the
+                          web component should be loaded.
+                        maxProperties: 1
+                        properties:
+                          context-names:
+                            description: This is a list of context names in which
+                              this element is intended to be shown.
+                            type: string
+                          paths:
+                            description: The list of paths in which this element is
+                              intended to be shown.
+                            type: string
+                          roles:
+                            description: The list of roles for which this element
+                              is intended to be shown.
+                            type: string
+                        type: object
+                      type: array
+                    noneOf:
+                      description: If none of the matchers in this list are matched,
+                        the web component will be loaded.
+                      items:
+                        description: Matcher defines the conditions under which the
+                          web component should be loaded.
+                        maxProperties: 1
+                        properties:
+                          context-names:
+                            description: This is a list of context names in which
+                              this element is intended to be shown.
+                            type: string
+                          paths:
+                            description: The list of paths in which this element is
+                              intended to be shown.
+                            type: string
+                          roles:
+                            description: The list of roles for which this element
+                              is intended to be shown.
+                            type: string
+                        type: object
+                      type: array
+                  type: object
+                type: array
               element:
                 description: The HTML element tag name to be used when the matcher
                   is matched.

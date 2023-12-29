@@ -450,8 +450,10 @@ func (in *WebComponentSpec) DeepCopyInto(out *WebComponentSpec) {
 	}
 	if in.DisplayRules != nil {
 		in, out := &in.DisplayRules, &out.DisplayRules
-		*out = new(DisplayRules)
-		(*in).DeepCopyInto(*out)
+		*out = make([]DisplayRules, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	if in.Priority != nil {
 		in, out := &in.Priority, &out.Priority

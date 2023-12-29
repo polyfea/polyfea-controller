@@ -63,7 +63,7 @@ var _ = Describe("WebComponent controller", func() {
 							Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)},
 						},
 					},
-					DisplayRules: &polyfeav1alpha1.DisplayRules{
+					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{
 							{
 								Path: "pathname",
@@ -72,7 +72,7 @@ var _ = Describe("WebComponent controller", func() {
 								ContextName: "user",
 							},
 						},
-					},
+					}},
 					Priority: &[]int32{0}[0],
 					Style:    &[]string{"color: red;"}[0],
 				},
@@ -125,7 +125,7 @@ var _ = Describe("WebComponent controller", func() {
 							Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)},
 						},
 					},
-					DisplayRules: &polyfeav1alpha1.DisplayRules{
+					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{
 							{
 								Path: "pathname",
@@ -134,7 +134,7 @@ var _ = Describe("WebComponent controller", func() {
 								ContextName: "user",
 							},
 						},
-					},
+					}},
 					Priority: &[]int32{0}[0],
 					Style:    &[]string{"color: red;"}[0],
 				},
@@ -160,7 +160,7 @@ var _ = Describe("WebComponent controller", func() {
 							Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)},
 						},
 					},
-					DisplayRules: &polyfeav1alpha1.DisplayRules{
+					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{
 							{
 								Path: "pathname",
@@ -169,7 +169,7 @@ var _ = Describe("WebComponent controller", func() {
 								ContextName: "user",
 							},
 						},
-					},
+					}},
 					Priority: &[]int32{0}[0],
 					Style:    &[]string{"color: red;"}[0],
 				},
