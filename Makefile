@@ -295,4 +295,4 @@ catalog-push: ## Push a catalog image.
 LATEST_TAG := $(shell curl -s https://api.github.com/repos/polyfea/browser-api/releases/latest | grep "tag_name" | cut -d : -f 2,3 | tr -d \",' ')
 openapi: ## Download latest openapi spec and generate web api skeleton
 	curl "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
-	docker run --rm -ti  -v $(CURDIR)/web-server/:/local openapitools/openapi-generator-cli generate -c /local/scripts/generator-cfg.yaml
+	docker run --rm -v $(CURDIR)/web-server/:/local openapitools/openapi-generator-cli generate -c /local/scripts/generator-cfg.yaml
