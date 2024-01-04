@@ -37,7 +37,7 @@ import (
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/controllers"
-	"github.com/polyfea/polyfea-controller/web-server/api"
+	webserver "github.com/polyfea/polyfea-controller/web-server"
 	"github.com/polyfea/polyfea-controller/web-server/configuration"
 	//+kubebuilder:scaffold:imports
 )
@@ -167,7 +167,7 @@ func startHTTPServer(ctx context.Context, cancel context.CancelFunc) {
 
 	server := &http.Server{
 		Addr:    ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8080"),
-		Handler: api.SetupRouter(),
+		Handler: webserver.SetupRouter(),
 	}
 
 	go func() {

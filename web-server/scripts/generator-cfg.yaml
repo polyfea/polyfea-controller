@@ -2,6 +2,10 @@ generatorName: go-server
 outputDir: /local
 inputSpec: /local/api/v1alpha1.openapi.yaml
 enablePostProcessFile: true
+templateDir: /local/scripts/templates
 additionalProperties:
-  apiPath: internal/polyfea
+  outputAsLibrary: true
   packageName: polyfea
+  sourceFolder: internal/polyfea
+  onlyInterfaces: true
+  addResponseHeaders: true

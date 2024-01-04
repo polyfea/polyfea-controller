@@ -3,6 +3,7 @@ module github.com/polyfea/polyfea-controller
 go 1.19
 
 require (
+	github.com/gorilla/mux v1.8.1
 	github.com/onsi/ginkgo/v2 v2.6.0
 	github.com/onsi/gomega v1.24.1
 	k8s.io/apimachinery v0.26.0
