@@ -26,7 +26,7 @@ func TestMain(t *testing.M) {
 	t.Run()
 }
 
-func TestHandleOpenApi(t *testing.T) {
+func TestOpenApiReturnsCorrectOpenApiSpec(t *testing.T) {
 	// Arrange
 	testServerUrl := testServer.URL
 	testRoute := "/openapi"
@@ -34,7 +34,6 @@ func TestHandleOpenApi(t *testing.T) {
 
 	// Act
 	response, err := http.Get(testServerUrl + testRoute)
-	println(testServerUrl + testRoute)
 	// Assert
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
