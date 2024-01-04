@@ -1,0 +1,7 @@
+generatorName: go-server
+outputDir: /local
+inputSpec: /local/api/v1alpha1.openapi.yaml
+enablePostProcessFile: true
+additionalProperties:
+  apiPath: internal/polyfea
+  packageName: polyfea
