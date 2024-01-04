@@ -17,8 +17,11 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
 	"os"
+	"sync"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -30,15 +33,19 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/controllers"
+	"github.com/polyfea/polyfea-controller/web-server/api"
+	"github.com/polyfea/polyfea-controller/web-server/configuration"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+	wg       = sync.WaitGroup{}
 )
 
 func init() {
@@ -128,5 +135,47 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg.Add(1)
+	go startManager(ctx, cancel, mgr)
+
+	wg.Add(1)
+	go startHTTPServer(ctx, cancel)
+
+	<-ctx.Done()
+
+	wg.Wait()
+}
+
+func startManager(ctx context.Context, cancel context.CancelFunc, mgr manager.Manager) {
+	defer wg.Done()
+	defer cancel()
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+	}
+}
+
+func startHTTPServer(ctx context.Context, cancel context.CancelFunc) {
+	defer wg.Done()
+	defer cancel()
+
+	server := &http.Server{
+		Addr:    ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8080"),
+		Handler: api.SetupRouter(),
+	}
+
+	go func() {
+		<-ctx.Done()
+		server.Shutdown(context.Background())
+	}()
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		setupLog.Error(err, "problem running server")
 	}
 }

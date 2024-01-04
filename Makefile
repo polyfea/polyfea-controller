@@ -107,13 +107,13 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate openapi fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate openapi fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
@@ -280,3 +280,9 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+# Download latest openapi spec and generate web api skeleton
+.PHONY: openapi
+LATEST_TAG := $(shell curl -s https://api.github.com/repos/polyfea/browser-api/releases/latest | grep "tag_name" | cut -d : -f 2,3 | tr -d \",' ')
+openapi: ## Download latest openapi spec and generate web api skeleton
+	curl "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
