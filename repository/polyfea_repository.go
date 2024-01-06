@@ -12,6 +12,10 @@ type PolyfeaRepository interface {
 	StoreMicrofrontend(microfrontend v1alpha1.MicroFrontend) error
 	StoreMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error
 	StoreWebComponent(webComponent v1alpha1.WebComponent) error
+
+	GetMicrofrontends(filter MicrofrontendFilterFunc) ([]v1alpha1.MicroFrontend, error)
+	GetMicrofrontendClasses(filter MicrofrontendClassFilterFunc) ([]v1alpha1.MicroFrontendClass, error)
+	GetWebComponents(filter WebComponentFilterFunc) ([]v1alpha1.WebComponent, error)
 }
 
 type InMemoryPolyfeaRepository struct {
