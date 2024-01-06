@@ -28,13 +28,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/repository"
 )
 
 // MicroFrontendReconciler reconciles a MicroFrontend object
 type MicroFrontendReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme     *runtime.Scheme
+	Recorder   record.EventRecorder
+	repository repository.PolyfeaRepository
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
@@ -123,11 +125,14 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
+	r.repository.StoreMicrofrontend(*microFrontend)
+
 	return ctrl.Result{}, nil
 }
 
 func (r *MicroFrontendReconciler) finalizeOperationsForMicroFrontend(microFrontend *polyfeav1alpha1.MicroFrontend) error {
 	log := log.FromContext(context.Background())
+	r.repository.DeleteMicrofrontend(*microFrontend)
 	log.Info("Removing finalizer from MicroFrontend.", "MicroFrontend", microFrontend)
 	return nil
 }

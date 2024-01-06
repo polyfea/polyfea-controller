@@ -228,6 +228,77 @@ var _ = Describe("Microfrontend controller", func() {
 			Expect(createdMicroFrontend.Spec.StaticPaths).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.PreloadPaths).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
+
+			Expect(k8sClient.Delete(ctx, createdMicroFrontend)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should add and remove the microfrontend from repository", func() {
+			By("By creating a new MicroFrontend")
+			ctx := context.Background()
+
+			portNumber := int32(8080)
+			preload := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service: &polyfeav1alpha1.ServiceReference{
+						Name: "test-service",
+						Port: &polyfeav1alpha1.Port{
+							Number: &portNumber,
+						},
+					},
+					Proxy:         &preload,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticPaths:   []string{"static"},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
+
+			microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+			createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
+
+			Eventually(func() []polyfeav1alpha1.MicroFrontend {
+				result, _ := polyfeaRepository.GetMicrofrontends(func(mf polyfeav1alpha1.MicroFrontend) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(1))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontend)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []polyfeav1alpha1.MicroFrontend {
+				result, _ := polyfeaRepository.GetMicrofrontends(func(mf polyfeav1alpha1.MicroFrontend) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
 		})
 	})
 

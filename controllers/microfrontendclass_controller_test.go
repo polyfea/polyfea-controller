@@ -154,7 +154,71 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			Expect(createdMicroFrontendClass.Spec.UserRolesHeader).Should(Equal("x-auth-request-roles"))
 			Expect(createdMicroFrontendClass.Spec.UserHeader).Should(Equal("x-auth-request-user"))
 
-			Expect(k8sClient.Delete(ctx, microFrontendClass)).Should(Succeed())
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should add and remove microfrontendclass from repository", func() {
+			By("By creating a new MicroFrontendClass")
+			ctx := context.Background()
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					BaseUri:   &[]string{"http://localhost:8080"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
+
+			Eventually(func() []polyfeav1alpha1.MicroFrontendClass {
+				result, _ := polyfeaRepository.GetMicrofrontendClasses(func(mf polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(1))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []polyfeav1alpha1.MicroFrontendClass {
+				result, _ := polyfeaRepository.GetMicrofrontendClasses(func(mf polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
 		})
 	})
 })

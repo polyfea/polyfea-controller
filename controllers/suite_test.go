@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/repository"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -44,6 +45,7 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
+var polyfeaRepository repository.PolyfeaRepository
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -81,24 +83,29 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	polyfeaRepository = repository.NewInMemoryPolyfeaRepository()
+
 	err = (&MicroFrontendReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontend-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontend-controller"),
+		repository: polyfeaRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&WebComponentReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("webcompoent-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("webcompoent-controller"),
+		repository: polyfeaRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&MicroFrontendClassReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		repository: polyfeaRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
