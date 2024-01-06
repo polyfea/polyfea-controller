@@ -46,6 +46,25 @@ func TestInMemoryPolyfeaRepositoryMicrofrontendsNotFoundReturnsEmptySlice(t *tes
 	}
 }
 
+func TestInMemoryPolyfeaRepositoryMicrofrontendDeletedCannotBeRetrieved(t *testing.T) {
+
+	// Arrange
+	repository := NewInMemoryPolyfeaRepository()
+	expectedMicrofrontend := createTestMicrofrontend()
+
+	// Act
+	repository.StoreMicrofrontend(expectedMicrofrontend)
+	repository.DeleteMicrofrontend(expectedMicrofrontend)
+	result, _ := repository.GetMicrofrontends(func(mf v1alpha1.MicroFrontend) bool {
+		return mf.Name == expectedMicrofrontend.Name
+	})
+
+	// Assert
+	if len(result) != 0 {
+		t.Errorf("Expected empty slice, but got %v", result)
+	}
+}
+
 func TestInMemoryPolyfeaRepositoryWebcomponentStoredCanBeRetrieved(t *testing.T) {
 
 	// Arrange
@@ -83,6 +102,25 @@ func TestInMemoryPolyfeaRepositoryWebcomponentNotFoundReturnsEmptySlice(t *testi
 	}
 }
 
+func TestInMemoryPolyfeaRepositoryWebcomponentDeletedCannotBeRetrieved(t *testing.T) {
+
+	// Arrange
+	repository := NewInMemoryPolyfeaRepository()
+	expectedWebComponent := createTestWebComponent()
+
+	// Act
+	repository.StoreWebComponent(expectedWebComponent)
+	repository.DeleteWebComponent(expectedWebComponent)
+	result, _ := repository.GetWebComponents(func(mf v1alpha1.WebComponent) bool {
+		return mf.Name == expectedWebComponent.Name
+	})
+
+	// Assert
+	if len(result) != 0 {
+		t.Errorf("Expected empty slice, but got %v", result)
+	}
+}
+
 func TestInMemoryPolyfeaRepositoryMicrofrontendClassStoredCanBeRetrieved(t *testing.T) {
 
 	// Arrange
@@ -112,6 +150,25 @@ func TestInMemoryPolyfeaRepositoryMicrofrontendClassNotFoundReturnsEmptySlice(t 
 	// Act
 	result, _ := repository.GetMicrofrontendClasses(func(mf v1alpha1.MicroFrontendClass) bool {
 		return mf.Name == "test"
+	})
+
+	// Assert
+	if len(result) != 0 {
+		t.Errorf("Expected empty slice, but got %v", result)
+	}
+}
+
+func TestInMemoryPolyfeaRepositoryMicrofrontendClassDeletedCannotBeRetrieved(t *testing.T) {
+
+	// Arrange
+	repository := NewInMemoryPolyfeaRepository()
+	expectedMicrofrontendClass := createTestMicrofrontendClass()
+
+	// Act
+	repository.StoreMicrofrontendClass(expectedMicrofrontendClass)
+	repository.DeleteMicrofrontendClass(expectedMicrofrontendClass)
+	result, _ := repository.GetMicrofrontendClasses(func(mf v1alpha1.MicroFrontendClass) bool {
+		return mf.Name == expectedMicrofrontendClass.Name
 	})
 
 	// Assert

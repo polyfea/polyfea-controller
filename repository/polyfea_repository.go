@@ -16,6 +16,10 @@ type PolyfeaRepository interface {
 	GetMicrofrontends(filter MicrofrontendFilterFunc) ([]v1alpha1.MicroFrontend, error)
 	GetMicrofrontendClasses(filter MicrofrontendClassFilterFunc) ([]v1alpha1.MicroFrontendClass, error)
 	GetWebComponents(filter WebComponentFilterFunc) ([]v1alpha1.WebComponent, error)
+
+	DeleteMicrofrontend(microfrontend v1alpha1.MicroFrontend) error
+	DeleteMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error
+	DeleteWebComponent(webComponent v1alpha1.WebComponent) error
 }
 
 type InMemoryPolyfeaRepository struct {
@@ -75,4 +79,19 @@ func (r *InMemoryPolyfeaRepository) GetWebComponents(filter WebComponentFilterFu
 		}
 	}
 	return result, nil
+}
+
+func (r *InMemoryPolyfeaRepository) DeleteMicrofrontend(microfrontend v1alpha1.MicroFrontend) error {
+	delete(r.microfrontedns, microfrontend.Name)
+	return nil
+}
+
+func (r *InMemoryPolyfeaRepository) DeleteMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error {
+	delete(r.microfrontendClasses, microfrontendClass.Name)
+	return nil
+}
+
+func (r *InMemoryPolyfeaRepository) DeleteWebComponent(webComponent v1alpha1.WebComponent) error {
+	delete(r.webComponents, webComponent.Name)
+	return nil
 }
