@@ -36,7 +36,7 @@ type WebComponentReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
-	repository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
+	Repository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents,verbs=get;list;watch;create;update;patch;delete
@@ -125,14 +125,14 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	r.repository.StoreItem(webComponent)
+	r.Repository.StoreItem(webComponent)
 
 	return ctrl.Result{}, nil
 }
 
 func (r *WebComponentReconciler) finalizeOperationsForWebComponent(webComponent *polyfeav1alpha1.WebComponent) error {
 	log := log.FromContext(context.Background())
-	r.repository.DeleteItem(webComponent)
+	r.Repository.DeleteItem(webComponent)
 	log.Info("Removing finalizer from WebComponent.", "WebComponent", webComponent)
 	return nil
 }

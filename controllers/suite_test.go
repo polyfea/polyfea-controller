@@ -93,7 +93,7 @@ var _ = BeforeSuite(func() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		Recorder:   mgr.GetEventRecorderFor("microfrontend-controller"),
-		repository: microFrontendRepository,
+		Repository: microFrontendRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -101,7 +101,7 @@ var _ = BeforeSuite(func() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		Recorder:   mgr.GetEventRecorderFor("webcompoent-controller"),
-		repository: webComponentRepository,
+		Repository: webComponentRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -109,7 +109,7 @@ var _ = BeforeSuite(func() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
-		repository: microFrontedClassRepository,
+		Repository: microFrontedClassRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 

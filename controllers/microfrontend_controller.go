@@ -36,7 +36,7 @@ type MicroFrontendReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
-	repository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
+	Repository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
@@ -125,14 +125,14 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, nil
 	}
 
-	r.repository.StoreItem(microFrontend)
+	r.Repository.StoreItem(microFrontend)
 
 	return ctrl.Result{}, nil
 }
 
 func (r *MicroFrontendReconciler) finalizeOperationsForMicroFrontend(microFrontend *polyfeav1alpha1.MicroFrontend) error {
 	log := log.FromContext(context.Background())
-	r.repository.DeleteItem(microFrontend)
+	r.Repository.DeleteItem(microFrontend)
 	log.Info("Removing finalizer from MicroFrontend.", "MicroFrontend", microFrontend)
 	return nil
 }
