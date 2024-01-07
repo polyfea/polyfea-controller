@@ -2,16 +2,17 @@ openapi: 3.0.3
 info:
   title: Polyfea Browser application
   description: |
-    This is the OpenAPI definition for the Polyfea endpoint serving the context information
-    to the browser client. The client is requesting context information from the backend typically 
-    when approaching the `<polyfea-context>` element. The context information is then used to
-    render the UI of the application.
+    This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the 
+    browser client. The client typically requests this context information from the backend when it 
+    encounters the `<polyfea-context>` element. This context information is then used to render the 
+    application's UI.
   version: v1alpha1
 servers:
   - url: ./polyfea
     description: |
-      The server typicaly listens on the same endpoint, relative to the base URL.
-      The actual endpoint may be overridden by setting the `meta` property `polyfea-backend`.
+      Typically, the server listens on the same endpoint relative to the base URL. 
+      However, you can override the actual endpoint by setting the `polyfea-backend` 
+      value in the `meta` property.
 tags:
   - name: polyfea
     description: API tag
@@ -23,37 +24,37 @@ paths:
       summary: |
         Get the context area information.
       description: |
-        Get the context area information. Context area information includes elements and microfrontneds needed
-        for that elements. Actual content is depending on the path - provided as an input  and the user 
-        role determined on the server side.
+        Retrieve the context area information. This information includes the elements and 
+        microfrontends required for these elements. The actual content depends on the input path and 
+        the user role, which is determined server-side.
       operationId: getContextArea
       parameters:
         - name: name
           in: path
           description: |
-            The name of the context area for which we request specification of elements to add
+            The name of the context area for which element specifications are requested.
           required: true
           schema:
             type: string
         - name: path
           in: query
           description: |
-            The path - relative to base href - at which the context area shall be displayed.
+            The relative path from the base href where the context area should be displayed.
           required: true
           schema:
             type: string
         - name: take
           in: query
           description: |
-            Number of elements to be consumed by client. The elements are consumed in the order they are provided. If not specified then ň
-            all provided elements will be used.
+            The number of elements the client should consume. Elements are consumed in 
+            the order they are provided. If not specified, all provided elements will be used.
           required: false
           schema:
             type: number
       responses:
         "200":
           description: |
-            The context area information for the current user.
+            The context area information specific to the current user.
           content:
             application/json:
               schema:
@@ -81,9 +82,10 @@ paths:
       summary: |
         Get the static information about all resources and context areas.
       description: |
-        Get the static configuration of the application context areas. Holds a sum of all
-        microfrontends and web components. Can be beneficial if logic of the frontend is simple and static, and in cases
-        such as development or testing.
+        Retrieve the static configuration of the application's context areas. 
+        This includes a combination of all microfrontends and web components. 
+        This approach is advantageous when the frontend logic is simple and static, 
+        particularly during development or testing phases.
       operationId: getStaticConfig
       responses:
         "200":
@@ -108,9 +110,10 @@ components:
     ContextArea:
       type: object
       description: |
-        Elements to be inserted into the microfrontend context area.
-        The context area describes an area in the document flow which content is depending on the configuration of the system. For examples
-        the context area `top-level-applicartion` may be used to render the top level application tiles.
+        Elements to be inserted into the microfrontend context area. 
+        The context area refers to a section in the document flow, the content of which depends 
+        on the system's configuration. For instance, the context area `top-level-application` 
+        could be used to render the top-level application tiles.
       required: [elements]
       properties:
         elements:
@@ -118,33 +121,35 @@ components:
           items:
             $ref: "#/components/schemas/ElementSpec"
           description: |
-            The elements to be inserted into the context area. The elements are rendered in the order they are provided in the array.
+            The elements to be incorporated into the context area. 
+            These elements will be rendered in the sequence they appear in the array.
         microfrontends:
           type: object
           additionalProperties:
             $ref: "#/components/schemas/MicrofrontendSpec"
           description: |
-            The microfrontends referenced by any of the elements. Loading of microfrontend resources is triggered by the browser when the
-            element is rendered.
+            The microfrontends referenced by any of the elements. The browser triggers
+            the loading of microfrontend resources when the element is rendered.
 
     StaticConfig:
       type: object
       description: |
-        Specification of the static configuration of the application.
-        The static configuration is a compilation of all contexts/paths and their elements, 
-        usefull durring development, testing or for simpler applications.
+        Specification of the application's static configuration. 
+        This configuration is a compilation of all contexts/paths and their elements. 
+        It's particularly useful during development, testing, or for simpler applications. 
       required: [contexts, microfrontends]
       properties:
         contextAreas:
           description: |
-            List of context areas and their elements. The context areas are referenced by the name and path regex
-            at which they are rendered. In case of conflict, the first matching context area is used.
+            A list of context areas along with their elements. Each context area is identified by its 
+            name and the regex path where it's rendered. In the event of a conflict, the first matching 
+            context area is selected.
           type: array
           items:
             $ref: "#/components/schemas/StaticConfigArea"
         microfrontends:
           description: |
-            Dictionary of microfrontends. The microfrontends are referenced by their name.
+            A dictionary of microfrontends, each identified by its unique name.
           type: object
           additionalProperties:
             $ref: "#/components/schemas/MicrofrontendSpec"
@@ -152,7 +157,8 @@ components:
     StaticConfigArea:
       type: object
       description: |
-        Specification of the static configuration of the context area with specific name and path regex.
+        Specification of the static configuration for a context area, 
+        identified by a specific name and path regex.
       required: [name]
       properties:
         name:
@@ -162,54 +168,59 @@ components:
         path:
           type: string
           description: |
-            The regular expression to match the path relative to base href to apply this context area. 
-            If path is not provided then context area specification applies on any path. In case of the conflicts
+            The regular expression used to match the path relative to the base href 
+            where this context area should be applied. If no path is provided, the 
+            context area specification applies to all paths. In the event of conflicts, 
             the first matching context area is used.
         contextArea: 
           $ref: "#/components/schemas/ContextArea"
           description: |
-            Definition of context area elements. The context area's property `microfrontends` shall be empty, but if provided
-            then it overrides the definition in the `StaticConfig.microfrontends` properties.
+            Definition of context area elements. The `microfrontends` property of the context 
+            area should be empty. However, if provided, it will override the definitions in the 
+            `StaticConfig.microfrontends` properties.
     ElementSpec:
       type: object
       description: |
-        Specification of the element
-        Elements are the building blocks of the application. Each element shall be a web component that is
-        rendered by the browser. When rendered in context - using e.g. `polyfea-context` element, the element 
-        attribute ˙context` is set to the context area's name.
+        Specification of the element.
+        Elements serve as the building blocks of the application. 
+        Each element should be a web component rendered by the browser. 
+        When rendered in context, such as with the `polyfea-context` element, 
+        the `context` attribute is set to the name of the context area.
       required: [tagName]
       properties:
         microfrontend:
           type: string
           description: |
-            The name of the microfrontend that the element belongs to. The microfrontend is loaded by the browser
-            before the element is rendered. If not provided, then it is assumed that all resources needed by the
-            element are already loaded by the browser before the element is rendered.
+            The name of the microfrontend to which the element belongs. The browser 
+            loads the microfrontend before rendering the element. 
+            If this property is not provided, it's assumed that the browser has already 
+            loaded all necessary resources for the element prior to rendering.
         tagName:
           type: string
           description: |
-            The name of the element - its tag name to be put into document flow.
+            The name of the element, which corresponds to its tag name used in the document flow.
         attributes:
           type: object
           additionalProperties:
             type: string
           description: |
-            Attributes of the element to be set when the element is rendered.
+            Attributes to be assigned to the element during rendering.
         style:
           type: object
           additionalProperties:
             type: string
           description: |
-            The styles of the element. Intended primary as a fallback for specific 
-            cases, e.g. setting CSS variables.
+            The styles of the element. Primarily intended as a fallback for specific cases, 
+            such as setting CSS variables.
 
     MicrofrontendSpec:
       type: object
       description: |
-        Specification of the microfrontend
-        Microfrontend resources are loaded by browser on demand. Each microfrontend consist of a set
-        of resources to be loaded ahead of rendering or parallel to the rendering of microfrontend elements.
-        In addition, the microfrontend can depend on other microfrontends.
+        Specification of the microfrontend.
+        Microfrontend resources are loaded by the browser as needed. 
+        Each microfrontend comprises a set of resources that are loaded prior to, 
+        or in parallel with, the rendering of microfrontend elements. 
+        Additionally, a microfrontend can have dependencies on other microfrontends.
 
       properties:
         dependsOn:
@@ -217,54 +228,55 @@ components:
           items:
             type: string
           description: |
-            The microfrontend that this microfrontend is depending on. Specification of the dependendencies
-            is provided in the context  area information.
+            The microfrontends that this microfrontend depends on. 
+            The specification of these dependencies is provided in the context area information.
         module:
           type: string
           description:
-            Shorthand for the microfrontend script module resource. The module is loaded by the browser
-            before rendering of elements happens. In case the module has dependencies to other resources, they
-            may be loaded by the module itself, assuming their references are provided as a relative path to the
-            module.
+            A shorthand for the microfrontend script module resource. 
+            The browser loads this module before rendering the elements. 
+            If the module has dependencies on other resources, it may load them itself, 
+            provided their references are given as a relative path to the module.
         resources:
           type: array
           items:
-            type: MicrofrontendResource
+            $ref: "#/components/schemas/MicrofrontendResource"
           description: |
-            The resources to be loaded by the browser. Only resources that needs to be directly loaded in the 
-            document `head` element needs to be specified here, typical examples are fonts, and stylesheets that 
-            are required to be globally available.
+            The resources that the browser should load. Only resources that need to be directly 
+            loaded into the document's `head` element should be specified here. Typical examples 
+            include fonts and stylesheets that must be globally available.
 
     MicrofrontendResource:
       type: object
       description: |
-        The resource required by the microfrontend.
-        The resource is either a script, stylesheet, or any other `link` element. The resource is 
-        loaded by the browser when the microfrontend is requested to be loaded. The resource may be loaded
-        either synchronously or asynchronously.
+        The resource that the microfrontend requires. This resource could be a script, 
+        stylesheet, or any other `link` element. The browser loads this resource when the 
+        microfrontend is requested. The loading process can occur either synchronously or asynchronously.
       properties:
         kind:
           type: string
           enum: [script, stylesheet, link]
           description: |
-            The kind of the resource. The resource is either a script, stylesheet, or any other `link` element.
+            The type of the resource. This could be a script, stylesheet, or any other `link` element.
         href:
           type: string
           description: |
-            The URL of the resource. The URL is typically relative to the base URL of the application and typically
-            served as subpath of `<base_href>/polyfea/webcomponent/<microfrontend-name>/<resource-path...>`.
+            The URL of the resource. This URL is usually relative to the application's base URL 
+            and is typically served as a subpath 
+            of `<base_href>/polyfea/webcomponent/<microfrontend-name>/<resource-path...>`.
         attributes:
           type: object
           additionalProperties:
             type: string
           description: |
-            The attributes to be put on the `link` or `script` element in addition to `rel` and `href` attributes.
+            Additional attributes to be assigned to the `link` or `script` element, 
+            alongside the `rel` and `href` attributes.
         waitOnLoad:
           type: boolean
           description: |
-            If `true` the browser will wait for the resource to be loaded before finishing loading of the microfrontend.
-            If `false` the browser will load the resource asynchronously and continue with loading and rendering in 
-            between.
+            If set to `true`, the browser will complete loading the resource before it finishes 
+            loading the microfrontend. If set to `false`, the browser will load the resource 
+            asynchronously, allowing for continued loading and rendering in the meantime.
   examples:
     context-area-toplevel-tiles:
       summary: |
