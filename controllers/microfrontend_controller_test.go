@@ -47,7 +47,7 @@ var _ = Describe("Microfrontend controller", func() {
 			ctx := context.Background()
 
 			portNumber := int32(8080)
-			preload := true
+			proxy := true
 
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
@@ -65,10 +65,13 @@ var _ = Describe("Microfrontend controller", func() {
 							Number: &portNumber,
 						},
 					},
-					Proxy:         &preload,
+					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
-					StaticPaths:   []string{"static"},
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
 					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
 			}
@@ -104,7 +107,7 @@ var _ = Describe("Microfrontend controller", func() {
 			By("By creating a new MicroFrontend without service")
 			ctx := context.Background()
 
-			preload := true
+			proxy := true
 
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
@@ -116,10 +119,13 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Proxy:         &preload,
+					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
-					StaticPaths:   []string{"static"},
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
 					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
 			}
@@ -128,7 +134,7 @@ var _ = Describe("Microfrontend controller", func() {
 			By("By creating a new MicroFrontend without module path")
 			ctx = context.Background()
 
-			preload = true
+			proxy = true
 			portNumber := int32(8080)
 
 			microFrontend = &polyfeav1alpha1.MicroFrontend{
@@ -147,9 +153,12 @@ var _ = Describe("Microfrontend controller", func() {
 							Number: &portNumber,
 						},
 					},
-					Proxy:         &preload,
+					Proxy:         &proxy,
 					CacheStrategy: "none",
-					StaticPaths:   []string{"static"},
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
 					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
 			}
@@ -158,7 +167,7 @@ var _ = Describe("Microfrontend controller", func() {
 			By("By creating a new MicroFrontend without frontend class")
 			ctx = context.Background()
 
-			preload = true
+			proxy = true
 			portNumber = int32(8080)
 
 			microFrontend = &polyfeav1alpha1.MicroFrontend{
@@ -177,10 +186,13 @@ var _ = Describe("Microfrontend controller", func() {
 							Number: &portNumber,
 						},
 					},
-					Proxy:         &preload,
+					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
-					StaticPaths:   []string{"static"},
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
 				},
 			}
 			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
@@ -225,8 +237,7 @@ var _ = Describe("Microfrontend controller", func() {
 			Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
 			Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 			Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
-			Expect(createdMicroFrontend.Spec.StaticPaths).Should(BeNil())
-			Expect(createdMicroFrontend.Spec.PreloadPaths).Should(BeNil())
+			Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
 
 			Expect(k8sClient.Delete(ctx, createdMicroFrontend)).Should(Succeed())
@@ -241,7 +252,7 @@ var _ = Describe("Microfrontend controller", func() {
 			ctx := context.Background()
 
 			portNumber := int32(8080)
-			preload := true
+			proxy := true
 
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
@@ -259,10 +270,13 @@ var _ = Describe("Microfrontend controller", func() {
 							Number: &portNumber,
 						},
 					},
-					Proxy:         &preload,
+					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
-					StaticPaths:   []string{"static"},
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
 					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
 			}

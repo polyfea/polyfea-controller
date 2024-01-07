@@ -47,11 +47,7 @@ type MicroFrontendSpec struct {
 
 	// Relative path to the static files within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StaticPaths []string `json:"staticPaths,omitempty"`
-
-	// Regular expresions for paths for which the module should be preloaded. If not specified, the module will not be preloaded.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	PreloadPaths []string `json:"preloadPaths,omitempty"`
+	StaticResources []StaticResources `json:"staticPaths,omitempty"`
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -60,6 +56,23 @@ type MicroFrontendSpec struct {
 	// List of dependencies that should be loaded before this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DependsOn []string `json:"dependsOn,omitempty"`
+}
+
+// StaticResources defines the static resources that should be loaded before this micro frontend.
+type StaticResources struct {
+	// Kind defines the kind of the static resource can be script, stylesheet, or any other `link` element.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Kind string `json:"kind"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Path string `json:"path"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Attributes []Attribute `json:"attributes,omitempty"`
+
+	// WaitOnLoad defines whether the micro frontend should wait for the static resource to load before loading itself.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WaitOnLoad bool `json:"waitOnLoad,omitempty"`
 }
 
 // ServiceReference references a Kubernetes Service as a Backend.

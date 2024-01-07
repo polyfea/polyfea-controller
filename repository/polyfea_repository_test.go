@@ -76,8 +76,10 @@ func createTestMicrofrontend() *v1alpha1.MicroFrontend {
 			CacheStrategy: "none",
 			CacheControl:  &[]string{"no-cache"}[0],
 			ModulePath:    &[]string{"test"}[0],
-			StaticPaths:   []string{"test"},
-			PreloadPaths:  []string{"test"},
+			StaticResources: []v1alpha1.StaticResources{{
+				Kind: "test",
+				Path: "test",
+			}},
 			FrontendClass: &[]string{"test"}[0],
 			DependsOn:     []string{"test"},
 		},
