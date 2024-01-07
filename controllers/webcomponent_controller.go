@@ -28,13 +28,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/repository"
 )
 
 // WebComponentReconciler reconciles a WebComponent object
 type WebComponentReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	Recorder record.EventRecorder
+	Scheme     *runtime.Scheme
+	Recorder   record.EventRecorder
+	Repository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents,verbs=get;list;watch;create;update;patch;delete
@@ -123,11 +125,14 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
+	r.Repository.StoreItem(webComponent)
+
 	return ctrl.Result{}, nil
 }
 
 func (r *WebComponentReconciler) finalizeOperationsForWebComponent(webComponent *polyfeav1alpha1.WebComponent) error {
 	log := log.FromContext(context.Background())
+	r.Repository.DeleteItem(webComponent)
 	log.Info("Removing finalizer from WebComponent.", "WebComponent", webComponent)
 	return nil
 }

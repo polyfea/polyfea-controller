@@ -16,6 +16,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY web-server/ web-server/
+COPY repository/ repository/
 
 # Build
 # the GOARCH has not a default value to allow the binary be built according to the host where the command

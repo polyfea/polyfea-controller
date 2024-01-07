@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/repository"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -44,6 +45,9 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
+var microFrontedClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
+var microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
+var webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -81,24 +85,31 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+	microFrontedClassRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	microFrontendRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontend]()
+	webComponentRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.WebComponent]()
+
 	err = (&MicroFrontendReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontend-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontend-controller"),
+		Repository: microFrontendRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&WebComponentReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("webcompoent-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("webcompoent-controller"),
+		Repository: webComponentRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&MicroFrontendClassReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		Repository: microFrontedClassRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 

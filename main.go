@@ -37,6 +37,7 @@ import (
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/controllers"
+	"github.com/polyfea/polyfea-controller/repository"
 	webserver "github.com/polyfea/polyfea-controller/web-server"
 	"github.com/polyfea/polyfea-controller/web-server/configuration"
 	//+kubebuilder:scaffold:imports
@@ -96,26 +97,33 @@ func main() {
 		os.Exit(1)
 	}
 
+	microFrontendRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontend]()
+	microFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	webComponentRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.WebComponent]()
+
 	if err = (&controllers.MicroFrontendReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontend-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontend-controller"),
+		Repository: microFrontendRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontend")
 		os.Exit(1)
 	}
 	if err = (&controllers.WebComponentReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("webcompoent-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("webcompoent-controller"),
+		Repository: webComponentRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WebComponent")
 		os.Exit(1)
 	}
 	if err = (&controllers.MicroFrontendClassReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
+		Repository: microFrontendClassRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontendClass")
 		os.Exit(1)
