@@ -7,10 +7,7 @@ import (
 )
 
 func SetupRouter() *mux.Router {
-	polyfeaAPIService := polyfea.NewPolyfeaAPIService()
-	polyfeaAPIController := polyfea.NewPolyfeaAPIController(polyfeaAPIService)
-
-	router := polyfea.NewRouter(polyfeaAPIController)
+	router := polyfea.NewRouter()
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 
