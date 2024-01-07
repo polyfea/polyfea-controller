@@ -19,7 +19,7 @@ type MicrofrontendResource struct {
 	Href string `json:"href,omitempty"`
 
 	// Additional attributes to be assigned to the `link` or `script` element,  alongside the `rel` and `href` attributes.
-	Attributes map[string]string `json:"attributes,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
 	// If set to `true`, the browser will complete loading the resource before it finishes  loading the microfrontend. If set to `false`, the browser will load the resource  asynchronously, allowing for continued loading and rendering in the meantime.
 	WaitOnLoad bool `json:"waitOnLoad,omitempty"`

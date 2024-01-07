@@ -18,8 +18,8 @@ import (
 // The PolyfeaAPIRouter implementation should parse necessary information from the http request,
 // pass the data to a PolyfeaAPIServicer to perform the required actions, then write the service results to the http response.
 type PolyfeaAPIRouter interface {
-	GetContextArea(http.ResponseWriter, *http.Request)
-	GetStaticConfig(http.ResponseWriter, *http.Request)
+	GetContextArea(http.ResponseWriter, *http.Request, http.Header)
+	GetStaticConfig(http.ResponseWriter, *http.Request, http.Header)
 }
 
 // PolyfeaAPIServicer defines the api actions for the PolyfeaAPI service
@@ -27,6 +27,6 @@ type PolyfeaAPIRouter interface {
 // while the service implementation can be ignored with the .openapi-generator-ignore file
 // and updated with the logic required for the API.
 type PolyfeaAPIServicer interface {
-	GetContextArea(context.Context, string, string, float32) (ImplResponse, error)
-	GetStaticConfig(context.Context) (ImplResponse, error)
+	GetContextArea(context.Context, string, string, int32, http.Header) (ImplResponse, error)
+	GetStaticConfig(context.Context, http.Header) (ImplResponse, error)
 }

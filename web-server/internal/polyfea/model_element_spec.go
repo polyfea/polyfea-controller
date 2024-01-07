@@ -19,7 +19,7 @@ type ElementSpec struct {
 	TagName string `json:"tagName"`
 
 	// Attributes to be assigned to the element during rendering.
-	Attributes map[string]string `json:"attributes,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 
 	// The styles of the element. Primarily intended as a fallback for specific cases,  such as setting CSS variables.
 	Style map[string]string `json:"style,omitempty"`
