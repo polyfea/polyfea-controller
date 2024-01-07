@@ -48,7 +48,7 @@ type WebComponentSpec struct {
 
 	// Styles defines the styles that should be applied to the webcomponent.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Style *string `json:"style,omitempty"`
+	Style []Style `json:"style,omitempty"`
 }
 
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
@@ -62,6 +62,16 @@ type Attribute struct {
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Value runtime.RawExtension `json:"value"`
+}
+
+// Style defines the styles that should be applied to the webcomponent.
+type Style struct {
+	// The name of the style.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// The value of the style.
+	Value string `json:"value"`
 }
 
 // DisplayRules defines the conditions under which the web component should be loaded.

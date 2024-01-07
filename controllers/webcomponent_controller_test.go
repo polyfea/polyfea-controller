@@ -75,7 +75,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Succeed())
@@ -137,7 +142,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
@@ -172,7 +182,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
@@ -249,7 +264,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Succeed())

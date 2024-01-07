@@ -154,7 +154,21 @@ spec:
               style:
                 description: Styles defines the styles that should be applied to the
                   webcomponent.
-                type: string
+                items:
+                  description: Style defines the styles that should be applied to
+                    the webcomponent.
+                  properties:
+                    name:
+                      description: The name of the style.
+                      type: string
+                    value:
+                      description: The value of the style.
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
             required:
             - element
             - microFrontend
