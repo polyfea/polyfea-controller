@@ -263,8 +263,8 @@ var _ = Describe("WebComponent controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdWebComponent.Spec.Element).Should(Equal(&[]string{"my-menu-item"}[0]))
 
-			Eventually(func() []polyfeav1alpha1.WebComponent {
-				result, _ := polyfeaRepository.GetWebComponents(func(mf polyfeav1alpha1.WebComponent) bool {
+			Eventually(func() []*polyfeav1alpha1.WebComponent {
+				result, _ := webComponentRepository.GetItems(func(mf *polyfeav1alpha1.WebComponent) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == WebComponentName
 				})
@@ -278,8 +278,8 @@ var _ = Describe("WebComponent controller", func() {
 				return errors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 
-			Eventually(func() []polyfeav1alpha1.WebComponent {
-				result, _ := polyfeaRepository.GetWebComponents(func(mf polyfeav1alpha1.WebComponent) bool {
+			Eventually(func() []*polyfeav1alpha1.WebComponent {
+				result, _ := webComponentRepository.GetItems(func(mf *polyfeav1alpha1.WebComponent) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == WebComponentName
 				})

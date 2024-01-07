@@ -1,97 +1,44 @@
 package repository
 
-import (
-	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-)
+// PolyfeaRepositoryFilterFunc is a function that takes an item of type ItemType and returns a boolean.
+type PolyfeaRepositoryFilterFunc[ItemType interface{}] func(mf ItemType) bool
 
-type MicrofrontendFilterFunc func(mf v1alpha1.MicroFrontend) bool
-type MicrofrontendClassFilterFunc func(mf v1alpha1.MicroFrontendClass) bool
-type WebComponentFilterFunc func(mf v1alpha1.WebComponent) bool
+// PolyfeaRepository is a generic interface for storing and retrieving items of type ItemType.
+// The type ItemType must implement the GetName() method.
+type PolyfeaRepository[ItemType interface{ GetName() string }] interface {
+	StoreItem(item ItemType) error
 
-type PolyfeaRepository interface {
-	StoreMicrofrontend(microfrontend v1alpha1.MicroFrontend) error
-	StoreMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error
-	StoreWebComponent(webComponent v1alpha1.WebComponent) error
+	GetItems(filter PolyfeaRepositoryFilterFunc[ItemType]) ([]ItemType, error)
 
-	GetMicrofrontends(filter MicrofrontendFilterFunc) ([]v1alpha1.MicroFrontend, error)
-	GetMicrofrontendClasses(filter MicrofrontendClassFilterFunc) ([]v1alpha1.MicroFrontendClass, error)
-	GetWebComponents(filter WebComponentFilterFunc) ([]v1alpha1.WebComponent, error)
-
-	DeleteMicrofrontend(microfrontend v1alpha1.MicroFrontend) error
-	DeleteMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error
-	DeleteWebComponent(webComponent v1alpha1.WebComponent) error
+	DeleteItem(item ItemType) error
 }
 
-type InMemoryPolyfeaRepository struct {
-	microfrontedns       map[string]v1alpha1.MicroFrontend
-	microfrontendClasses map[string]v1alpha1.MicroFrontendClass
-	webComponents        map[string]v1alpha1.WebComponent
+type InMemoryPolyfeaRepository[ItemType interface{ GetName() string }] struct {
+	items map[string]ItemType
 }
 
-func NewInMemoryPolyfeaRepository() *InMemoryPolyfeaRepository {
-	return &InMemoryPolyfeaRepository{
-		microfrontedns:       map[string]v1alpha1.MicroFrontend{},
-		microfrontendClasses: map[string]v1alpha1.MicroFrontendClass{},
-		webComponents:        map[string]v1alpha1.WebComponent{},
+func NewInMemoryPolyfeaRepository[ItemType interface{ GetName() string }]() *InMemoryPolyfeaRepository[ItemType] {
+	return &InMemoryPolyfeaRepository[ItemType]{
+		items: make(map[string]ItemType),
 	}
 }
 
-func (r *InMemoryPolyfeaRepository) StoreMicrofrontend(microfrontend v1alpha1.MicroFrontend) error {
-	r.microfrontedns[microfrontend.Name] = microfrontend
+func (r *InMemoryPolyfeaRepository[ItemType]) StoreItem(item ItemType) error {
+	r.items[item.GetName()] = item
 	return nil
 }
 
-func (r *InMemoryPolyfeaRepository) StoreMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error {
-	r.microfrontendClasses[microfrontendClass.Name] = microfrontendClass
-	return nil
-}
-
-func (r *InMemoryPolyfeaRepository) StoreWebComponent(webComponent v1alpha1.WebComponent) error {
-	r.webComponents[webComponent.Name] = webComponent
-	return nil
-}
-
-func (r *InMemoryPolyfeaRepository) GetMicrofrontends(filter MicrofrontendFilterFunc) ([]v1alpha1.MicroFrontend, error) {
-	var result []v1alpha1.MicroFrontend
-	for _, mf := range r.microfrontedns {
-		if filter(mf) {
-			result = append(result, mf)
+func (r *InMemoryPolyfeaRepository[ItemType]) GetItems(filter PolyfeaRepositoryFilterFunc[ItemType]) ([]ItemType, error) {
+	var result []ItemType
+	for _, item := range r.items {
+		if filter(item) {
+			result = append(result, item)
 		}
 	}
 	return result, nil
 }
 
-func (r *InMemoryPolyfeaRepository) GetMicrofrontendClasses(filter MicrofrontendClassFilterFunc) ([]v1alpha1.MicroFrontendClass, error) {
-	var result []v1alpha1.MicroFrontendClass
-	for _, mf := range r.microfrontendClasses {
-		if filter(mf) {
-			result = append(result, mf)
-		}
-	}
-	return result, nil
-}
-
-func (r *InMemoryPolyfeaRepository) GetWebComponents(filter WebComponentFilterFunc) ([]v1alpha1.WebComponent, error) {
-	var result []v1alpha1.WebComponent
-	for _, mf := range r.webComponents {
-		if filter(mf) {
-			result = append(result, mf)
-		}
-	}
-	return result, nil
-}
-
-func (r *InMemoryPolyfeaRepository) DeleteMicrofrontend(microfrontend v1alpha1.MicroFrontend) error {
-	delete(r.microfrontedns, microfrontend.Name)
-	return nil
-}
-
-func (r *InMemoryPolyfeaRepository) DeleteMicrofrontendClass(microfrontendClass v1alpha1.MicroFrontendClass) error {
-	delete(r.microfrontendClasses, microfrontendClass.Name)
-	return nil
-}
-
-func (r *InMemoryPolyfeaRepository) DeleteWebComponent(webComponent v1alpha1.WebComponent) error {
-	delete(r.webComponents, webComponent.Name)
+func (r *InMemoryPolyfeaRepository[ItemType]) DeleteItem(item ItemType) error {
+	delete(r.items, item.GetName())
 	return nil
 }

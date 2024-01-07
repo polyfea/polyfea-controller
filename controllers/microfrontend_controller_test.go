@@ -277,8 +277,8 @@ var _ = Describe("Microfrontend controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
 
-			Eventually(func() []polyfeav1alpha1.MicroFrontend {
-				result, _ := polyfeaRepository.GetMicrofrontends(func(mf polyfeav1alpha1.MicroFrontend) bool {
+			Eventually(func() []*polyfeav1alpha1.MicroFrontend {
+				result, _ := microFrontendRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontend) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == MicroFrontendName
 				})
@@ -292,8 +292,8 @@ var _ = Describe("Microfrontend controller", func() {
 				return errors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
 
-			Eventually(func() []polyfeav1alpha1.MicroFrontend {
-				result, _ := polyfeaRepository.GetMicrofrontends(func(mf polyfeav1alpha1.MicroFrontend) bool {
+			Eventually(func() []*polyfeav1alpha1.MicroFrontend {
+				result, _ := microFrontendRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontend) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == MicroFrontendName
 				})
