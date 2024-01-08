@@ -201,6 +201,8 @@ components:
             The name of the element, which corresponds to its tag name used in the document flow.
         attributes:
           type: object
+          additionalProperties:
+            type: string
           description: |
             Attributes to be assigned to the element during rendering.
         style:
@@ -264,6 +266,8 @@ components:
             of `<base_href>/polyfea/webcomponent/<microfrontend-name>/<resource-path...>`.
         attributes:
           type: object
+          additionalProperties:
+            type: string
           description: |
             Additional attributes to be assigned to the `link` or `script` element, 
             alongside the `rel` and `href` attributes.
