@@ -154,11 +154,11 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 	return false
 }
 
-func convertAttributes(attributes []v1alpha1.Attribute) map[string]interface{} {
-	result := map[string]interface{}{}
+func convertAttributes(attributes []v1alpha1.Attribute) map[string]string {
+	result := map[string]string{}
 
 	for _, attribute := range attributes {
-		result[attribute.Name] = attribute.Value
+		result[attribute.Name] = string(attribute.Value.Raw)
 	}
 
 	return result

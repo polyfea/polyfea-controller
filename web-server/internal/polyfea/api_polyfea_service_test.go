@@ -66,7 +66,7 @@ func createTestContextArea() ContextArea {
 			{
 				Microfrontend: "test-microfrontend",
 				TagName:       "test-tag-name",
-				Attributes: map[string]interface{}{
+				Attributes: map[string]string{
 					"test-attribute-name": "test-attribute-value",
 				},
 				Style: map[string]string{
@@ -84,7 +84,7 @@ func createTestContextArea() ContextArea {
 					{
 						Kind: "test-type",
 						Href: "test-uri",
-						Attributes: map[string]interface{}{
+						Attributes: map[string]string{
 							"test-attribute-name": "test-attribute-value",
 						},
 						WaitOnLoad: true,
