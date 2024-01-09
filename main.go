@@ -139,12 +139,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-		os.Exit(1)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -175,11 +169,12 @@ func startHTTPServer(
 	microFrontendClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass],
 	microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend],
 	webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]) {
+
 	defer wg.Done()
 	defer cancel()
 
 	server := &http.Server{
-		Addr:    ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8080"),
+		Addr:    ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8082"),
 		Handler: webserver.SetupRouter(microFrontendClassRepository, microFrontendRepository, webComponentRepository),
 	}
 

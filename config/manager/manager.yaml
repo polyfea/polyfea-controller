@@ -71,6 +71,10 @@ spec:
         args:
         - --leader-elect
         image: controller:latest
+        ports:
+        - name: http
+          containerPort: 8082 # change based on POLYFEA_WEB_SERVER_PORT configuration
+          protocol: TCP
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
