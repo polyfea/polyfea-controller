@@ -9,6 +9,7 @@ import (
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/api"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 var apiPolyfeaTestSuite = IntegrationTestSuite{
@@ -39,10 +40,10 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 	testRoute := "/polyfea/context-area/test-name?path=test.*&take=1"
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("other-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 		})
 
@@ -68,7 +69,7 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	var actualContextArea ContextArea
+	var actualContextArea generated.ContextArea
 	err = json.NewDecoder(response.Body).Decode(&actualContextArea)
 	if err != nil {
 		t.Errorf("Error decoding response body: %v", err)
@@ -120,11 +121,11 @@ func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 	testRoute := "/polyfea/context-area/test-name?path=test.*"
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("other-microfrontend"),
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 			"test-microfrontend":  createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
@@ -151,7 +152,7 @@ func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	var actualContextArea ContextArea
+	var actualContextArea generated.ContextArea
 	err = json.NewDecoder(response.Body).Decode(&actualContextArea)
 	if err != nil {
 		t.Errorf("Error decoding response body: %v", err)
@@ -253,9 +254,9 @@ func polyfeaApiSetupRouter() http.Handler {
 		testMicroFrontendRepository,
 		testMicroFrontedClassRepository)
 
-	polyfeaAPIController := NewPolyfeaAPIController(polyfeaAPIService)
+	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
 
-	router := NewRouter(polyfeaAPIController)
+	router := generated.NewRouter(polyfeaAPIController)
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 

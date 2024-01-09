@@ -12,6 +12,7 @@ import (
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 type PolyfeaApiService struct {
@@ -32,10 +33,10 @@ func NewPolyfeaAPIService(
 	}
 }
 
-func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, path string, take int32, headers http.Header) (ImplResponse, error) {
-	result := ContextArea{
-		Elements:       []ElementSpec{},
-		Microfrontends: map[string]MicrofrontendSpec{},
+func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, path string, take int32, headers http.Header) (generated.ImplResponse, error) {
+	result := generated.ContextArea{
+		Elements:       []generated.ElementSpec{},
+		Microfrontends: map[string]generated.MicrofrontendSpec{},
 	}
 
 	// Get base path from context or use default
@@ -61,15 +62,15 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
-		return ImplResponse{Code: 500}, err
+		return generated.ImplResponse{Code: 500}, err
 	}
 
 	if len(frontendClasses) == 0 {
-		return Response(404, "No frontend class found for base path "+basePath), nil
+		return generated.Response(404, "No frontend class found for base path "+basePath), nil
 	}
 
 	if len(frontendClasses) > 1 {
-		return Response(400, "Multiple frontend classes found for base path "+basePath), nil
+		return generated.Response(400, "Multiple frontend classes found for base path "+basePath), nil
 	}
 
 	frontendClass := frontendClasses[0]
@@ -95,11 +96,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	if err != nil {
-		return ImplResponse{Code: 500}, err
+		return generated.ImplResponse{Code: 500}, err
 	}
 
 	if len(microFrontendsForClass) == 0 {
-		return Response(404, "No microfrontends found for frontend class "+frontendClass.Name), nil
+		return generated.Response(404, "No microfrontends found for frontend class "+frontendClass.Name), nil
 	}
 
 	// Get webcomponents for given query and frontend class
@@ -108,11 +109,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
-		return ImplResponse{Code: 500}, err
+		return generated.ImplResponse{Code: 500}, err
 	}
 
 	if len(webComponents) == 0 {
-		return ImplResponse{Code: 404, Body: "No webcomponents found based on query. Name: " + name + ", Path: " + path}, nil
+		return generated.ImplResponse{Code: 404, Body: "No webcomponents found based on query. Name: " + name + ", Path: " + path}, nil
 	}
 
 	sort.Slice(webComponents, func(i, j int) bool {
@@ -128,7 +129,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	microFrontendsToLoad := []string{}
 	for _, webComponent := range webComponents {
 		microFrontendsToLoad = append(microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
-		result.Elements = append(result.Elements, ElementSpec{
+		result.Elements = append(result.Elements, generated.ElementSpec{
 			Microfrontend: *webComponent.Spec.MicroFrontend,
 			TagName:       *webComponent.Spec.Element,
 			Attributes:    convertAttributes(webComponent.Spec.Attributes),
@@ -140,27 +141,27 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
 	if err != nil {
-		return ImplResponse{Code: 500}, err
+		return generated.ImplResponse{Code: 500}, err
 	}
 
 	if len(allMicroFrontends) == 0 {
-		return ImplResponse{Code: 404, Body: "None of referenced microfrontends were found"}, nil
+		return generated.ImplResponse{Code: 404, Body: "None of referenced microfrontends were found"}, nil
 	}
 
 	// Convert microfrontends to response
 	for _, microFrontend := range allMicroFrontends {
-		result.Microfrontends[microFrontend.Name] = MicrofrontendSpec{
+		result.Microfrontends[microFrontend.Name] = generated.MicrofrontendSpec{
 			DependsOn: microFrontend.Spec.DependsOn,
 			Module:    buildModulePath(microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
 			Resources: convertMicrofrontendResources(microFrontend.Name, microFrontend.Spec.StaticResources),
 		}
 	}
 
-	return Response(200, result), nil
+	return generated.Response(200, result), nil
 }
 
-func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.Header) (ImplResponse, error) {
-	return ImplResponse{Code: 501}, nil
+func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.Header) (generated.ImplResponse, error) {
+	return generated.ImplResponse{Code: 501}, nil
 }
 
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
@@ -247,11 +248,11 @@ func convertStyles(styles []v1alpha1.Style) map[string]string {
 	return result
 }
 
-func convertMicrofrontendResources(microFrontendName string, resources []v1alpha1.StaticResources) []MicrofrontendResource {
-	result := []MicrofrontendResource{}
+func convertMicrofrontendResources(microFrontendName string, resources []v1alpha1.StaticResources) []generated.MicrofrontendResource {
+	result := []generated.MicrofrontendResource{}
 
 	for _, resource := range resources {
-		result = append(result, MicrofrontendResource{
+		result = append(result, generated.MicrofrontendResource{
 			Kind:       resource.Kind,
 			Href:       buildModulePath(microFrontendName, resource.Path, *resource.Proxy),
 			Attributes: convertAttributes(resource.Attributes),

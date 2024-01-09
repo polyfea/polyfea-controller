@@ -9,6 +9,7 @@ import (
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -45,10 +46,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -60,7 +61,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -102,10 +103,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -117,7 +118,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -159,10 +160,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -174,7 +175,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -232,10 +233,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -247,7 +248,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -295,10 +296,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -314,7 +315,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -682,10 +683,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/other/")
@@ -696,7 +697,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -759,10 +760,10 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -773,7 +774,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -836,10 +837,10 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("other-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
@@ -850,7 +851,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -916,11 +917,11 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 		testMicroFrontedClassRepository)
 
 	expectedContextArea := createTestContextArea(
-		[]ElementSpec{
+		[]generated.ElementSpec{
 			createTestElementSpec("test-microfrontend"),
 			createTestElementSpec("other-microfrontend"),
 		},
-		map[string]MicrofrontendSpec{
+		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend":          createTestMicroFrontendSpec("test-microfrontend", []string{"test-dependency"}, true),
 			"other-microfrontend":         createTestMicroFrontendSpec("other-microfrontend", []string{"test-dependency"}, true),
 			"test-dependency":             createTestMicroFrontendSpec("test-dependency", []string{"yet-another-test-dependency"}, true),
@@ -934,7 +935,7 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -1080,8 +1081,8 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 	}
 }
 
-func createTestContextArea(expectedElements []ElementSpec, expectedMicroFrontends map[string]MicrofrontendSpec) ContextArea {
-	return ContextArea{
+func createTestContextArea(expectedElements []generated.ElementSpec, expectedMicroFrontends map[string]generated.MicrofrontendSpec) generated.ContextArea {
+	return generated.ContextArea{
 		Elements:       expectedElements,
 		Microfrontends: expectedMicroFrontends,
 	}
@@ -1154,8 +1155,8 @@ func createTestMicroFrontendClass(frontendClassName string, baseUri string) *v1a
 	}
 }
 
-func createTestElementSpec(microFrontendName string) ElementSpec {
-	return ElementSpec{
+func createTestElementSpec(microFrontendName string) generated.ElementSpec {
+	return generated.ElementSpec{
 		Microfrontend: microFrontendName,
 		TagName:       "test-tag-name",
 		Attributes: map[string]string{
@@ -1167,7 +1168,7 @@ func createTestElementSpec(microFrontendName string) ElementSpec {
 	}
 }
 
-func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string, withProxy bool) MicrofrontendSpec {
+func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string, withProxy bool) generated.MicrofrontendSpec {
 	var href, module string
 	if withProxy {
 		href = "./polyfea/proxy/" + microfrontendName + "/test-uri"
@@ -1177,10 +1178,10 @@ func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string, w
 		module = "test-module"
 	}
 
-	return MicrofrontendSpec{
+	return generated.MicrofrontendSpec{
 		DependsOn: dependsOn,
 		Module:    module,
-		Resources: []MicrofrontendResource{
+		Resources: []generated.MicrofrontendResource{
 			{
 				Kind: "test-type",
 				Href: href,

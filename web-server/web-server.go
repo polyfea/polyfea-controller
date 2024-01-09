@@ -7,6 +7,7 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/api"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 func SetupRouter(
@@ -19,9 +20,9 @@ func SetupRouter(
 		microFrontendRepoistory,
 		microFrontendClassRepository)
 
-	polyfeaAPIController := polyfea.NewPolyfeaAPIController(polyfeaAPIService)
+	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
 
-	router := polyfea.NewRouter(polyfeaAPIController)
+	router := generated.NewRouter(polyfeaAPIController)
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 

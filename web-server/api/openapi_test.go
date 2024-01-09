@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 func TestMain(t *testing.M) {
 	// Setup
-	r := polyfea.NewRouter()
+	r := generated.NewRouter()
 	r.HandleFunc("/openapi", HandleOpenApi)
 
 	// Test server
