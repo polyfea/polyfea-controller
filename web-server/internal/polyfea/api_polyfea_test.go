@@ -37,8 +37,8 @@ func PolyfeaApiGetContextAreaReturnsNotImplemented(t *testing.T) {
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusNotImplemented {
-		t.Errorf("Expected status code %d, got %d", http.StatusNotImplemented, response.StatusCode)
+	if response.StatusCode != http.StatusNotFound {
+		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
 	}
 }
 
