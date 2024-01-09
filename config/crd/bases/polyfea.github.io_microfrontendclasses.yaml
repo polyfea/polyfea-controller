@@ -63,6 +63,23 @@ spec:
                   - value
                   type: object
                 type: array
+              extraMetaTags:
+                description: ExtraMetaTags that will be used for the frontend class,
+                  none if not set.
+                items:
+                  description: MetaTag defines the meta tag of the frontend class
+                  properties:
+                    content:
+                      description: Content of the meta tag
+                      type: string
+                    name:
+                      description: Name of the meta tag
+                      type: string
+                  required:
+                  - content
+                  - name
+                  type: object
+                type: array
               rolesHeader:
                 default: x-auth-request-roles
                 description: UserRolesHeader is the name of the header that contains

@@ -50,7 +50,7 @@ paths:
             the order they are provided. If not specified, all provided elements will be used.
           required: false
           schema:
-            type: number
+            type: integer
       responses:
         "200":
           description: |

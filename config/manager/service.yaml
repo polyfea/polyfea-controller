@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: manager
+  namespace: system
+spec:  
+  selector:
+    control-plane: controller-manager
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: http

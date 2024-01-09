@@ -31,6 +31,10 @@ type MicroFrontendClassSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CspHeader string `json:"cspHeader,omitempty"`
 
+	// ExtraMetaTags that will be used for the frontend class, none if not set.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ExtraMetaTags []MetaTag `json:"extraMetaTags,omitempty"`
+
 	// ExtraHeaders that will be used for the frontend class, none if not set.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExtraHeaders []Header `json:"extraHeaders,omitempty"`
@@ -44,6 +48,17 @@ type MicroFrontendClassSpec struct {
 	// +kubebuilder:default=x-auth-request-user
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserHeader string `json:"userHeader,omitempty"`
+}
+
+// MetaTag defines the meta tag of the frontend class
+type MetaTag struct {
+	// Name of the meta tag
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// Content of the meta tag
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Content string `json:"content"`
 }
 
 // Header defines the header of the frontend class

@@ -59,10 +59,9 @@ spec:
                 type: array
               displayRules:
                 description: DisplayRules defines the conditions under which the web
-                  component should be loaded. If not specified, the web component
-                  will always be loaded. There is an or opperation between the elements
-                  of the DisplayRules list. If any of the DisplayRules is matched,
-                  the web component will be loaded.
+                  component should be loaded. There is an or opperation between the
+                  elements of the DisplayRules list. If any of the DisplayRules is
+                  matched, the web component will be loaded.
                 items:
                   description: DisplayRules defines the conditions under which the
                     web component should be loaded. There is an and opperation between
@@ -76,15 +75,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
@@ -98,15 +97,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
@@ -120,15 +119,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
@@ -154,8 +153,23 @@ spec:
               style:
                 description: Styles defines the styles that should be applied to the
                   webcomponent.
-                type: string
+                items:
+                  description: Style defines the styles that should be applied to
+                    the webcomponent.
+                  properties:
+                    name:
+                      description: The name of the style.
+                      type: string
+                    value:
+                      description: The value of the style.
+                      type: string
+                  required:
+                  - name
+                  - value
+                  type: object
+                type: array
             required:
+            - displayRules
             - element
             - microFrontend
             type: object

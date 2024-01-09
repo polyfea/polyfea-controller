@@ -23,8 +23,9 @@ import (
 // MicroFrontendSpec defines the desired state of MicroFrontend
 type MicroFrontendSpec struct {
 	// Reference to a service from which the modules or css would be served.
+	// Fully qualified name of the service should be specified in the format <schema>://<service-name>.<namespace>.<cluster>.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Service *ServiceReference `json:"service"`
+	Service *string `json:"service"`
 
 	// This specifies whether the loading of web components should be proxied by the controller. This is useful if the web component is served from within the cluster and cannot be accessed from outside the cluster network. The module will be served from the URL base_controller_url/web-components/web_component_name.jsm. This is the recommended approach for the standard assumed use-case.
 	// +kubebuilder:default=true
@@ -47,11 +48,7 @@ type MicroFrontendSpec struct {
 
 	// Relative path to the static files within the service.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StaticPaths []string `json:"staticPaths,omitempty"`
-
-	// Regular expresions for paths for which the module should be preloaded. If not specified, the module will not be preloaded.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	PreloadPaths []string `json:"preloadPaths,omitempty"`
+	StaticResources []StaticResources `json:"staticPaths,omitempty"`
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -62,14 +59,21 @@ type MicroFrontendSpec struct {
 	DependsOn []string `json:"dependsOn,omitempty"`
 }
 
-// ServiceReference references a Kubernetes Service as a Backend.
-type ServiceReference struct {
-	// Name is the name of the service being referenced.
+// StaticResources defines the static resources that should be loaded before this micro frontend.
+type StaticResources struct {
+	// Kind defines the kind of the static resource can be script, stylesheet, or any other `link` element.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Name string `json:"name,omitempty"`
-	// Port is the port of the service being referenced.
+	Kind string `json:"kind"`
+
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Port *Port `json:"port,omitempty"`
+	Path string `json:"path"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Attributes []Attribute `json:"attributes,omitempty"`
+
+	// WaitOnLoad defines whether the micro frontend should wait for the static resource to load before loading itself.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WaitOnLoad bool `json:"waitOnLoad,omitempty"`
 }
 
 // Port is the service port being referenced.

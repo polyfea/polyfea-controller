@@ -7,10 +7,8 @@ metadata:
     app.kubernetes.io/part-of: polyfea-controller
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/created-by: polyfea-controller
-  name: microfrontend-sample
+  name: microfrontend-sample2
 spec:
   service: http://test.some-namespace.svc.cluster.local
   modulePath: test.mjs
   frontendClass: default
-  dependsOn:
-    - microfrontend-sample2

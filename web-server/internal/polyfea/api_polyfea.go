@@ -69,15 +69,15 @@ func (c *PolyfeaAPIController) GetContextArea(w http.ResponseWriter, r *http.Req
 	query := r.URL.Query()
 	nameParam := params["name"]
 	pathParam := query.Get("path")
-	takeParam, err := parseNumericParameter[float32](
+	takeParam, err := parseNumericParameter[int32](
 		query.Get("take"),
-		WithParse[float32](parseFloat32),
+		WithParse[int32](parseInt32),
 	)
 	if err != nil {
 		c.errorHandler(w, r, &ParsingError{Err: err}, nil)
 		return
 	}
-	result, err := c.service.GetContextArea(r.Context(), nameParam, pathParam, takeParam)
+	result, err := c.service.GetContextArea(r.Context(), nameParam, pathParam, takeParam, r.Header)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)
@@ -89,7 +89,7 @@ func (c *PolyfeaAPIController) GetContextArea(w http.ResponseWriter, r *http.Req
 
 // GetStaticConfig - Get the static information about all resources and context areas.
 func (c *PolyfeaAPIController) GetStaticConfig(w http.ResponseWriter, r *http.Request) {
-	result, err := c.service.GetStaticConfig(r.Context())
+	result, err := c.service.GetStaticConfig(r.Context(), r.Header)
 	// If an error occurred, encode the error with the status code
 	if err != nil {
 		c.errorHandler(w, r, err, &result)

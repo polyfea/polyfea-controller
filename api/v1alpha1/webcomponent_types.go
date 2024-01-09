@@ -36,10 +36,10 @@ type WebComponentSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	// DisplayRules defines the conditions under which the web component should be loaded. If not specified, the web component will always be loaded.
+	// DisplayRules defines the conditions under which the web component should be loaded.
 	// There is an or opperation between the elements of the DisplayRules list. If any of the DisplayRules is matched, the web component will be loaded.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	DisplayRules []DisplayRules `json:"displayRules,omitempty"`
+	DisplayRules []DisplayRules `json:"displayRules"`
 
 	// Priority defines the priority of the webcomponent. Used for ordering the webcomponent within the shell. The higher the number, the higher the priority. The default priority is 0.
 	// +kubebuilder:default=0
@@ -48,7 +48,7 @@ type WebComponentSpec struct {
 
 	// Styles defines the styles that should be applied to the webcomponent.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Style *string `json:"style,omitempty"`
+	Style []Style `json:"style,omitempty"`
 }
 
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
@@ -62,6 +62,16 @@ type Attribute struct {
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Value runtime.RawExtension `json:"value"`
+}
+
+// Style defines the styles that should be applied to the webcomponent.
+type Style struct {
+	// The name of the style.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// The value of the style.
+	Value string `json:"value"`
 }
 
 // DisplayRules defines the conditions under which the web component should be loaded.
@@ -85,17 +95,17 @@ type DisplayRules struct {
 type Matcher struct {
 	// This is a list of context names in which this element is intended to be shown.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ContextName string `json:"context-names,omitempty"`
+	ContextName string `json:"context-name,omitempty"`
 
 	// The list of paths in which this element is intended to be shown.
 	// +kubebuilder:example="/my-menu-item"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Path string `json:"paths,omitempty"`
+	Path string `json:"path,omitempty"`
 
 	// The list of roles for which this element is intended to be shown.
 	// +kubebuilder:example="admin"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Role string `json:"roles,omitempty"`
+	Role string `json:"role,omitempty"`
 }
 
 // WebComponentStatus defines the observed state of WebComponent

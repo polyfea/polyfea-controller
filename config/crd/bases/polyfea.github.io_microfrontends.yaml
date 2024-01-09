@@ -61,12 +61,6 @@ spec:
               modulePath:
                 description: Relative path to the module file within the service.
                 type: string
-              preloadPaths:
-                description: Regular expresions for paths for which the module should
-                  be preloaded. If not specified, the module will not be preloaded.
-                items:
-                  type: string
-                type: array
               proxy:
                 default: true
                 description: This specifies whether the loading of web components
@@ -77,31 +71,47 @@ spec:
                 type: boolean
               service:
                 description: Reference to a service from which the modules or css
-                  would be served.
-                properties:
-                  name:
-                    description: Name is the name of the service being referenced.
-                    type: string
-                  port:
-                    description: Port is the port of the service being referenced.
-                    maxProperties: 1
-                    properties:
-                      name:
-                        description: Name is the name of the port on the Service.
-                          This is a mutually exclusive setting with "Number".
-                        type: string
-                      number:
-                        description: Number is the numerical port number (e.g. 80)
-                          on the Service. This is a mutually exclusive setting with
-                          "Name".
-                        format: int32
-                        type: integer
-                    type: object
-                type: object
+                  would be served. Fully qualified name of the service should be specified
+                  in the format <schema>://<service-name>.<namespace>.<cluster>.
+                type: string
               staticPaths:
                 description: Relative path to the static files within the service.
                 items:
-                  type: string
+                  description: StaticResources defines the static resources that should
+                    be loaded before this micro frontend.
+                  properties:
+                    attributes:
+                      items:
+                        description: Attribute defines a key-value pair that allows
+                          you to assign specific attributes to the element. The name
+                          field is used as the attribute name, while the value field
+                          can be any valid JSON type.
+                        properties:
+                          name:
+                            description: The name of the attribute.
+                            type: string
+                          value:
+                            description: The value of the attribute.
+                            x-kubernetes-preserve-unknown-fields: true
+                        required:
+                        - name
+                        - value
+                        type: object
+                      type: array
+                    kind:
+                      description: Kind defines the kind of the static resource can
+                        be script, stylesheet, or any other `link` element.
+                      type: string
+                    path:
+                      type: string
+                    waitOnLoad:
+                      description: WaitOnLoad defines whether the micro frontend should
+                        wait for the static resource to load before loading itself.
+                      type: boolean
+                  required:
+                  - kind
+                  - path
+                  type: object
                 type: array
             required:
             - frontendClass

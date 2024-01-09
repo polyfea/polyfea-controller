@@ -75,7 +75,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Succeed())
@@ -137,7 +142,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
@@ -172,7 +182,43 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
+
+			By("By creating a new WebComponent without display rules")
+			ctx = context.Background()
+			webComponent = &polyfeav1alpha1.WebComponent{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "WebComponent",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      WebComponentName,
+					Namespace: WebComponentNamespace,
+				},
+				Spec: polyfeav1alpha1.WebComponentSpec{
+					Element:       &[]string{"my-menu-item"}[0],
+					MicroFrontend: &[]string{"test-microfrontend"}[0],
+					Attributes: []polyfeav1alpha1.Attribute{
+						{
+							Name:  "label",
+							Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)},
+						},
+					},
+					Priority: &[]int32{0}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
@@ -193,6 +239,16 @@ var _ = Describe("WebComponent controller", func() {
 				Spec: polyfeav1alpha1.WebComponentSpec{
 					MicroFrontend: &[]string{"test-microfrontend"}[0],
 					Element:       &[]string{"my-menu-item"}[0],
+					DisplayRules: []polyfeav1alpha1.DisplayRules{{
+						AllOf: []polyfeav1alpha1.Matcher{
+							{
+								Path: "pathname",
+							},
+							{
+								ContextName: "user",
+							},
+						},
+					}},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Succeed())
@@ -207,7 +263,6 @@ var _ = Describe("WebComponent controller", func() {
 			Expect(createdWebComponent.Spec.Element).Should(Equal(&[]string{"my-menu-item"}[0]))
 			Expect(createdWebComponent.Spec.Priority).Should(Equal(&[]int32{0}[0]))
 			Expect(createdWebComponent.Spec.Attributes).Should(BeNil())
-			Expect(createdWebComponent.Spec.DisplayRules).Should(BeNil())
 			Expect(createdWebComponent.Spec.Style).Should(BeNil())
 
 			Expect(k8sClient.Delete(ctx, createdWebComponent)).Should(Succeed())
@@ -249,7 +304,12 @@ var _ = Describe("WebComponent controller", func() {
 						},
 					}},
 					Priority: &[]int32{0}[0],
-					Style:    &[]string{"color: red;"}[0],
+					Style: []polyfeav1alpha1.Style{
+						{
+							Name:  "color",
+							Value: "red",
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, webComponent)).Should(Succeed())
