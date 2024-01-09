@@ -27,7 +27,7 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Service *string `json:"service"`
 
-	// This specifies whether the loading of web components should be proxied by the controller. This is useful if the web component is served from within the cluster and cannot be accessed from outside the cluster network. The module will be served from the URL base_controller_url/web-components/web_component_name.jsm. This is the recommended approach for the standard assumed use-case.
+	// This specifies whether the loading of web components should be proxied by the controller.
 	// +kubebuilder:default=true
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Proxy *bool `json:"proxy,omitempty"`
@@ -74,6 +74,11 @@ type StaticResources struct {
 	// WaitOnLoad defines whether the micro frontend should wait for the static resource to load before loading itself.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WaitOnLoad bool `json:"waitOnLoad,omitempty"`
+
+	// This specifies whether the loading of static resource components should be proxied by the controller.
+	// +kubebuilder:default=true
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Proxy *bool `json:"proxy,omitempty"`
 }
 
 // Port is the service port being referenced.

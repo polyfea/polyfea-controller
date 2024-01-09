@@ -151,8 +151,8 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	for _, microFrontend := range allMicroFrontends {
 		result.Microfrontends[microFrontend.Name] = MicrofrontendSpec{
 			DependsOn: microFrontend.Spec.DependsOn,
-			Module:    *microFrontend.Spec.ModulePath, // TODO: consider base path
-			Resources: convertMicrofrontendResources(microFrontend.Spec.StaticResources),
+			Module:    buildModulePath(microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
+			Resources: convertMicrofrontendResources(microFrontend.Name, microFrontend.Spec.StaticResources),
 		}
 	}
 
@@ -247,13 +247,13 @@ func convertStyles(styles []v1alpha1.Style) map[string]string {
 	return result
 }
 
-func convertMicrofrontendResources(resources []v1alpha1.StaticResources) []MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendName string, resources []v1alpha1.StaticResources) []MicrofrontendResource {
 	result := []MicrofrontendResource{}
 
 	for _, resource := range resources {
 		result = append(result, MicrofrontendResource{
 			Kind:       resource.Kind,
-			Href:       resource.Path, // TODO: consider base path
+			Href:       buildModulePath(microFrontendName, resource.Path, *resource.Proxy),
 			Attributes: convertAttributes(resource.Attributes),
 			WaitOnLoad: resource.WaitOnLoad,
 		})
@@ -296,4 +296,12 @@ func loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepositor
 	}
 
 	return result, nil
+}
+
+func buildModulePath(microFrontendName string, path string, proxy bool) string {
+	if proxy {
+		return "./polyfea/proxy/" + microFrontendName + "/" + path
+	} else {
+		return path
+	}
 }

@@ -34,7 +34,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -49,7 +49,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -91,7 +91,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -106,7 +106,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -148,7 +148,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -163,7 +163,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -221,7 +221,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -236,7 +236,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -284,7 +284,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -299,7 +299,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -351,7 +351,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfRoleMatcherIsNotMatchin
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -411,7 +411,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfContextMatcherIsNotMatc
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -471,7 +471,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfPathIsNotMatching(t *te
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -536,7 +536,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfNoneOfIsMatching(t *tes
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -596,7 +596,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfAnyOfIsNotMatching(t *t
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -649,7 +649,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 				},
 			},
 		},
-		&[]int32{1}[0]))
+		&[]int32{2}[0]))
 
 	testWebComponentRepository.StoreItem(createTestWebComponent(
 		"test-other-name",
@@ -669,8 +669,8 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "other-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "other-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "other"))
@@ -686,7 +686,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/other/")
 	// Act
@@ -746,8 +746,8 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 		},
 		&[]int32{0}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -763,7 +763,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	// Act
@@ -823,8 +823,8 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 		},
 		&[]int32{10}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -840,7 +840,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 			createTestElementSpec("other-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"other-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	// Act
@@ -898,13 +898,13 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 				},
 			},
 		},
-		&[]int32{1}[0]))
+		&[]int32{0}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("yet-another-test-dependency", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("yet-another-test-dependency", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -921,10 +921,10 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 			createTestElementSpec("other-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"test-microfrontend":          createTestMicroFrontendSpec([]string{"test-dependency"}),
-			"other-microfrontend":         createTestMicroFrontendSpec([]string{"test-dependency"}),
-			"test-dependency":             createTestMicroFrontendSpec([]string{"yet-another-test-dependency"}),
-			"yet-another-test-dependency": createTestMicroFrontendSpec([]string{}),
+			"test-microfrontend":          createTestMicroFrontendSpec("test-microfrontend", []string{"test-dependency"}, true),
+			"other-microfrontend":         createTestMicroFrontendSpec("other-microfrontend", []string{"test-dependency"}, true),
+			"test-dependency":             createTestMicroFrontendSpec("test-dependency", []string{"yet-another-test-dependency"}, true),
+			"yet-another-test-dependency": createTestMicroFrontendSpec("yet-another-test-dependency", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	// Act
@@ -982,12 +982,12 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependencyMissingErrorIsRet
 				},
 			},
 		},
-		&[]int32{1}[0]))
+		&[]int32{0}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -1050,12 +1050,12 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 				},
 			},
 		},
-		&[]int32{1}[0]))
+		&[]int32{0}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"test-microfrontend"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"test-microfrontend"}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
@@ -1113,14 +1113,14 @@ func createTestWebComponent(objecName string, microFrontendName string, element 
 	}
 }
 
-func createTestMicroFrontend(objecName string, dependsOn []string, modulePath string, frontendClass string) *v1alpha1.MicroFrontend {
+func createTestMicroFrontend(objecName string, dependsOn []string, modulePath string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
 			Name: objecName,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
 			Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
-			Proxy:         &[]bool{true}[0],
+			Proxy:         &[]bool{proxy}[0],
 			CacheStrategy: "none",
 			CacheControl:  &[]string{"no-cache"}[0],
 			FrontendClass: &[]string{frontendClass}[0],
@@ -1136,6 +1136,7 @@ func createTestMicroFrontend(objecName string, dependsOn []string, modulePath st
 					},
 				},
 				WaitOnLoad: true,
+				Proxy:      &[]bool{proxy}[0],
 			}},
 		},
 	}
@@ -1166,14 +1167,23 @@ func createTestElementSpec(microFrontendName string) ElementSpec {
 	}
 }
 
-func createTestMicroFrontendSpec(dependsOn []string) MicrofrontendSpec {
+func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string, withProxy bool) MicrofrontendSpec {
+	var href, module string
+	if withProxy {
+		href = "./polyfea/proxy/" + microfrontendName + "/test-uri"
+		module = "./polyfea/proxy/" + microfrontendName + "/test-module"
+	} else {
+		href = "test-uri"
+		module = "test-module"
+	}
+
 	return MicrofrontendSpec{
 		DependsOn: dependsOn,
-		Module:    "test-module",
+		Module:    module,
 		Resources: []MicrofrontendResource{
 			{
 				Kind: "test-type",
-				Href: "test-uri",
+				Href: href,
 				Attributes: map[string]string{
 					"test-attribute-name": "test-attribute-value",
 				},

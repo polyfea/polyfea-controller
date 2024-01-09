@@ -43,7 +43,7 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 			createTestElementSpec("other-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"other-microfrontend": createTestMicroFrontendSpec([]string{}),
+			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 		})
 
 	// Act
@@ -125,8 +125,8 @@ func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]MicrofrontendSpec{
-			"other-microfrontend": createTestMicroFrontendSpec([]string{}),
-			"test-microfrontend":  createTestMicroFrontendSpec([]string{}),
+			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
+			"test-microfrontend":  createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 
 	// Act
@@ -240,8 +240,8 @@ func polyfeaApiSetupRouter() http.Handler {
 
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class"))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 
