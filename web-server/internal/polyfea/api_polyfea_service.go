@@ -101,7 +101,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	sort.Slice(webComponents, func(i, j int) bool {
-		return *webComponents[i].Spec.Priority < *webComponents[j].Spec.Priority
+		return *webComponents[i].Spec.Priority > *webComponents[j].Spec.Priority
 	})
 
 	if take > 0 && int(take) < len(webComponents) {
