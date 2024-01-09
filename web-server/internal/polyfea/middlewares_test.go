@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"os"
 	"testing"
+
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 var middlewaresTestSuite = IntegrationTestSuite{
@@ -61,7 +63,7 @@ func BasePathStrippingMiddlewareNoBasePathIsFoundUseDefault(t *testing.T) {
 }
 
 func basePathStrippingMiddlewareRouter() http.Handler {
-	router := NewRouter()
+	router := generated.NewRouter()
 	router.HandleFunc("/polyfea", func(w http.ResponseWriter, r *http.Request) {
 		basePathValue := r.Context().Value(PolyfeaContextKeyBasePath)
 		w.Header().Set("X-Base-Path", basePathValue.(string))

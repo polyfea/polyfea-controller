@@ -5,7 +5,7 @@ enablePostProcessFile: true
 templateDir: /local/scripts/templates
 additionalProperties:
   outputAsLibrary: true
-  packageName: polyfea
-  sourceFolder: internal/polyfea
+  packageName: generated
+  sourceFolder: internal/polyfea/generated
   onlyInterfaces: true
   addResponseHeaders: true
