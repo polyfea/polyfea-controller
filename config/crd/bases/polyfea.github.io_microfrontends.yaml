@@ -71,27 +71,9 @@ spec:
                 type: boolean
               service:
                 description: Reference to a service from which the modules or css
-                  would be served.
-                properties:
-                  name:
-                    description: Name is the name of the service being referenced.
-                    type: string
-                  port:
-                    description: Port is the port of the service being referenced.
-                    maxProperties: 1
-                    properties:
-                      name:
-                        description: Name is the name of the port on the Service.
-                          This is a mutually exclusive setting with "Number".
-                        type: string
-                      number:
-                        description: Number is the numerical port number (e.g. 80)
-                          on the Service. This is a mutually exclusive setting with
-                          "Name".
-                        format: int32
-                        type: integer
-                    type: object
-                type: object
+                  would be served. Fully qualified name of the service should be specified
+                  in the format <schema>://<service-name>.<namespace>.<cluster>.
+                type: string
               staticPaths:
                 description: Relative path to the static files within the service.
                 items:

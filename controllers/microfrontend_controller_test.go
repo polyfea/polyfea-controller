@@ -45,8 +45,6 @@ var _ = Describe("Microfrontend controller", func() {
 		It("Should add and remove finallizer", func() {
 			By("By creating a new MicroFrontend")
 			ctx := context.Background()
-
-			portNumber := int32(8080)
 			proxy := true
 
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
@@ -59,12 +57,7 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service: &polyfeav1alpha1.ServiceReference{
-						Name: "test-service",
-						Port: &polyfeav1alpha1.Port{
-							Number: &portNumber,
-						},
-					},
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
 					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
@@ -84,7 +77,7 @@ var _ = Describe("Microfrontend controller", func() {
 				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
+			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
 
 			By("By checking the MicroFrontend has finalizer")
 			Eventually(func() ([]string, error) {
@@ -135,7 +128,6 @@ var _ = Describe("Microfrontend controller", func() {
 			ctx = context.Background()
 
 			proxy = true
-			portNumber := int32(8080)
 
 			microFrontend = &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
@@ -147,12 +139,7 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service: &polyfeav1alpha1.ServiceReference{
-						Name: "test-service",
-						Port: &polyfeav1alpha1.Port{
-							Number: &portNumber,
-						},
-					},
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
 					Proxy:         &proxy,
 					CacheStrategy: "none",
 					StaticResources: []polyfeav1alpha1.StaticResources{{
@@ -168,7 +155,6 @@ var _ = Describe("Microfrontend controller", func() {
 			ctx = context.Background()
 
 			proxy = true
-			portNumber = int32(8080)
 
 			microFrontend = &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
@@ -180,12 +166,7 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service: &polyfeav1alpha1.ServiceReference{
-						Name: "test-service",
-						Port: &polyfeav1alpha1.Port{
-							Number: &portNumber,
-						},
-					},
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
 					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
@@ -202,8 +183,6 @@ var _ = Describe("Microfrontend controller", func() {
 			By("By creating a new MicroFrontend with only required fields")
 			ctx := context.Background()
 
-			portNumber := int32(8080)
-
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "polyfea.github.io/v1alpha1",
@@ -214,12 +193,7 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service: &polyfeav1alpha1.ServiceReference{
-						Name: "test-service",
-						Port: &polyfeav1alpha1.Port{
-							Number: &portNumber,
-						},
-					},
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
 					ModulePath:    &[]string{"module.jsm"}[0],
 					FrontendClass: &[]string{"test-microfrontendclass"}[0],
 				},
@@ -233,7 +207,7 @@ var _ = Describe("Microfrontend controller", func() {
 				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
+			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
 			Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
 			Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 			Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
@@ -251,7 +225,6 @@ var _ = Describe("Microfrontend controller", func() {
 			By("By creating a new MicroFrontend")
 			ctx := context.Background()
 
-			portNumber := int32(8080)
 			proxy := true
 
 			microFrontend := &polyfeav1alpha1.MicroFrontend{
@@ -264,12 +237,7 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service: &polyfeav1alpha1.ServiceReference{
-						Name: "test-service",
-						Port: &polyfeav1alpha1.Port{
-							Number: &portNumber,
-						},
-					},
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
 					Proxy:         &proxy,
 					CacheStrategy: "none",
 					ModulePath:    &[]string{"module.jsm"}[0],
@@ -289,7 +257,7 @@ var _ = Describe("Microfrontend controller", func() {
 				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal("test-service"))
+			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
 
 			Eventually(func() []*polyfeav1alpha1.MicroFrontend {
 				result, _ := microFrontendRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontend) bool {
