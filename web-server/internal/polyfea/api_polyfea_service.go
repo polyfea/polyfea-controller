@@ -72,6 +72,13 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 
 	frontendClass := frontendClasses[0]
 	userRoleHeaders := headers[frontendClass.Spec.UserRolesHeader]
+	userRoles := []string{}
+
+	for _, userRoleHeader := range userRoleHeaders {
+		for _, userRole := range strings.Split(userRoleHeader, ",") {
+			userRoles = append(userRoles, strings.TrimSpace(userRole))
+		}
+	}
 
 	microFrontendsForClass, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
 		return *mf.Spec.FrontendClass == frontendClass.Name
@@ -91,7 +98,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, userRoleHeaders) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
+		return selectMatchingWebComponents(mf, name, path, userRoles) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
 	})
 
 	if err != nil {
@@ -146,7 +153,7 @@ func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.He
 	return ImplResponse{Code: 501}, nil
 }
 
-func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoleHeaders []string) bool {
+func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
 	pathRegex := regexp.MustCompile(path)
 	selectCurrent := true
 	for _, displayRule := range webComponent.Spec.DisplayRules {
@@ -154,7 +161,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 		for _, matcher := range displayRule.NoneOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
 				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoleHeaders, matcher.Role) {
+				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = false
 				break
@@ -168,7 +175,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 		for _, matcher := range displayRule.AllOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName != name ||
 				len(matcher.Path) > 0 && !pathRegex.MatchString(matcher.Path) ||
-				len(matcher.Role) > 0 && !slices.Contains(userRoleHeaders, matcher.Role) {
+				len(matcher.Role) > 0 && !slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = false
 				break
@@ -186,7 +193,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 		for _, matcher := range displayRule.AnyOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
 				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoleHeaders, matcher.Role) {
+				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = true
 				break
