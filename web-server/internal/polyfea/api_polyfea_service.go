@@ -3,10 +3,12 @@ package polyfea
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"regexp"
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
@@ -119,23 +121,21 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		})
 	}
 
-	for _, microFrontendName := range microFrontendsToLoad {
-		microFrontends, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
-			return mf.Name == microFrontendName
-		})
+	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
-		if err != nil {
-			return ImplResponse{Code: 500}, err
-		}
+	if err != nil {
+		return ImplResponse{Code: 500}, err
+	}
 
-		if len(microFrontends) == 0 {
-			return ImplResponse{Code: 404, Body: "Referenced microfrontend " + microFrontendName + " not found"}, nil
-		}
+	if len(allMicroFrontends) == 0 {
+		return ImplResponse{Code: 404, Body: "None of referenced microfrontends were found"}, nil
+	}
 
-		result.Microfrontends[microFrontendName] = MicrofrontendSpec{
-			DependsOn: microFrontends[0].Spec.DependsOn,
-			Module:    *microFrontends[0].Spec.ModulePath, // TODO: consider base path
-			Resources: convertMicrofrontendResources(microFrontends[0].Spec.StaticResources),
+	for _, microFrontend := range allMicroFrontends {
+		result.Microfrontends[microFrontend.Name] = MicrofrontendSpec{
+			DependsOn: microFrontend.Spec.DependsOn,
+			Module:    *microFrontend.Spec.ModulePath, // TODO: consider base path
+			Resources: convertMicrofrontendResources(microFrontend.Spec.StaticResources),
 		}
 	}
 
@@ -236,4 +236,40 @@ func convertMicrofrontendResources(resources []v1alpha1.StaticResources) []Micro
 	}
 
 	return result
+}
+
+func loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
+	result := []*v1alpha1.MicroFrontend{}
+
+	for _, microFrontendName := range microFrontendsToLoad {
+		if slices.Contains(loadPath, microFrontendName) {
+			return nil, errors.New("Circular dependency detected: " + strings.Join(append(loadPath, microFrontendName), " -> "))
+		}
+
+		microFrontend, err := microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
+			return mf.Name == microFrontendName
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if len(microFrontend) == 0 {
+			return nil, errors.New("Microfrontend " + microFrontendName + " not found")
+		}
+
+		result = append(result, microFrontend[0])
+
+		if len(microFrontend[0].Spec.DependsOn) > 0 {
+			dependsOn, err := loadAllMicroFrontends(microFrontend[0].Spec.DependsOn, microFrontendRepository, append(loadPath, microFrontendName))
+
+			if err != nil {
+				return nil, err
+			}
+
+			result = append(result, dependsOn...)
+		}
+	}
+
+	return result, nil
 }
