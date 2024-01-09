@@ -2,33 +2,31 @@ package polyfea
 
 import (
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/api"
 )
 
-var (
-	testServer *httptest.Server
-)
-
-func TestMain(t *testing.M) {
-	// Setup
-	r := setupRouter()
-
-	// Test server
-	testServer = httptest.NewServer(r)
-	defer testServer.Close()
-
-	t.Run()
+var apiPolyfeaTestSuite = IntegrationTestSuite{
+	TestRouter: polyfeaApiSetupRouter(),
+	TestSet: []Test{
+		{
+			Name: "PolyfeaApiGetContextAreaReturnsNotImplemented",
+			Func: PolyfeaApiGetContextAreaReturnsNotImplemented,
+		},
+		{
+			Name: "PolyfeaApiGetStaticConfigReturnsNotImplemented",
+			Func: PolyfeaApiGetStaticConfigReturnsNotImplemented,
+		},
+	},
 }
 
-func TestPolyfeaApiGetContextAreaReturnsNotImplemented(t *testing.T) {
+func PolyfeaApiGetContextAreaReturnsNotImplemented(t *testing.T) {
 	// Arrange
-	testServerUrl := testServer.URL
+	testServerUrl := os.Getenv(TestServerUrlName)
 	testRoute := "/polyfea/context-area/test?path=test&take=0"
 
 	// Act
@@ -44,9 +42,9 @@ func TestPolyfeaApiGetContextAreaReturnsNotImplemented(t *testing.T) {
 	}
 }
 
-func TestPolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
+func PolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
 	// Arrange
-	testServerUrl := testServer.URL
+	testServerUrl := os.Getenv(TestServerUrlName)
 	testRoute := "/polyfea/static-config"
 
 	// Act
@@ -62,7 +60,7 @@ func TestPolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
 	}
 }
 
-func setupRouter() *mux.Router {
+func polyfeaApiSetupRouter() http.Handler {
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()

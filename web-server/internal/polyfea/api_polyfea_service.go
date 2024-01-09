@@ -2,6 +2,7 @@ package polyfea
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"regexp"
 	"slices"
@@ -158,7 +159,9 @@ func convertAttributes(attributes []v1alpha1.Attribute) map[string]string {
 	result := map[string]string{}
 
 	for _, attribute := range attributes {
-		result[attribute.Name] = string(attribute.Value.Raw)
+		var value string
+		json.Unmarshal(attribute.Value.Raw, &value)
+		result[attribute.Name] = value
 	}
 
 	return result

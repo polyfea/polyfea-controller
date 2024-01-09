@@ -56,7 +56,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
 
 	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", expectedContextArea, actualContextAreaResponse)
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
 	}
 }
 
