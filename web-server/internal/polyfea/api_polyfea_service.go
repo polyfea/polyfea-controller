@@ -38,6 +38,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		Microfrontends: map[string]MicrofrontendSpec{},
 	}
 
+	// Get base path from context or use default
 	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
 	var basePath string
 	if basePathValue == nil {
@@ -46,6 +47,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		basePath = basePathValue.(string)
 	}
 
+	// Get frontend class for base path
 	frontendClasses, err := s.microFrontedClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
 		frontendClassBasePath := *mfc.Spec.BaseUri
 		if frontendClassBasePath[0] != '/' {
@@ -71,19 +73,22 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	frontendClass := frontendClasses[0]
+
+	// Read user roles from header
 	userRoleHeaders := headers.Values(frontendClass.Spec.UserRolesHeader)
 	userRoles := []string{}
-
 	for _, userRoleHeader := range userRoleHeaders {
 		for _, userRole := range strings.Split(userRoleHeader, ",") {
 			userRoles = append(userRoles, strings.TrimSpace(userRole))
 		}
 	}
 
+	// Get microfrontends for frontend class
 	microFrontendsForClass, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
 		return *mf.Spec.FrontendClass == frontendClass.Name
 	})
 
+	// Get names of microfrontends for frontend class for query
 	microFrontendsNamesForClass := []string{}
 	for _, mf := range microFrontendsForClass {
 		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
@@ -97,6 +102,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return Response(404, "No microfrontends found for frontend class "+frontendClass.Name), nil
 	}
 
+	// Get webcomponents for given query and frontend class
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
 		return selectMatchingWebComponents(mf, name, path, userRoles) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
 	})
@@ -113,10 +119,12 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return *webComponents[i].Spec.Priority > *webComponents[j].Spec.Priority
 	})
 
+	// Limit number of webcomponents by take parameter
 	if take > 0 && int(take) < len(webComponents) {
 		webComponents = webComponents[:take]
 	}
 
+	// Chek which microfrontends are needed for selected webcomponents and convert webcomponents to response
 	microFrontendsToLoad := []string{}
 	for _, webComponent := range webComponents {
 		microFrontendsToLoad = append(microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
@@ -128,6 +136,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		})
 	}
 
+	// Load all needed microfrontends with dependencies
 	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
 	if err != nil {
@@ -138,6 +147,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return ImplResponse{Code: 404, Body: "None of referenced microfrontends were found"}, nil
 	}
 
+	// Convert microfrontends to response
 	for _, microFrontend := range allMicroFrontends {
 		result.Microfrontends[microFrontend.Name] = MicrofrontendSpec{
 			DependsOn: microFrontend.Spec.DependsOn,
@@ -155,9 +165,12 @@ func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.He
 
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
 	pathRegex := regexp.MustCompile(path)
-	selectCurrent := true
-	for _, displayRule := range webComponent.Spec.DisplayRules {
 
+	// Check if any of display rules matches
+	for _, displayRule := range webComponent.Spec.DisplayRules {
+		selectCurrent := true
+
+		// If any of noneOf rules matches, we can evaluate to false
 		for _, matcher := range displayRule.NoneOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
 				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
@@ -172,6 +185,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 			continue
 		}
 
+		// If any of allOf rules does not match, we can evaluate to false
 		for _, matcher := range displayRule.AllOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName != name ||
 				len(matcher.Path) > 0 && !pathRegex.MatchString(matcher.Path) ||
@@ -186,10 +200,12 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 			continue
 		}
 
+		// If any of anyOf rules matches, we can evaluate to true therfore we need to set to false first
 		if len(displayRule.AnyOf) > 0 {
 			selectCurrent = false
 		}
 
+		// If any of anyOf rules matches, we can evaluate to true
 		for _, matcher := range displayRule.AnyOf {
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
 				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
@@ -200,6 +216,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 			}
 		}
 
+		// If any of display rules matches, we can evaluate to true
 		if selectCurrent {
 			return true
 		}
