@@ -16,20 +16,17 @@ type PolyfeaApiService struct {
 	webComponentRepository      repository.PolyfeaRepository[*v1alpha1.WebComponent]
 	microFrontendRepository     repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
 	microFrontedClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
-	userRoleHeaderNames         map[string]string
 }
 
 func NewPolyfeaAPIService(
 	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
 	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
-	microFrontedClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
-	userRoleHeaderNames map[string]string) *PolyfeaApiService {
+	microFrontedClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *PolyfeaApiService {
 
 	return &PolyfeaApiService{
 		webComponentRepository:      webComponentRepository,
 		microFrontendRepository:     microFrontendRepository,
 		microFrontedClassRepository: microFrontedClassRepository,
-		userRoleHeaderNames:         userRoleHeaderNames,
 	}
 }
 
@@ -39,11 +36,60 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		Microfrontends: map[string]MicrofrontendSpec{},
 	}
 
-	userRoleHeaderName := s.userRoleHeaderNames["TODO_GET_FRONTEDN_CLASS_MAPPING"]
-	userRoleHeaders := headers[userRoleHeaderName]
+	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
+	var basePath string
+	if basePathValue == nil {
+		basePath = "/"
+	} else {
+		basePath = basePathValue.(string)
+	}
+
+	frontendClasses, err := s.microFrontedClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
+		frontendClassBasePath := *mfc.Spec.BaseUri
+		if frontendClassBasePath[0] != '/' {
+			frontendClassBasePath = "/" + frontendClassBasePath
+		}
+		if frontendClassBasePath[len(frontendClassBasePath)-1] != '/' {
+			frontendClassBasePath += "/"
+		}
+
+		return basePath == frontendClassBasePath
+	})
+
+	if err != nil {
+		return ImplResponse{Code: 500}, err
+	}
+
+	if len(frontendClasses) == 0 {
+		return Response(404, "No frontend class found for base path "+basePath), nil
+	}
+
+	if len(frontendClasses) > 1 {
+		return Response(400, "Multiple frontend classes found for base path "+basePath), nil
+	}
+
+	frontendClass := frontendClasses[0]
+	userRoleHeaders := headers[frontendClass.Spec.UserRolesHeader]
+
+	microFrontendsForClass, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
+		return *mf.Spec.FrontendClass == frontendClass.Name
+	})
+
+	microFrontendsNamesForClass := []string{}
+	for _, mf := range microFrontendsForClass {
+		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
+	}
+
+	if err != nil {
+		return ImplResponse{Code: 500}, err
+	}
+
+	if len(microFrontendsForClass) == 0 {
+		return Response(404, "No microfrontends found for frontend class "+frontendClass.Name), nil
+	}
 
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, take, userRoleHeaders)
+		return selectMatchingWebComponents(mf, name, path, take, userRoleHeaders) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
 	})
 
 	if err != nil {
@@ -58,8 +104,6 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return *webComponents[i].Spec.Priority < *webComponents[j].Spec.Priority
 	})
 
-	// TODO: Filter by frontend class
-
 	microFrontendsToLoad := []string{}
 	for _, webComponent := range webComponents {
 		microFrontendsToLoad = append(microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
@@ -70,8 +114,6 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 			Style:         convertStyles(webComponent.Spec.Style),
 		})
 	}
-
-	// TODO: Limit by take
 
 	for _, microFrontendName := range microFrontendsToLoad {
 		microFrontends, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {

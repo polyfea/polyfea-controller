@@ -68,8 +68,7 @@ func polyfeaApiSetupRouter() http.Handler {
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontedClassRepository,
-		map[string]string{})
+		testMicroFrontedClassRepository)
 
 	polyfeaAPIController := NewPolyfeaAPIController(polyfeaAPIService)
 

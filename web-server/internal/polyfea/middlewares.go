@@ -8,7 +8,6 @@ import (
 
 type PolyfeaContextKey string
 
-const PolyfeaContextKeyUserRoles PolyfeaContextKey = "userRoles"
 const PolyfeaContextKeyBasePath PolyfeaContextKey = "basePath"
 
 func BasePathStrippingMiddleware(next http.Handler) http.Handler {
