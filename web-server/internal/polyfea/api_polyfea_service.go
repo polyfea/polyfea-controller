@@ -89,7 +89,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, take, userRoleHeaders) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
+		return selectMatchingWebComponents(mf, name, path, userRoleHeaders) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
 	})
 
 	if err != nil {
@@ -103,6 +103,10 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	sort.Slice(webComponents, func(i, j int) bool {
 		return *webComponents[i].Spec.Priority < *webComponents[j].Spec.Priority
 	})
+
+	if take > 0 && int(take) < len(webComponents) {
+		webComponents = webComponents[:take]
+	}
 
 	microFrontendsToLoad := []string{}
 	for _, webComponent := range webComponents {
@@ -142,7 +146,7 @@ func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.He
 	return ImplResponse{Code: 501}, nil
 }
 
-func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, take int32, userRoleHeaders []string) bool {
+func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoleHeaders []string) bool {
 	pathRegex := regexp.MustCompile(path)
 	selectCurrent := true
 	for _, displayRule := range webComponent.Spec.DisplayRules {

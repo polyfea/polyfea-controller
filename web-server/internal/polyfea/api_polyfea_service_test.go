@@ -133,6 +133,77 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 	}
 }
 
+func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementReturned(t *testing.T) {
+	// Arrange
+	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-name",
+		"test-microfrontend",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test-path",
+					},
+					{
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-other-name",
+		"other-microfrontend",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test-path",
+					},
+					{
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{"test-dependency"}, "test-module", "test-frontend-class"))
+
+	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
+	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
+
+	polyfeaApiService := NewPolyfeaAPIService(
+		testWebComponentRepository,
+		testMicroFrontendRepository,
+		testMicroFrontedClassRepository)
+
+	expectedContextArea := createTestContextArea()
+	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	// Act
+	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 1, map[string][]string{})
+
+	// Assert
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	actualContextArea := actualContextAreaResponse.Body.(ContextArea)
+
+	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
+	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
+
+	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+}
+
 func createTestContextArea() ContextArea {
 	return ContextArea{
 		Elements: []ElementSpec{
