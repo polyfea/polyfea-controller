@@ -3,6 +3,7 @@ package polyfea
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -302,9 +303,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)

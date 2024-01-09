@@ -71,7 +71,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	frontendClass := frontendClasses[0]
-	userRoleHeaders := headers[frontendClass.Spec.UserRolesHeader]
+	userRoleHeaders := headers.Values(frontendClass.Spec.UserRolesHeader)
 	userRoles := []string{}
 
 	for _, userRoleHeader := range userRoleHeaders {
