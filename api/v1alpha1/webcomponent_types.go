@@ -36,10 +36,10 @@ type WebComponentSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	// DisplayRules defines the conditions under which the web component should be loaded. If not specified, the web component will always be loaded.
+	// DisplayRules defines the conditions under which the web component should be loaded.
 	// There is an or opperation between the elements of the DisplayRules list. If any of the DisplayRules is matched, the web component will be loaded.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	DisplayRules []DisplayRules `json:"displayRules,omitempty"`
+	DisplayRules []DisplayRules `json:"displayRules"`
 
 	// Priority defines the priority of the webcomponent. Used for ordering the webcomponent within the shell. The higher the number, the higher the priority. The default priority is 0.
 	// +kubebuilder:default=0
