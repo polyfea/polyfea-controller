@@ -76,15 +76,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
@@ -98,15 +98,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
@@ -120,15 +120,15 @@ spec:
                           web component should be loaded.
                         maxProperties: 1
                         properties:
-                          context-names:
+                          context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             type: string
-                          paths:
+                          path:
                             description: The list of paths in which this element is
                               intended to be shown.
                             type: string
-                          roles:
+                          role:
                             description: The list of roles for which this element
                               is intended to be shown.
                             type: string
