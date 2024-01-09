@@ -36,5 +36,6 @@ func TestPolyfeaIntegration(t *testing.T) {
 func collectIntegrationTestSuites() []IntegrationTestSuite {
 	return []IntegrationTestSuite{
 		apiPolyfeaTestSuite,
+		middlewaresTestSuite,
 	}
 }
