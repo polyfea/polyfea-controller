@@ -165,16 +165,19 @@ func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.He
 }
 
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
-	pathRegex := regexp.MustCompile(path)
-
 	// Check if any of display rules matches
 	for _, displayRule := range webComponent.Spec.DisplayRules {
+		var pathRegex *regexp.Regexp
 		selectCurrent := true
 
 		// If any of noneOf rules matches, we can evaluate to false
 		for _, matcher := range displayRule.NoneOf {
+			if len(matcher.Path) != 0 {
+				pathRegex = regexp.MustCompile(matcher.Path)
+			}
+
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
+				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
 				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = false
@@ -188,8 +191,12 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 
 		// If any of allOf rules does not match, we can evaluate to false
 		for _, matcher := range displayRule.AllOf {
+			if len(matcher.Path) != 0 {
+				pathRegex = regexp.MustCompile(matcher.Path)
+			}
+
 			if len(matcher.ContextName) > 0 && matcher.ContextName != name ||
-				len(matcher.Path) > 0 && !pathRegex.MatchString(matcher.Path) ||
+				len(matcher.Path) > 0 && !pathRegex.MatchString(path) ||
 				len(matcher.Role) > 0 && !slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = false
@@ -208,8 +215,12 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 
 		// If any of anyOf rules matches, we can evaluate to true
 		for _, matcher := range displayRule.AnyOf {
+			if len(matcher.Path) != 0 {
+				pathRegex = regexp.MustCompile(matcher.Path)
+			}
+
 			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(matcher.Path) ||
+				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
 				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
 
 				selectCurrent = true
