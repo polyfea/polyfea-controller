@@ -3,17 +3,36 @@ package polyfea
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/jarcoal/httpmock"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/web-server/api"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
+
+var proxyTestSuite = IntegrationTestSuite{
+	TestRouter: polyfeaProxyApiSetupRouter(),
+	TestSet: []Test{
+		{
+			Name: "PolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound",
+			Func: PolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound,
+		},
+		{
+			Name: "PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders",
+			Func: PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders,
+		},
+	},
+}
 
 func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 	// Arrange
@@ -24,9 +43,9 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 	testMicroFrontendRepository.StoreItem(requestedMicroFrontend)
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
+	testMicrofrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
+	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -43,7 +62,7 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 		},
 	)
 
-	proxy := NewPolyfeaProxy(testMicroFrontedClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
 
 	writer := httptest.NewRecorder()
 
@@ -73,11 +92,11 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	testMicroFrontendRepository.StoreItem(requestedMicroFrontend)
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
+	testMicrofrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
+	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
-	proxy := NewPolyfeaProxy(testMicroFrontedClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
 
 	writer := httptest.NewRecorder()
 
@@ -103,7 +122,7 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 	testMicroFrontendRepository.StoreItem(requestedMicroFrontend)
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontedClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	testMicrofrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	expectedFrontendClass := createTestMicroFrontendClass("test-frontend-class", "/")
 	expectedFrontendClass.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
@@ -112,8 +131,8 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 		},
 	}
 
-	testMicroFrontedClassRepository.StoreItem(expectedFrontendClass)
-	testMicroFrontedClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
+	testMicrofrontendClassRepository.StoreItem(expectedFrontendClass)
+	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -130,7 +149,7 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 		},
 	)
 
-	proxy := NewPolyfeaProxy(testMicroFrontedClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
 
 	writer := httptest.NewRecorder()
 
@@ -166,4 +185,185 @@ func createTestRequest(namespace string, microfrontend string, path string) *htt
 
 	req = mux.SetURLVars(req, vars)
 	return req
+}
+
+func PolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/other-microfrontend/test-module")
+
+	// Assert
+	if err != nil {
+		t.Error("Unexpected error occurred while calling the proxy.")
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 500 {
+		t.Error("The proxy did not return the correct status code.")
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	bodyString := string(bodyBytes)
+
+	if !strings.Contains(bodyString, "no such host") {
+		t.Error("The proxy did not return the correct body.")
+	}
+}
+
+func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	myHandler := http.NewServeMux()
+
+	myHandler.HandleFunc("/test-module", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("test-module"))
+	})
+
+	server := &http.Server{
+		Addr:    "localhost:5003",
+		Handler: myHandler,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on '%s': %v\n", server.Addr, err)
+		}
+	}()
+
+	for {
+		resp, err := http.Get("http://" + server.Addr)
+		if err == nil {
+			resp.Body.Close()
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	defer server.Close()
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module")
+
+	// Assert
+	if err != nil {
+		t.Error("Unexpected error occurred while calling the proxy.")
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		t.Error("The proxy did not return the correct status code.")
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	bodyString := string(bodyBytes)
+
+	if bodyString != "test-module" {
+		t.Error("The proxy did not return the correct body.")
+	}
+
+	if response.Header.Get("test-header") != "test-value" {
+		t.Error("The proxy did not return the correct header.")
+	}
+}
+
+func polyfeaProxyApiSetupRouter() http.Handler {
+	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-name",
+		"test-microfrontend",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				NoneOf: []v1alpha1.Matcher{
+					{
+						Path: "tt-path",
+					},
+					{
+						ContextName: "tt-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-other-name",
+		"other-microfrontend",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				NoneOf: []v1alpha1.Matcher{
+					{
+						Path: "tes-path",
+					},
+					{
+						ContextName: "tt-name",
+					},
+				},
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test-path",
+					},
+					{
+						ContextName: "test-name",
+					},
+				},
+				AnyOf: []v1alpha1.Matcher{
+					{
+						Path: "t-path",
+					},
+					{
+						Role: "test-role",
+					},
+				},
+			},
+		},
+		&[]int32{10}[0]))
+
+	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+
+	mf := createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true)
+	mf.Spec.Service = &[]string{"http://localhost:5003"}[0]
+	testMicroFrontendRepository.StoreItem(mf)
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+
+	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+
+	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
+		{
+			Name:  "test-header",
+			Value: "test-value",
+		},
+	}
+	testMicroFrontendClassRepository.StoreItem(mfc)
+	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
+
+	polyfeaAPIService := NewPolyfeaAPIService(
+		testWebComponentRepository,
+		testMicroFrontendRepository,
+		testMicroFrontendClassRepository)
+
+	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
+
+	router := generated.NewRouter(polyfeaAPIController)
+
+	router.HandleFunc("/openapi", api.HandleOpenApi)
+
+	proxy := NewPolyfeaProxy(testMicroFrontendClassRepository, testMicroFrontendRepository, &http.Client{})
+
+	router.HandleFunc("/polyfea/proxy/{"+NamespacePathParamName+"}/{"+MicrofrontendPathParamName+"}/{"+PathPathParamName+"}", proxy.HandleProxy)
+
+	return router
 }
