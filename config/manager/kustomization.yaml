@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
 - manager.yaml
 - service.yaml
+- polyfea_v1alpha1_microfrontendclass.yaml
 
 images:
 - name: controller
