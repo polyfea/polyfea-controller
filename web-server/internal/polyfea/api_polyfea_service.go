@@ -152,8 +152,8 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	for _, microFrontend := range allMicroFrontends {
 		result.Microfrontends[microFrontend.Name] = generated.MicrofrontendSpec{
 			DependsOn: microFrontend.Spec.DependsOn,
-			Module:    buildModulePath(microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
-			Resources: convertMicrofrontendResources(microFrontend.Name, microFrontend.Spec.StaticResources),
+			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
+			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources),
 		}
 	}
 
@@ -248,13 +248,13 @@ func convertStyles(styles []v1alpha1.Style) map[string]string {
 	return result
 }
 
-func convertMicrofrontendResources(microFrontendName string, resources []v1alpha1.StaticResources) []generated.MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources) []generated.MicrofrontendResource {
 	result := []generated.MicrofrontendResource{}
 
 	for _, resource := range resources {
 		result = append(result, generated.MicrofrontendResource{
 			Kind:       resource.Kind,
-			Href:       buildModulePath(microFrontendName, resource.Path, *resource.Proxy),
+			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, *resource.Proxy),
 			Attributes: convertAttributes(resource.Attributes),
 			WaitOnLoad: resource.WaitOnLoad,
 		})
@@ -299,9 +299,9 @@ func loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepositor
 	return result, nil
 }
 
-func buildModulePath(microFrontendName string, path string, proxy bool) string {
+func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool) string {
 	if proxy {
-		return "./polyfea/proxy/" + microFrontendName + "/" + path
+		return "./polyfea/proxy/" + microFrontendNamespace + "/" + microFrontendName + "/" + path
 	} else {
 		return path
 	}

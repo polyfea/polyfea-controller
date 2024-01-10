@@ -1091,7 +1091,8 @@ func createTestContextArea(expectedElements []generated.ElementSpec, expectedMic
 func createTestWebComponent(objecName string, microFrontendName string, element string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
 	return &v1alpha1.WebComponent{
 		ObjectMeta: v1.ObjectMeta{
-			Name: objecName,
+			Name:      objecName,
+			Namespace: "default",
 		},
 		Spec: v1alpha1.WebComponentSpec{
 			MicroFrontend: &microFrontendName,
@@ -1117,7 +1118,8 @@ func createTestWebComponent(objecName string, microFrontendName string, element 
 func createTestMicroFrontend(objecName string, dependsOn []string, modulePath string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
-			Name: objecName,
+			Name:      objecName,
+			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
 			Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
@@ -1146,7 +1148,8 @@ func createTestMicroFrontend(objecName string, dependsOn []string, modulePath st
 func createTestMicroFrontendClass(frontendClassName string, baseUri string) *v1alpha1.MicroFrontendClass {
 	return &v1alpha1.MicroFrontendClass{
 		ObjectMeta: v1.ObjectMeta{
-			Name: frontendClassName,
+			Name:      frontendClassName,
+			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri:         &[]string{baseUri}[0],
@@ -1171,8 +1174,8 @@ func createTestElementSpec(microFrontendName string) generated.ElementSpec {
 func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string, withProxy bool) generated.MicrofrontendSpec {
 	var href, module string
 	if withProxy {
-		href = "./polyfea/proxy/" + microfrontendName + "/test-uri"
-		module = "./polyfea/proxy/" + microfrontendName + "/test-module"
+		href = "./polyfea/proxy/default/" + microfrontendName + "/test-uri"
+		module = "./polyfea/proxy/default/" + microfrontendName + "/test-module"
 	} else {
 		href = "test-uri"
 		module = "test-module"
