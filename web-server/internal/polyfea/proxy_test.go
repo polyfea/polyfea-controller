@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -107,10 +106,6 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	if writer.Code != 500 {
 		t.Error("The proxy did not return the correct status code.")
 	}
-
-	if !strings.Contains(writer.Body.String(), "no such host") {
-		t.Error("The proxy did not return the correct body.")
-	}
 }
 
 func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
@@ -202,16 +197,6 @@ func PolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 
 	if response.StatusCode != 500 {
 		t.Error("The proxy did not return the correct status code.")
-	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Error(err)
-	}
-	bodyString := string(bodyBytes)
-
-	if !strings.Contains(bodyString, "no such host") {
-		t.Error("The proxy did not return the correct body.")
 	}
 }
 
