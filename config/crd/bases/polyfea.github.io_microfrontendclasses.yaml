@@ -85,6 +85,9 @@ spec:
                 description: UserRolesHeader is the name of the header that contains
                   the roles of the user. Defaults to 'x-auth-request-roles'.
                 type: string
+              title:
+                description: Title that will be used for the frontend class.
+                type: string
               userHeader:
                 default: x-auth-request-user
                 description: UserHeader is the name of the header that contains the
@@ -92,6 +95,7 @@ spec:
                 type: string
             required:
             - baseUri
+            - title
             type: object
           status:
             description: MicroFrontendClassStatus defines the observed state of MicroFrontendClass
