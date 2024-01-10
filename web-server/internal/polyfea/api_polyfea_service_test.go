@@ -269,7 +269,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 			{
 				AllOf: []v1alpha1.Matcher{
 					{
-						Path: "test-path",
+						Path: "test*",
 					},
 					{
 						ContextName: "test-name",
@@ -309,7 +309,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)
+	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, headers)
 
 	// Assert
 	if err != nil {
@@ -364,9 +364,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfRoleMatcherIsNotMatchin
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
 	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)
@@ -424,9 +424,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfContextMatcherIsNotMatc
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
 	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)
@@ -456,7 +456,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfPathIsNotMatching(t *te
 			{
 				AllOf: []v1alpha1.Matcher{
 					{
-						Path: "not-test-path",
+						Path: "soe.*",
 					},
 					{
 						ContextName: "test-name",
@@ -484,12 +484,12 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfPathIsNotMatching(t *te
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest.*", 10, headers)
+	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest", 10, headers)
 
 	// Assert
 	if err != nil {
@@ -549,9 +549,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfNoneOfIsMatching(t *tes
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
 	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest.*", 10, headers)
@@ -609,9 +609,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfAnyOfIsNotMatching(t *t
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
-	headers := map[string][]string{
-		"test-user-roles-header": {"some-different-role", "test-role, test-other-role"},
-	}
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
 	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest.*", 10, headers)

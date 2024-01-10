@@ -37,7 +37,7 @@ var apiPolyfeaTestSuite = IntegrationTestSuite{
 func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t *testing.T) {
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
-	testRoute := "/polyfea/context-area/test-name?path=test.*&take=1"
+	testRoute := "/polyfea/context-area/test-name?path=test-path&take=1"
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -118,7 +118,7 @@ func PolyfeaApiGetContextAreaMultipleElementsNotMatchingReturnNotFound(t *testin
 func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
-	testRoute := "/polyfea/context-area/test-name?path=test.*"
+	testRoute := "/polyfea/context-area/test-name?path=test-path"
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -195,7 +195,7 @@ func polyfeaApiSetupRouter() http.Handler {
 			{
 				NoneOf: []v1alpha1.Matcher{
 					{
-						Path: "tt-path",
+						Path: "tt.*",
 					},
 					{
 						ContextName: "tt-name",
@@ -221,7 +221,7 @@ func polyfeaApiSetupRouter() http.Handler {
 				},
 				AllOf: []v1alpha1.Matcher{
 					{
-						Path: "test-path",
+						Path: "test.*",
 					},
 					{
 						ContextName: "test-name",
