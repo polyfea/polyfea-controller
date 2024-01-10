@@ -3,6 +3,7 @@ module github.com/polyfea/polyfea-controller
 go 1.19
 
 require (
+	github.com/dlclark/regexp2 v1.10.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/onsi/ginkgo/v2 v2.6.0

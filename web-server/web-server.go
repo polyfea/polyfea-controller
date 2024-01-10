@@ -30,5 +30,13 @@ func SetupRouter(
 
 	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"}", proxy.HandleProxy)
 
+	spa := polyfea.NewSinglePageApplication(microFrontendClassRepository)
+
+	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
+
+	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
+
 	return polyfea.BasePathStrippingMiddleware(router)
 }

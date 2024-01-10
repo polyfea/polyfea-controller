@@ -38,5 +38,6 @@ func collectIntegrationTestSuites() []IntegrationTestSuite {
 		apiPolyfeaTestSuite,
 		middlewaresTestSuite,
 		proxyTestSuite,
+		spaTestSuite,
 	}
 }
