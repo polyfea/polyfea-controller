@@ -26,5 +26,9 @@ func SetupRouter(
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 
+	proxy := polyfea.NewPolyfeaProxy(microFrontendClassRepository, microFrontendRepoistory, &http.Client{})
+
+	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"}", proxy.HandleProxy)
+
 	return polyfea.BasePathStrippingMiddleware(router)
 }
