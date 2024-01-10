@@ -45,7 +45,7 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
-var microFrontedClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
+var microFrontendClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
 var microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
 var webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
 
@@ -85,7 +85,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	microFrontedClassRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	microFrontendClassRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
 	microFrontendRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontend]()
 	webComponentRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.WebComponent]()
 
@@ -109,7 +109,7 @@ var _ = BeforeSuite(func() {
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
 		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
-		Repository: microFrontedClassRepository,
+		Repository: microFrontendClassRepository,
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 

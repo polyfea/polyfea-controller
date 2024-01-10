@@ -16,20 +16,20 @@ import (
 )
 
 type PolyfeaApiService struct {
-	webComponentRepository      repository.PolyfeaRepository[*v1alpha1.WebComponent]
-	microFrontendRepository     repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
-	microFrontedClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
+	webComponentRepository       repository.PolyfeaRepository[*v1alpha1.WebComponent]
+	microFrontendRepository      repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
+	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
 }
 
 func NewPolyfeaAPIService(
 	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
 	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
-	microFrontedClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *PolyfeaApiService {
+	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *PolyfeaApiService {
 
 	return &PolyfeaApiService{
-		webComponentRepository:      webComponentRepository,
-		microFrontendRepository:     microFrontendRepository,
-		microFrontedClassRepository: microFrontedClassRepository,
+		webComponentRepository:       webComponentRepository,
+		microFrontendRepository:      microFrontendRepository,
+		microFrontendClassRepository: microFrontendClassRepository,
 	}
 }
 
@@ -49,7 +49,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	// Get frontend class for base path
-	frontendClasses, err := s.microFrontedClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
+	frontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
 		frontendClassBasePath := *mfc.Spec.BaseUri
 		if frontendClassBasePath[0] != '/' {
 			frontendClassBasePath = "/" + frontendClassBasePath
