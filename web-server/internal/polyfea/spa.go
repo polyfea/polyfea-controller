@@ -3,11 +3,11 @@ package polyfea
 import (
 	"bytes"
 	"crypto/rand"
+	_ "embed"
 	"encoding/base64"
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -24,6 +24,9 @@ type TemplateData struct {
 	Nonce     string
 	ExtraMeta template.HTML
 }
+
+//go:embed .template/index.html
+var html string
 
 func NewSinglePageApplication(microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *SingePageApplication {
 	return &SingePageApplication{
@@ -65,24 +68,11 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 
 	microFrontendClass := microFrontendClasses[0]
 
-	data, err := os.ReadFile("../../.template/index.html")
-
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Println("index.html does not exist!")
-			http.NotFound(w, r)
-			return
-		}
-		log.Panic(err)
-	}
-
 	nonce, err := generateNonce()
 
 	if err != nil {
 		log.Panic(err)
 	}
-
-	fileContent := string(data)
 
 	extraMeta := ""
 
@@ -97,7 +87,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		ExtraMeta: template.HTML(extraMeta),
 	}
 
-	templatedHtml := templateHtml(fileContent, &templateVars)
+	templatedHtml := templateHtml(html, &templateVars)
 
 	cspHeader := strings.ReplaceAll(microFrontendClass.Spec.CspHeader, "{NONCE_VALUE}", nonce)
 
