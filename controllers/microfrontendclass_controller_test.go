@@ -55,6 +55,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 					Namespace: MicroFrontendClassNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
 					BaseUri:   &[]string{"http://localhost:8080"}[0],
 					CspHeader: "default-src 'self';",
 					ExtraHeaders: []polyfeav1alpha1.Header{
@@ -95,7 +96,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		It("Should let create with just base uri", func() {
+		It("Should not let create without base uri", func() {
 			By("By creating a new MicroFrontendClass")
 			ctx := context.Background()
 			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
@@ -108,6 +109,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 					Namespace: MicroFrontendClassNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
 					CspHeader: "default-src 'self';",
 					ExtraHeaders: []polyfeav1alpha1.Header{
 						{
@@ -122,7 +124,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
 		})
 
-		It("Should not let create with empty base uri and fill defaults", func() {
+		It("Should not let create without title", func() {
 			By("By creating a new MicroFrontendClass")
 			ctx := context.Background()
 			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
@@ -135,6 +137,35 @@ var _ = Describe("MicroFrontendClass controller", func() {
 					Namespace: MicroFrontendClassNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					BaseUri:   &[]string{"http://localhost:8080"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should let create with base uri and title and fill defaults", func() {
+			By("By creating a new MicroFrontendClass")
+			ctx := context.Background()
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:   &[]string{"Test MicroFrontendClass"}[0],
 					BaseUri: &[]string{"http://localhost:8080"}[0],
 				},
 			}
@@ -174,6 +205,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 					Namespace: MicroFrontendClassNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
 					BaseUri:   &[]string{"http://localhost:8080"}[0],
 					CspHeader: "default-src 'self';",
 					ExtraHeaders: []polyfeav1alpha1.Header{

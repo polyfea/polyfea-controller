@@ -26,6 +26,10 @@ type MicroFrontendClassSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	BaseUri *string `json:"baseUri"`
 
+	// Title that will be used for the frontend class.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Title *string `json:"title"`
+
 	// CspHeader that will be used for the frontend class, a default will be used if not set.
 	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

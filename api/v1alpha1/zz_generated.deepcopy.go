@@ -210,6 +210,11 @@ func (in *MicroFrontendClassSpec) DeepCopyInto(out *MicroFrontendClassSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Title != nil {
+		in, out := &in.Title, &out.Title
+		*out = new(string)
+		**out = **in
+	}
 	if in.ExtraMetaTags != nil {
 		in, out := &in.ExtraMetaTags, &out.ExtraMetaTags
 		*out = make([]MetaTag, len(*in))
