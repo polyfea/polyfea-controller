@@ -198,7 +198,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
 
 			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontedClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == MicroFrontendClassName
 				})
@@ -213,7 +213,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			}, timeout, interval).Should(BeTrue())
 
 			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontedClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
 					println("Checking microfrontend " + mf.Name)
 					return mf.Name == MicroFrontendClassName
 				})

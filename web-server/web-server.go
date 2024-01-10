@@ -12,12 +12,12 @@ import (
 
 func SetupRouter(
 	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
-	microFrontendRepoistory repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
+	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
 	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent]) http.Handler {
 
 	polyfeaAPIService := polyfea.NewPolyfeaAPIService(
 		webComponentRepository,
-		microFrontendRepoistory,
+		microFrontendRepository,
 		microFrontendClassRepository)
 
 	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
@@ -25,6 +25,10 @@ func SetupRouter(
 	router := generated.NewRouter(polyfeaAPIController)
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
+
+	proxy := polyfea.NewPolyfeaProxy(microFrontendClassRepository, microFrontendRepository, &http.Client{})
+
+	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"}", proxy.HandleProxy)
 
 	return polyfea.BasePathStrippingMiddleware(router)
 }
