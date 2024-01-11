@@ -64,7 +64,7 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	microfrontend := microfrontends[0]
 
 	microfrontendClasses, err := p.microfrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		return mfc.Namespace == nameSpace && mfc.Name == *microfrontend.Spec.FrontendClass
+		return mfc.Name == *microfrontend.Spec.FrontendClass
 	})
 
 	if err != nil {
@@ -110,6 +110,7 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	copyExtraHeaders(w.Header(), microfrontendClass.Spec.ExtraHeaders)
 
 	contentBytes, contentType := getMimeType(path, resp.Body)
+	log.Println("contentType")
 	w.Header().Set("Content-Type", contentType)
 
 	w.WriteHeader(resp.StatusCode)
