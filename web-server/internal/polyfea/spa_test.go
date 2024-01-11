@@ -121,8 +121,6 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	if strings.Contains(bodyString, "}") != false {
 		t.Fatalf("expected body to not contain %s", "}")
 	}
-
-	print(bodyString)
 }
 
 func polyfeaSPAApiSetupRouter() http.Handler {

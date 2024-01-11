@@ -3,7 +3,9 @@ package polyfea
 import (
 	"io"
 	"log"
+	"mime"
 	"net/http"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -104,6 +106,10 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 
 	copyExtraHeaders(w.Header(), microfrontendClass.Spec.ExtraHeaders)
 
+	if len(w.Header().Get("Content-Type")) == 0 {
+		w.Header().Set("Content-Type", getMimeType(path, resp.Body))
+	}
+
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 }
@@ -120,4 +126,19 @@ func copyExtraHeaders(dst http.Header, extraHeaders []v1alpha1.Header) {
 	for _, extraHeader := range extraHeaders {
 		dst.Add(extraHeader.Name, extraHeader.Value)
 	}
+}
+
+func getMimeType(path string, body io.ReadCloser) string {
+	if mimeType := mime.TypeByExtension(filepath.Ext(path)); mimeType != "" {
+		return mimeType
+	}
+
+	buf := make([]byte, 512)
+	_, err := body.Read(buf)
+
+	if err != nil {
+		return "application/octet-stream"
+	}
+
+	return http.DetectContentType(buf)
 }
