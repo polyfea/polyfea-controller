@@ -210,7 +210,7 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 
 	myHandler := http.NewServeMux()
 
-	myHandler.HandleFunc("/test-module", func(w http.ResponseWriter, r *http.Request) {
+	myHandler.HandleFunc("/test-module.css", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("test-module"))
 	})
@@ -238,7 +238,7 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module")
+	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module.css")
 
 	// Assert
 	if err != nil {

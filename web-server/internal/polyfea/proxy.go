@@ -7,10 +7,12 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 const (
@@ -135,7 +137,13 @@ func getMimeType(path string, body io.ReadCloser) ([]byte, string) {
 		return []byte{}, "application/octet-stream"
 	}
 
-	if mimeType := mime.TypeByExtension(filepath.Ext(path)); mimeType != "" {
+	ext := strings.ToLower(filepath.Ext(path))
+
+	if mimeType := mime.TypeByExtension(ext); mimeType != "" {
+		return buf, mimeType
+	}
+
+	if mimeType := generated.CommonMimeTypes[ext]; mimeType != "" {
 		return buf, mimeType
 	}
 
