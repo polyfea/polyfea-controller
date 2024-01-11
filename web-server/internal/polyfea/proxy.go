@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"bytes"
 	"io"
 	"log"
 	"mime"
@@ -106,12 +107,11 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 
 	copyExtraHeaders(w.Header(), microfrontendClass.Spec.ExtraHeaders)
 
-	if len(w.Header().Get("Content-Type")) == 0 {
-		w.Header().Set("Content-Type", getMimeType(path, resp.Body))
-	}
+	contentBytes, contentType := getMimeType(path, resp.Body)
+	w.Header().Set("Content-Type", contentType)
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	io.Copy(w, bytes.NewBuffer(contentBytes))
 }
 
 func copyHeaders(dst, src http.Header) {
@@ -128,17 +128,16 @@ func copyExtraHeaders(dst http.Header, extraHeaders []v1alpha1.Header) {
 	}
 }
 
-func getMimeType(path string, body io.ReadCloser) string {
+func getMimeType(path string, body io.ReadCloser) ([]byte, string) {
+	buf, _ := io.ReadAll(body)
+
+	if len(buf) == 0 {
+		return []byte{}, "application/octet-stream"
+	}
+
 	if mimeType := mime.TypeByExtension(filepath.Ext(path)); mimeType != "" {
-		return mimeType
+		return buf, mimeType
 	}
 
-	buf := make([]byte, 512)
-	_, err := body.Read(buf)
-
-	if err != nil {
-		return "application/octet-stream"
-	}
-
-	return http.DetectContentType(buf)
+	return buf, http.DetectContentType(buf)
 }

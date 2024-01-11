@@ -249,12 +249,12 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	if response.StatusCode != 200 {
 		t.Error("The proxy did not return the correct status code.")
 	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
+	buffer := make([]byte, response.ContentLength)
+	n, err := response.Body.Read(buffer)
+	if err != nil && err != io.EOF {
 		t.Error(err)
 	}
-	bodyString := string(bodyBytes)
+	bodyString := string(buffer[:n])
 
 	if bodyString != "test-module" {
 		t.Error("The proxy did not return the correct body.")
