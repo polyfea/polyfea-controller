@@ -51,6 +51,7 @@ type MicroFrontendSpec struct {
 	StaticResources []StaticResources `json:"staticPaths,omitempty"`
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
+	// +kubebuilder:default=polyfea-controller-default
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	FrontendClass *string `json:"frontendClass"`
 

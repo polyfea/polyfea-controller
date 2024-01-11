@@ -150,33 +150,6 @@ var _ = Describe("Microfrontend controller", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
-
-			By("By creating a new MicroFrontend without frontend class")
-			ctx = context.Background()
-
-			proxy = true
-
-			microFrontend = &polyfeav1alpha1.MicroFrontend{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontend",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendName,
-					Namespace: MicroFrontendNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
-					Proxy:         &proxy,
-					CacheStrategy: "none",
-					ModulePath:    &[]string{"module.jsm"}[0],
-					StaticResources: []polyfeav1alpha1.StaticResources{{
-						Path: "static",
-						Kind: "script",
-					}},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
 		})
 
 		It("Should create with defaults if optional fields are not specified", func() {
@@ -193,9 +166,8 @@ var _ = Describe("Microfrontend controller", func() {
 					Namespace: MicroFrontendNamespace,
 				},
 				Spec: polyfeav1alpha1.MicroFrontendSpec{
-					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
-					ModulePath:    &[]string{"module.jsm"}[0],
-					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+					Service:    &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+					ModulePath: &[]string{"module.jsm"}[0],
 				},
 			}
 			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
@@ -210,6 +182,7 @@ var _ = Describe("Microfrontend controller", func() {
 			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
 			Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
 			Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
+			Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(&[]string{"polyfea-controller-default"}[0]))
 			Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())

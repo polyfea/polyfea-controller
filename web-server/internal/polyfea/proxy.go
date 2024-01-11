@@ -1,13 +1,18 @@
 package polyfea
 
 import (
+	"bytes"
 	"io"
 	"log"
+	"mime"
 	"net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 )
 
 const (
@@ -59,7 +64,7 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	microfrontend := microfrontends[0]
 
 	microfrontendClasses, err := p.microfrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		return mfc.Namespace == nameSpace && mfc.Name == *microfrontend.Spec.FrontendClass
+		return mfc.Name == *microfrontend.Spec.FrontendClass
 	})
 
 	if err != nil {
@@ -104,8 +109,12 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 
 	copyExtraHeaders(w.Header(), microfrontendClass.Spec.ExtraHeaders)
 
+	contentBytes, contentType := getMimeType(path, resp.Body)
+	log.Println("contentType")
+	w.Header().Set("Content-Type", contentType)
+
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	io.Copy(w, bytes.NewBuffer(contentBytes))
 }
 
 func copyHeaders(dst, src http.Header) {
@@ -120,4 +129,24 @@ func copyExtraHeaders(dst http.Header, extraHeaders []v1alpha1.Header) {
 	for _, extraHeader := range extraHeaders {
 		dst.Add(extraHeader.Name, extraHeader.Value)
 	}
+}
+
+func getMimeType(path string, body io.ReadCloser) ([]byte, string) {
+	buf, _ := io.ReadAll(body)
+
+	if len(buf) == 0 {
+		return []byte{}, "application/octet-stream"
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+
+	if mimeType := mime.TypeByExtension(ext); mimeType != "" {
+		return buf, mimeType
+	}
+
+	if mimeType := generated.CommonMimeTypes[ext]; mimeType != "" {
+		return buf, mimeType
+	}
+
+	return buf, http.DetectContentType(buf)
 }

@@ -28,7 +28,7 @@ func SetupRouter(
 
 	proxy := polyfea.NewPolyfeaProxy(microFrontendClassRepository, microFrontendRepository, &http.Client{})
 
-	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"}", proxy.HandleProxy)
+	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+":.*}", proxy.HandleProxy)
 
 	spa := polyfea.NewSinglePageApplication(microFrontendClassRepository)
 

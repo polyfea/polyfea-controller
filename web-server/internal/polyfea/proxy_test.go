@@ -56,7 +56,9 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 				Status:     strconv.Itoa(200),
 				StatusCode: 200,
 				Body:       io.NopCloser(bytes.NewReader([]byte("test-module"))),
-				Header:     http.Header{},
+				Header: http.Header{
+					"Content-Type": []string{"text/plain"},
+				},
 			}, nil
 		},
 	)
@@ -139,7 +141,9 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 				Status:     strconv.Itoa(200),
 				StatusCode: 200,
 				Body:       io.NopCloser(bytes.NewReader([]byte("test-module"))),
-				Header:     http.Header{},
+				Header: http.Header{
+					"Content-Type": []string{"text/plain"},
+				},
 			}, nil
 		},
 	)
@@ -206,7 +210,7 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 
 	myHandler := http.NewServeMux()
 
-	myHandler.HandleFunc("/test-module", func(w http.ResponseWriter, r *http.Request) {
+	myHandler.HandleFunc("/test-module.css", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write([]byte("test-module"))
 	})
@@ -234,7 +238,7 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	defer server.Close()
 
 	// Act
-	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module")
+	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module.css")
 
 	// Assert
 	if err != nil {
@@ -245,12 +249,12 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	if response.StatusCode != 200 {
 		t.Error("The proxy did not return the correct status code.")
 	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
+	buffer := make([]byte, response.ContentLength)
+	n, err := response.Body.Read(buffer)
+	if err != nil && err != io.EOF {
 		t.Error(err)
 	}
-	bodyString := string(bodyBytes)
+	bodyString := string(buffer[:n])
 
 	if bodyString != "test-module" {
 		t.Error("The proxy did not return the correct body.")
