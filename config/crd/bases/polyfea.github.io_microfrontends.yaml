@@ -55,6 +55,7 @@ spec:
                   type: string
                 type: array
               frontendClass:
+                default: polyfea-controller-default
                 description: FrontendClass is the name of the frontend class that
                   should be used for this micro frontend.
                 type: string
