@@ -56,7 +56,9 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 				Status:     strconv.Itoa(200),
 				StatusCode: 200,
 				Body:       io.NopCloser(bytes.NewReader([]byte("test-module"))),
-				Header:     http.Header{},
+				Header: http.Header{
+					"Content-Type": []string{"text/plain"},
+				},
 			}, nil
 		},
 	)
@@ -139,7 +141,9 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 				Status:     strconv.Itoa(200),
 				StatusCode: 200,
 				Body:       io.NopCloser(bytes.NewReader([]byte("test-module"))),
-				Header:     http.Header{},
+				Header: http.Header{
+					"Content-Type": []string{"text/plain"},
+				},
 			}, nil
 		},
 	)

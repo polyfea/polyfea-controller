@@ -182,7 +182,7 @@ var _ = Describe("Microfrontend controller", func() {
 			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
 			Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
 			Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
-			Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal("polyfea-controller-default"))
+			Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(&[]string{"polyfea-controller-default"}[0]))
 			Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 			Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
