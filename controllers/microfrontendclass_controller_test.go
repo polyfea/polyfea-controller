@@ -180,7 +180,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
-			Expect(createdMicroFrontendClass.Spec.CspHeader).Should(Equal("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';"))
+			Expect(createdMicroFrontendClass.Spec.CspHeader).Should(Equal("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"))
 			Expect(createdMicroFrontendClass.Spec.ExtraHeaders).Should(BeNil())
 			Expect(createdMicroFrontendClass.Spec.UserRolesHeader).Should(Equal("x-auth-request-roles"))
 			Expect(createdMicroFrontendClass.Spec.UserHeader).Should(Equal("x-auth-request-user"))

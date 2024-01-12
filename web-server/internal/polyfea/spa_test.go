@@ -97,11 +97,11 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	nonceRegex := regexp2.MustCompile(`'nonce-(?!{NONCE_VALUE})[^']*'`, regexp2.None)
 
-	expectedWithoutNonce, _ := nonceRegex.Replace("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';", "'nonce-NONCE'", -1, -1)
+	expectedWithoutNonce, _ := nonceRegex.Replace("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'", -1, -1)
 	gotWithoutNonce, _ := nonceRegex.Replace(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'", -1, -1)
 
 	if expectedWithoutNonce != gotWithoutNonce {
-		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';", response.Header.Get("Content-Security-Policy"))
+		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))
 	}
 
 	if response.Header.Get("test-header") != "test-value" {
@@ -143,7 +143,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
 
-	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';"
+	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic'; 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
 	testMicroFrontendClassRepository.StoreItem(mfc)
 	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))

@@ -40,9 +40,9 @@ spec:
                 description: BaseUri for which the frontend class will be used
                 type: string
               cspHeader:
-                default: default-src 'self'; font-src 'self'; script-src 'strict-dynamic'
+                default:  default-src 'self'; font-src 'self'; script-src 'strict-dynamic'
                   'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src
-                  'self' 'strict-dynamic';
+                  'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';
                 description: CspHeader that will be used for the frontend class, a
                   default will be used if not set.
                 type: string

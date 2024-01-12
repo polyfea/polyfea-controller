@@ -112,9 +112,9 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return generated.ImplResponse{Code: 500}, err
 	}
 
-	if len(webComponents) == 0 {
-		return generated.ImplResponse{Code: 404, Body: "No webcomponents found based on query. Name: " + name + ", Path: " + path}, nil
-	}
+	// if len(webComponents) == 0 {
+	// 	return generated.ImplResponse{Code: 404, Body: "No webcomponents found based on query. Name: " + name + ", Path: " + path}, nil
+	// }
 
 	sort.Slice(webComponents, func(i, j int) bool {
 		return *webComponents[i].Spec.Priority > *webComponents[j].Spec.Priority
