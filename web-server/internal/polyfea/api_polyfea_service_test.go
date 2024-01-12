@@ -432,7 +432,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
+			createTestElementSpec(""),
 		},
 		map[string]generated.MicrofrontendSpec{})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
