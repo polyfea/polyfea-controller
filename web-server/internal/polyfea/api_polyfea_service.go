@@ -101,13 +101,9 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
-	if len(microFrontendsForClass) == 0 {
-		return addExtraHeaders(generated.Response(http.StatusNotFound, "No microfrontends found for frontend class "+frontendClass.Name), frontendClass.Spec.ExtraHeaders), nil
-	}
-
 	// Get webcomponents for given query and frontend class
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, userRoles) && slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend)
+		return selectMatchingWebComponents(mf, name, path, userRoles) && (len(microFrontendsNamesForClass) == 0 || mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend))
 	})
 
 	if err != nil {
@@ -131,9 +127,15 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	// Chek which microfrontends are needed for selected webcomponents and convert webcomponents to response
 	microFrontendsToLoad := []string{}
 	for _, webComponent := range webComponents {
-		microFrontendsToLoad = append(microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
+		var microfrontendName string
+
+		if webComponent.Spec.MicroFrontend != nil {
+			microFrontendsToLoad = append(microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
+			microfrontendName = *webComponent.Spec.MicroFrontend
+		}
+
 		result.Elements = append(result.Elements, generated.ElementSpec{
-			Microfrontend: *webComponent.Spec.MicroFrontend,
+			Microfrontend: microfrontendName,
 			TagName:       *webComponent.Spec.Element,
 			Attributes:    convertAttributes(webComponent.Spec.Attributes),
 			Style:         convertStyles(webComponent.Spec.Style),
@@ -144,11 +146,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
 	if err != nil {
-		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
-	}
-
-	if len(allMicroFrontends) == 0 {
-		return addExtraHeaders(generated.Response(http.StatusNotFound, "None of referenced microfrontends were found"), frontendClass.Spec.ExtraHeaders), nil
+		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"+err.Error()), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	// Convert microfrontends to response

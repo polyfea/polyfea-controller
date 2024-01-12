@@ -395,6 +395,69 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	}
 }
 
+func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHasNoMicrofrontends(t *testing.T) {
+	// Arrange
+	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-name",
+		"",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test*",
+					},
+					{
+						ContextName: "test-name",
+					},
+					{
+						Role: "test-role",
+					},
+					{
+						Role: "test-other-role",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
+
+	polyfeaApiService := NewPolyfeaAPIService(
+		testWebComponentRepository,
+		testMicroFrontendRepository,
+		testMicroFrontendClassRepository)
+
+	expectedContextArea := createTestContextArea(
+		[]generated.ElementSpec{
+			createTestElementSpec("test-microfrontend"),
+		},
+		map[string]generated.MicrofrontendSpec{})
+	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+
+	headers := http.Header{}
+	headers.Set("test-user-roles-header", "some-different-role")
+	headers.Add("test-user-roles-header", "test-role, test-other-role")
+
+	// Act
+	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, headers)
+
+	// Assert
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
+
+	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
+	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
+
+	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+}
+
 func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
@@ -1159,13 +1222,21 @@ func createTestContextArea(expectedElements []generated.ElementSpec, expectedMic
 }
 
 func createTestWebComponent(objecName string, microFrontendName string, element string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
+
+	var mfn *string
+	if len(microFrontendName) == 0 {
+		mfn = nil
+	} else {
+		mfn = &microFrontendName
+	}
+
 	return &v1alpha1.WebComponent{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      objecName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.WebComponentSpec{
-			MicroFrontend: &microFrontendName,
+			MicroFrontend: mfn,
 			Element:       &element,
 			Attributes: []v1alpha1.Attribute{
 				{
