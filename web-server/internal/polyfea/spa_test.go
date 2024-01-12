@@ -143,7 +143,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
 
-	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic'; 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
+	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
 	testMicroFrontendClassRepository.StoreItem(mfc)
 	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
