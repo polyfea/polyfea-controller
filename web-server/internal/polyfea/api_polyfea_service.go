@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"regexp"
 	"slices"
@@ -34,6 +35,7 @@ func NewPolyfeaAPIService(
 }
 
 func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, path string, take int32, headers http.Header) (generated.ImplResponse, error) {
+	log.Println("GetContextArea called with name: " + name + ", path: " + path + ", take: " + string(take))
 	result := generated.ContextArea{
 		Elements:       []generated.ElementSpec{},
 		Microfrontends: map[string]generated.MicrofrontendSpec{},
@@ -62,15 +64,15 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
-		return generated.ImplResponse{Code: 500}, err
+		return generated.Response(http.StatusInternalServerError, "Internal Server Error"), err
 	}
 
 	if len(frontendClasses) == 0 {
-		return generated.Response(404, "No frontend class found for base path "+basePath), nil
+		return generated.Response(http.StatusNotFound, "No frontend class found for base path "+basePath), nil
 	}
 
 	if len(frontendClasses) > 1 {
-		return generated.Response(400, "Multiple frontend classes found for base path "+basePath), nil
+		return generated.Response(http.StatusBadRequest, "Multiple frontend classes found for base path "+basePath), nil
 	}
 
 	frontendClass := frontendClasses[0]
@@ -96,11 +98,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	if err != nil {
-		return generated.ImplResponse{Code: 500}, err
+		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	if len(microFrontendsForClass) == 0 {
-		return generated.Response(404, "No microfrontends found for frontend class "+frontendClass.Name), nil
+		return addExtraHeaders(generated.Response(http.StatusNotFound, "No microfrontends found for frontend class "+frontendClass.Name), frontendClass.Spec.ExtraHeaders), nil
 	}
 
 	// Get webcomponents for given query and frontend class
@@ -109,11 +111,12 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
-		return generated.ImplResponse{Code: 500}, err
+		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	if len(webComponents) == 0 {
-		return generated.ImplResponse{Code: 404, Body: "No webcomponents found based on query. Name: " + name + ", Path: " + path}, nil
+		log.Println("No webcomponents found for query")
+		return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 	}
 
 	sort.Slice(webComponents, func(i, j int) bool {
@@ -141,11 +144,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
 	if err != nil {
-		return generated.ImplResponse{Code: 500}, err
+		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	if len(allMicroFrontends) == 0 {
-		return generated.ImplResponse{Code: 404, Body: "None of referenced microfrontends were found"}, nil
+		return addExtraHeaders(generated.Response(http.StatusNotFound, "None of referenced microfrontends were found"), frontendClass.Spec.ExtraHeaders), nil
 	}
 
 	// Convert microfrontends to response
@@ -157,11 +160,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		}
 	}
 
-	return generated.Response(200, result), nil
+	return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 }
 
 func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.Header) (generated.ImplResponse, error) {
-	return generated.ImplResponse{Code: 501}, nil
+	return generated.Response(http.StatusNotImplemented, "Not implemented"), nil
 }
 
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
@@ -316,4 +319,21 @@ func buildModulePath(microFrontendNamespace string, microFrontendName string, pa
 	} else {
 		return path
 	}
+}
+
+func addExtraHeaders(response generated.ImplResponse, extraHeaders []v1alpha1.Header) generated.ImplResponse {
+	if extraHeaders == nil {
+		return response
+	}
+
+	if response.Headers == nil {
+		response.Headers = map[string][]string{}
+	}
+
+	for _, header := range extraHeaders {
+		response.Headers[header.Name] = []string{header.Value}
+	}
+
+	return response
+
 }

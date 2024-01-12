@@ -81,6 +81,10 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
 		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
 	}
+
+	if response.Header.Get("test-header") != "test-value" {
+		t.Errorf("Expected %v, got %v", "test-value", response.Header.Get("test-header"))
+	}
 }
 
 func PolyfeaApiGetContextAreaMultipleElementsNotMatchingReturnNotFound(t *testing.T) {
@@ -110,8 +114,18 @@ func PolyfeaApiGetContextAreaMultipleElementsNotMatchingReturnNotFound(t *testin
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.StatusCode != http.StatusNotFound {
-		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
+	}
+
+	var actualContextArea generated.ContextArea
+	err = json.NewDecoder(response.Body).Decode(&actualContextArea)
+	if err != nil {
+		t.Errorf("Error decoding response body: %v", err)
+	}
+
+	if len(actualContextArea.Elements) != 0 {
+		t.Errorf("Expected no elements, got %v", actualContextArea.Elements)
 	}
 }
 
@@ -246,7 +260,15 @@ func polyfeaApiSetupRouter() http.Handler {
 
 	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
+	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
+		{
+			Name:  "test-header",
+			Value: "test-value",
+		},
+	}
+
+	testMicroFrontendClassRepository.StoreItem(mfc)
 	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
 	polyfeaAPIService := NewPolyfeaAPIService(

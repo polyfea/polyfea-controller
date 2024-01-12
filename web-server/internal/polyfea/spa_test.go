@@ -29,6 +29,10 @@ var spaTestSuite = IntegrationTestSuite{
 			Name: "PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsRequested",
 			Func: PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsRequested,
 		},
+		{
+			Name: "PolyfeaSinglePageApplicationReturnsBootJsWhenRequested",
+			Func: PolyfeaSinglePageApplicationReturnsBootJsWhenRequested,
+		},
 	},
 }
 
@@ -88,7 +92,7 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
+		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
 	}
 
 	if response.Header.Get("Content-Type") != "text/html; charset=utf-8" {
@@ -97,11 +101,11 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	nonceRegex := regexp2.MustCompile(`'nonce-(?!{NONCE_VALUE})[^']*'`, regexp2.None)
 
-	expectedWithoutNonce, _ := nonceRegex.Replace("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';", "'nonce-NONCE'", -1, -1)
+	expectedWithoutNonce, _ := nonceRegex.Replace("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'", -1, -1)
 	gotWithoutNonce, _ := nonceRegex.Replace(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'", -1, -1)
 
 	if expectedWithoutNonce != gotWithoutNonce {
-		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';", response.Header.Get("Content-Security-Policy"))
+		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))
 	}
 
 	if response.Header.Get("test-header") != "test-value" {
@@ -120,6 +124,40 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	if strings.Contains(bodyString, "}") != false {
 		t.Fatalf("expected body to not contain %s", "}")
+	}
+}
+
+func PolyfeaSinglePageApplicationReturnsBootJsWhenRequested(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea/boot.mjs")
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
+	}
+
+	if response.Header.Get("Content-Type") != "application/javascript;" {
+		t.Fatalf("expected content type %s, got %s", "application/javascript;", response.Header.Get("Content-Type"))
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	bodyString := string(bodyBytes)
+
+	expectedString := string(bootJs)
+
+	if bodyString != expectedString {
+		t.Fatalf("expected body %s, got %s", expectedString, bodyString)
 	}
 }
 
@@ -143,7 +181,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
 
-	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic';"
+	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
 	testMicroFrontendClassRepository.StoreItem(mfc)
 	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
@@ -155,6 +193,8 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

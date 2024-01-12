@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -68,6 +69,75 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 
 	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
 		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+}
+
+func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *testing.T) {
+	// Arrange
+	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+	testWebComponentRepository.StoreItem(createTestWebComponent(
+		"test-name",
+		"test-microfrontend",
+		"test-tag-name",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test-path",
+					},
+					{
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+
+	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
+		{
+			Name:  "test-header",
+			Value: "test-value",
+		},
+	}
+
+	testMicroFrontendClassRepository.StoreItem(mfc)
+
+	polyfeaApiService := NewPolyfeaAPIService(
+		testWebComponentRepository,
+		testMicroFrontendRepository,
+		testMicroFrontendClassRepository)
+
+	expectedContextArea := createTestContextArea(
+		[]generated.ElementSpec{
+			createTestElementSpec("test-microfrontend"),
+		},
+		map[string]generated.MicrofrontendSpec{
+			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
+		})
+	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+
+	// Act
+	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+
+	// Assert
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
+
+	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
+	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
+
+	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+
+	if !slices.Contains(actualContextAreaResponse.Headers["test-header"], "test-value") {
+		t.Errorf("Expected %v, got %v", "test-value", actualContextAreaResponse.Headers["test-header"][0])
 	}
 }
 
@@ -325,7 +395,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfRoleMatcherIsNotMatching(t *testing.T) {
+func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testWebComponentRepository.StoreItem(createTestWebComponent(
@@ -376,16 +446,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfRoleMatcherIsNotMatchin
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.Code != 404 {
-		t.Errorf("Expected 404, got %v", response.Code)
+	if response.Code != 200 {
+		t.Errorf("Expected 200, got %v", response.Code)
 	}
 
-	if !strings.Contains(response.Body.(string), "No webcomponents found based on query") {
-		t.Errorf("Expected 404, got %v", response.Body)
+	if len(response.Body.(generated.ContextArea).Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfContextMatcherIsNotMatching(t *testing.T) {
+func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testWebComponentRepository.StoreItem(createTestWebComponent(
@@ -436,16 +506,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfContextMatcherIsNotMatc
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.Code != 404 {
-		t.Errorf("Expected 404, got %v", response.Code)
+	if response.Code != 200 {
+		t.Errorf("Expected 200, got %v", response.Code)
 	}
 
-	if !strings.Contains(response.Body.(string), "No webcomponents found based on query") {
-		t.Errorf("Expected 404, got %v", response.Body)
+	if len(response.Body.(generated.ContextArea).Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfPathIsNotMatching(t *testing.T) {
+func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testWebComponentRepository.StoreItem(createTestWebComponent(
@@ -496,16 +566,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfPathIsNotMatching(t *te
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.Code != 404 {
-		t.Errorf("Expected 404, got %v", response.Code)
+	if response.Code != 200 {
+		t.Errorf("Expected 200, got %v", response.Code)
 	}
 
-	if !strings.Contains(response.Body.(string), "No webcomponents found based on query") {
-		t.Errorf("Expected 404, got %v", response.Body)
+	if len(response.Body.(generated.ContextArea).Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfNoneOfIsMatching(t *testing.T) {
+func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testWebComponentRepository.StoreItem(createTestWebComponent(
@@ -561,16 +631,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfNoneOfIsMatching(t *tes
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.Code != 404 {
-		t.Errorf("Expected 404, got %v", response.Code)
+	if response.Code != 200 {
+		t.Errorf("Expected 200, got %v", response.Code)
 	}
 
-	if !strings.Contains(response.Body.(string), "No webcomponents found based on query") {
-		t.Errorf("Expected 404, got %v", response.Body)
+	if len(response.Body.(generated.ContextArea).Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfAnyOfIsNotMatching(t *testing.T) {
+func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *testing.T) {
 	// Arrange
 	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
 	testWebComponentRepository.StoreItem(createTestWebComponent(
@@ -621,12 +691,12 @@ func TestPolyfeaApiServiceGetContextAreaReturnsNotFoundIfAnyOfIsNotMatching(t *t
 		t.Errorf("Expected no error, got %v", err)
 	}
 
-	if response.Code != 404 {
-		t.Errorf("Expected 404, got %v", response.Code)
+	if response.Code != 200 {
+		t.Errorf("Expected 200, got %v", response.Code)
 	}
 
-	if !strings.Contains(response.Body.(string), "No webcomponents found based on query") {
-		t.Errorf("Expected 404, got %v", response.Body)
+	if len(response.Body.(generated.ContextArea).Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
 	}
 }
 

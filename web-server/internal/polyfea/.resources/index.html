@@ -3,10 +3,9 @@
 <head>
   <base href="{{.BaseUri}}">
   <title>{{.Title}}</title>
-  <meta name="polyfea-duplicit-custom-elements" content="verbose">
   <meta name="csp-nonce" content="{{.Nonce}}">
   {{.ExtraMeta}}
-  <script type="module" nonce="{{.Nonce}}" src="https://cdn.jsdelivr.net/npm/@polyfea/core@1/dist/boot.mjs"></script>
+  <script type="module" nonce="{{.Nonce}}" src="./polyfea/boot.mjs"></script>
 </head>
 <body></body>
 </html>

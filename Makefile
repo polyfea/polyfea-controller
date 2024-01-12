@@ -107,13 +107,13 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate openapi fmt vet envtest ## Run tests.
+test: manifests generate openapi boot-package fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate openapi fmt vet ## Build manager binary.
+build: manifests generate openapi boot-package fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
@@ -296,3 +296,7 @@ LATEST_TAG := $(shell curl -s https://api.github.com/repos/polyfea/browser-api/r
 openapi: ## Download latest openapi spec and generate web api skeleton
 	curl "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
 	docker run --rm -v $(CURDIR)/web-server/:/local openapitools/openapi-generator-cli generate -c /local/scripts/generator-cfg.yaml
+
+.PHONY: boot-package
+boot-package: 
+	curl "https://cdn.jsdelivr.net/npm/@polyfea/core@1/dist/boot.mjs" > web-server/internal/polyfea/.resources/boot.mjs

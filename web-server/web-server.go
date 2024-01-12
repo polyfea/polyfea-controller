@@ -32,6 +32,8 @@ func SetupRouter(
 
 	spa := polyfea.NewSinglePageApplication(microFrontendClassRepository)
 
+	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
+
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
