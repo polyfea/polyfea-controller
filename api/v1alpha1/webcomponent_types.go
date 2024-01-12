@@ -25,7 +25,7 @@ import (
 type WebComponentSpec struct {
 	// Reference to a microfrontend from which the webcomponent would be served.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	MicroFrontend *string `json:"microFrontend"`
+	MicroFrontend *string `json:"microFrontend,omitempty"`
 
 	// The HTML element tag name to be used when the matcher is matched.
 	// +kubebuilder:example="my-menu-item"

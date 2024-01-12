@@ -112,49 +112,9 @@ var _ = Describe("WebComponent controller", func() {
 		})
 
 		It("Should not create if required parameter is missing", func() {
-			By("By creating a new WebComponent without microfrontend")
-			ctx := context.Background()
-			webComponent := &polyfeav1alpha1.WebComponent{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "WebComponent",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      WebComponentName,
-					Namespace: WebComponentNamespace,
-				},
-				Spec: polyfeav1alpha1.WebComponentSpec{
-					Element: &[]string{"my-menu-item"}[0],
-					Attributes: []polyfeav1alpha1.Attribute{
-						{
-							Name:  "label",
-							Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)},
-						},
-					},
-					DisplayRules: []polyfeav1alpha1.DisplayRules{{
-						AllOf: []polyfeav1alpha1.Matcher{
-							{
-								Path: "pathname",
-							},
-							{
-								ContextName: "user",
-							},
-						},
-					}},
-					Priority: &[]int32{0}[0],
-					Style: []polyfeav1alpha1.Style{
-						{
-							Name:  "color",
-							Value: "red",
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, webComponent)).Should(Not(Succeed()))
-
 			By("By creating a new WebComponent without element")
 			ctx = context.Background()
-			webComponent = &polyfeav1alpha1.WebComponent{
+			webComponent := &polyfeav1alpha1.WebComponent{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "polyfea.github.io/v1alpha1",
 					Kind:       "WebComponent",
@@ -237,8 +197,7 @@ var _ = Describe("WebComponent controller", func() {
 					Namespace: WebComponentNamespace,
 				},
 				Spec: polyfeav1alpha1.WebComponentSpec{
-					MicroFrontend: &[]string{"test-microfrontend"}[0],
-					Element:       &[]string{"my-menu-item"}[0],
+					Element: &[]string{"my-menu-item"}[0],
 					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{
 							{
@@ -260,6 +219,7 @@ var _ = Describe("WebComponent controller", func() {
 				err := k8sClient.Get(ctx, webComponentLookupKey, createdWebComponent)
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
+			Expect(createdWebComponent.Spec.MicroFrontend).Should(BeNil())
 			Expect(createdWebComponent.Spec.Element).Should(Equal(&[]string{"my-menu-item"}[0]))
 			Expect(createdWebComponent.Spec.Priority).Should(Equal(&[]int32{0}[0]))
 			Expect(createdWebComponent.Spec.Attributes).Should(BeNil())
