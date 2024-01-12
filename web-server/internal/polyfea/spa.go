@@ -47,6 +47,12 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
+	if microFrontendClass == nil {
+		w.Write([]byte("Microfrontend class not found"))
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	nonce, err := generateNonce()
 
 	if err != nil {
@@ -93,6 +99,12 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	if microFrontendClass == nil {
+		w.Write([]byte("Microfrontend class not found"))
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
