@@ -29,6 +29,10 @@ var spaTestSuite = IntegrationTestSuite{
 			Name: "PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsRequested",
 			Func: PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsRequested,
 		},
+		{
+			Name: "PolyfeaSinglePageApplicationReturnsBootJsWhenRequested",
+			Func: PolyfeaSinglePageApplicationReturnsBootJsWhenRequested,
+		},
 	},
 }
 
@@ -88,7 +92,7 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		t.Fatalf("expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
+		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
 	}
 
 	if response.Header.Get("Content-Type") != "text/html; charset=utf-8" {
@@ -120,6 +124,40 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	if strings.Contains(bodyString, "}") != false {
 		t.Fatalf("expected body to not contain %s", "}")
+	}
+}
+
+func PolyfeaSinglePageApplicationReturnsBootJsWhenRequested(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea/boot.mjs")
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
+	}
+
+	if response.Header.Get("Content-Type") != "application/javascript;" {
+		t.Fatalf("expected content type %s, got %s", "application/javascript;", response.Header.Get("Content-Type"))
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	bodyString := string(bodyBytes)
+
+	expectedString := string(bootJs)
+
+	if bodyString != expectedString {
+		t.Fatalf("expected body %s, got %s", expectedString, bodyString)
 	}
 }
 
@@ -155,6 +193,8 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

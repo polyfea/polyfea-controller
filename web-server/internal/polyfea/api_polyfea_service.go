@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"regexp"
 	"slices"
@@ -34,6 +35,7 @@ func NewPolyfeaAPIService(
 }
 
 func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, path string, take int32, headers http.Header) (generated.ImplResponse, error) {
+	log.Println("GetContextArea called with name: " + name + ", path: " + path + ", take: " + string(take))
 	result := generated.ContextArea{
 		Elements:       []generated.ElementSpec{},
 		Microfrontends: map[string]generated.MicrofrontendSpec{},
@@ -113,6 +115,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	if len(webComponents) == 0 {
+		log.Println("No webcomponents found for query")
 		return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 	}
 

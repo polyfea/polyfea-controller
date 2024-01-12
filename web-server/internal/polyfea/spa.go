@@ -25,8 +25,11 @@ type TemplateData struct {
 	ExtraMeta template.HTML
 }
 
-//go:embed .template/index.html
+//go:embed .resources/index.html
 var html string
+
+//go:embed .resources/boot.mjs
+var bootJs []byte
 
 func NewSinglePageApplication(microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *SingePageApplication {
 	return &SingePageApplication{
@@ -35,43 +38,20 @@ func NewSinglePageApplication(microFrontendClassRepository repository.PolyfeaRep
 }
 
 func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
-	var basePath string
-	if basePathValue == nil {
-		basePath = "/"
-	} else {
-		basePath = basePathValue.(string)
-	}
 
-	microFrontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		frontendClassBasePath := *mfc.Spec.BaseUri
-		if frontendClassBasePath[0] != '/' {
-			frontendClassBasePath = "/" + frontendClassBasePath
-		}
-		if frontendClassBasePath[len(frontendClassBasePath)-1] != '/' {
-			frontendClassBasePath += "/"
-		}
-
-		return basePath == frontendClassBasePath
-	})
+	basePath := getBasePath(r)
+	microFrontendClass, err := s.getMicrofrontendClass(basePath)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
-
-	if len(microFrontendClasses) == 0 {
-		http.NotFound(w, r)
-		return
-	}
-
-	microFrontendClass := microFrontendClasses[0]
 
 	nonce, err := generateNonce()
 
 	if err != nil {
-		log.Panic(err)
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	extraMeta := ""
@@ -82,12 +62,17 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 
 	templateVars := TemplateData{
 		BaseUri:   basePath,
-		Title:     *microFrontendClasses[0].Spec.Title,
+		Title:     *microFrontendClass.Spec.Title,
 		Nonce:     nonce,
 		ExtraMeta: template.HTML(extraMeta),
 	}
 
-	templatedHtml := templateHtml(html, &templateVars)
+	templatedHtml, err := templateHtml(html, &templateVars)
+
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 
 	cspHeader := strings.ReplaceAll(microFrontendClass.Spec.CspHeader, "{NONCE_VALUE}", nonce)
 
@@ -101,19 +86,39 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	w.Write([]byte(templatedHtml))
 }
 
-func templateHtml(content string, templateVars *TemplateData) string {
+func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Request) {
+	basePath := getBasePath(r)
+	microFrontendClass, err := s.getMicrofrontendClass(basePath)
+
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	for _, header := range microFrontendClass.Spec.ExtraHeaders {
+		w.Header().Set(header.Name, header.Value)
+	}
+
+	w.Header().Set("Content-Type", "application/javascript;")
+
+	w.Write(bootJs)
+}
+
+func templateHtml(content string, templateVars *TemplateData) (string, error) {
 
 	tmpl, err := template.New("index.html").Parse(content)
 	if err != nil {
-		log.Panic(err)
+		log.Println(err)
+		return "", err
 	}
 
 	var tmplBytes bytes.Buffer
 	if err := tmpl.Execute(&tmplBytes, templateVars); err != nil {
-		log.Panic(err)
+		log.Println(err)
+		return "", err
 	}
 
-	return tmplBytes.String()
+	return tmplBytes.String(), nil
 }
 
 func generateNonce() (string, error) {
@@ -127,4 +132,41 @@ func generateNonce() (string, error) {
 	nonce := base64.StdEncoding.EncodeToString([]byte(text))
 
 	return nonce, nil
+}
+
+func (s *SingePageApplication) getMicrofrontendClass(basePath string) (*v1alpha1.MicroFrontendClass, error) {
+	microFrontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
+		frontendClassBasePath := *mfc.Spec.BaseUri
+		if frontendClassBasePath[0] != '/' {
+			frontendClassBasePath = "/" + frontendClassBasePath
+		}
+		if frontendClassBasePath[len(frontendClassBasePath)-1] != '/' {
+			frontendClassBasePath += "/"
+		}
+
+		return basePath == frontendClassBasePath
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(microFrontendClasses) == 0 {
+		return nil, nil
+	}
+
+	return microFrontendClasses[0], nil
+}
+
+func getBasePath(r *http.Request) string {
+	ctx := r.Context()
+	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
+	var basePath string
+	if basePathValue == nil {
+		basePath = "/"
+	} else {
+		basePath = basePathValue.(string)
+	}
+
+	return basePath
 }
