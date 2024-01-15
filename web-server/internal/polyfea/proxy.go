@@ -100,13 +100,12 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	io.Copy(w, resp.Body)
-
 	copyHeaders(w.Header(), resp.Header)
 
 	copyExtraHeaders(w.Header(), microfrontendClass.Spec.ExtraHeaders)
 
 	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }
 
 func copyHeaders(dst, src http.Header) {
