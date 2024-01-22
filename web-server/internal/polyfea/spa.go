@@ -39,8 +39,7 @@ func NewSinglePageApplication(microFrontendClassRepository repository.PolyfeaRep
 
 func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter, r *http.Request) {
 
-	basePath := getBasePath(r)
-	microFrontendClass, err := s.getMicrofrontendClass(basePath)
+	basePath, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
 
 	if err != nil {
 		log.Println(err)
@@ -93,8 +92,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 }
 
 func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Request) {
-	basePath := getBasePath(r)
-	microFrontendClass, err := s.getMicrofrontendClass(basePath)
+	_, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
 
 	if err != nil {
 		log.Println(err)
@@ -146,39 +144,40 @@ func generateNonce() (string, error) {
 	return nonce, nil
 }
 
-func (s *SingePageApplication) getMicrofrontendClass(basePath string) (*v1alpha1.MicroFrontendClass, error) {
-	microFrontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		frontendClassBasePath := *mfc.Spec.BaseUri
-		if frontendClassBasePath[0] != '/' {
-			frontendClassBasePath = "/" + frontendClassBasePath
-		}
-		if frontendClassBasePath[len(frontendClassBasePath)-1] != '/' {
-			frontendClassBasePath += "/"
-		}
+func (s *SingePageApplication) getMicrofrontendAndBase(requestPath string) (string, *v1alpha1.MicroFrontendClass, error) {
 
-		return basePath == frontendClassBasePath
+	slash := func(in string) string {
+		if in[len(in)-1] != '/' {
+			in += "/"
+		}
+		if in[0] != '/' {
+			in = "/" + in
+		}
+		return in
+	}
+
+	requestPath = slash(requestPath) // needed for user's forgotten trailing slash
+
+	microFrontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
+		return strings.HasPrefix(requestPath, slash(*mfc.Spec.BaseUri))
 	})
 
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	if len(microFrontendClasses) == 0 {
-		return nil, nil
+		return "", nil, nil
 	}
 
-	return microFrontendClasses[0], nil
-}
-
-func getBasePath(r *http.Request) string {
-	ctx := r.Context()
-	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
-	var basePath string
-	if basePathValue == nil {
-		basePath = "/"
-	} else {
-		basePath = basePathValue.(string)
+	baseHref := "/"
+	// find longest match
+	for _, mfc := range microFrontendClasses {
+		mfcBase := slash(*mfc.Spec.BaseUri)
+		if len(mfcBase) > len(baseHref) {
+			baseHref = mfcBase
+		}
 	}
 
-	return basePath
+	return baseHref, microFrontendClasses[0], nil
 }
