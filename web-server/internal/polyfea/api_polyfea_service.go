@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"regexp"
 	"slices"
@@ -14,28 +13,50 @@ import (
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type PolyfeaApiService struct {
 	webComponentRepository       repository.PolyfeaRepository[*v1alpha1.WebComponent]
 	microFrontendRepository      repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
 	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
+	logger                       *zerolog.Logger
 }
 
 func NewPolyfeaAPIService(
 	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
 	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *PolyfeaApiService {
+	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
+	logger *zerolog.Logger,
+) *PolyfeaApiService {
 
+	l := logger.With().Str("component", "PolyfeaApiService").Logger()
 	return &PolyfeaApiService{
 		webComponentRepository:       webComponentRepository,
 		microFrontendRepository:      microFrontendRepository,
 		microFrontendClassRepository: microFrontendClassRepository,
+		logger:                       &l,
 	}
 }
 
 func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, path string, take int32, headers http.Header) (generated.ImplResponse, error) {
-	log.Println("GetContextArea called with name: " + name + ", path: " + path + ", take: " + string(take))
+	logger := s.logger.With().
+		Str("function", "GetContextArea").
+		Str("context-area", name).
+		Str("path", path).
+		Int32("take", take).
+		Logger()
+
+	ctx, span := telemetry().tracer.Start(ctx, "get_context_area", trace.WithAttributes(
+		attribute.String("context-area", name),
+		attribute.String("path", path),
+		attribute.Int("take", int(take)),
+	))
+	defer span.End()
+
 	result := generated.ContextArea{
 		Elements:       []generated.ElementSpec{},
 		Microfrontends: map[string]generated.MicrofrontendSpec{},
@@ -49,6 +70,8 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	} else {
 		basePath = basePathValue.(string)
 	}
+	logger = logger.With().Str("base-path", basePath).Logger()
+	span.SetAttributes(attribute.String("base-path", basePath))
 
 	// Get frontend class for base path
 	frontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
@@ -64,14 +87,21 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
+		logger.Err(err).Msg("Error while getting frontend class")
+		span.SetStatus(codes.Error, "microfrontend_class_repository_error")
 		return generated.Response(http.StatusInternalServerError, "Internal Server Error"), err
 	}
 
 	if len(frontendClasses) == 0 {
+		logger.Info().Msg("No frontend class found for base path")
+		telemetry().not_found.Add(ctx, 1)
+		span.SetStatus(codes.Error, "microfrontend_class_not_found")
 		return generated.Response(http.StatusNotFound, "No frontend class found for base path "+basePath), nil
 	}
 
 	if len(frontendClasses) > 1 {
+		logger.Warn().Msg("Multiple frontend classes found for base path")
+		span.SetStatus(codes.Error, "multiple_frontend_classes_found")
 		return generated.Response(http.StatusBadRequest, "Multiple frontend classes found for base path "+basePath), nil
 	}
 
@@ -86,19 +116,30 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		}
 	}
 
+	logger = logger.With().
+		Str("frontend-class", frontendClass.Name).
+		Strs("user-roles", userRoles).
+		Logger()
+	span.SetAttributes(
+		attribute.String("frontend-class", frontendClass.Name),
+		attribute.String("user-roles", strings.Join(userRoles, ",")),
+	)
+
 	// Get microfrontends for frontend class
 	microFrontendsForClass, err := s.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
 		return *mf.Spec.FrontendClass == frontendClass.Name
 	})
 
+	if err != nil {
+		logger.Err(err).Msg("Error while getting microfrontends for frontend class")
+		span.SetStatus(codes.Error, "microfrontend_repository_error")
+		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
+	}
+
 	// Get names of microfrontends for frontend class for query
 	microFrontendsNamesForClass := []string{}
 	for _, mf := range microFrontendsForClass {
 		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
-	}
-
-	if err != nil {
-		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	// Get webcomponents for given query and frontend class
@@ -107,11 +148,15 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	})
 
 	if err != nil {
+		logger.Err(err).Msg("Error while getting webcomponents for query")
+		span.SetStatus(codes.Error, "webcomponent_repository_error")
 		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 	}
 
 	if len(webComponents) == 0 {
-		log.Println("No webcomponents found for query")
+		logger.Info().Msg("No webcomponents found for query")
+		telemetry().not_found.Add(ctx, 1)
+		span.SetStatus(codes.Ok, "webcomponent_not_found") // this is possible situation when context is simply not filled
 		return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 	}
 
@@ -121,6 +166,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 
 	// Limit number of webcomponents by take parameter
 	if take > 0 && int(take) < len(webComponents) {
+		logger.Info().Msg("Limiting number of webcomponents by take parameter")
 		webComponents = webComponents[:take]
 	}
 
@@ -143,9 +189,11 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	// Load all needed microfrontends with dependencies
-	allMicroFrontends, err := loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
+	allMicroFrontends, err := s.loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 
 	if err != nil {
+		logger.Err(err).Msg("Error while loading microfrontends")
+		span.SetStatus(codes.Error, "microfrontend_load_error")
 		return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"+err.Error()), frontendClass.Spec.ExtraHeaders), err
 	}
 
@@ -158,10 +206,19 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 		}
 	}
 
+	logger.Info().Msg("Context area successfully generated")
+	span.SetStatus(codes.Ok, "ok")
+	telemetry().context_areas.Add(ctx, 1)
 	return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
+
 }
 
 func (s *PolyfeaApiService) GetStaticConfig(ctx context.Context, headers http.Header) (generated.ImplResponse, error) {
+	_, span := telemetry().tracer.Start(ctx, "get_static_config")
+	defer span.End()
+
+	s.logger.Error().Str("function", "GetStaticConfig").Msg("Static config is not implemented by the controller")
+	span.SetStatus(codes.Error, "not_implemented")
 	return generated.Response(http.StatusNotImplemented, "Not implemented"), nil
 }
 
@@ -275,12 +332,16 @@ func convertMicrofrontendResources(microFrontendNamespace string, microFrontendN
 	return result
 }
 
-func loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
+func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
+	logger := s.logger.With().Str("function", "loadAllMicroFrontends").Logger()
+
 	result := []*v1alpha1.MicroFrontend{}
 
 	for _, microFrontendName := range microFrontendsToLoad {
 		if slices.Contains(loadPath, microFrontendName) {
-			return nil, errors.New("Circular dependency detected: " + strings.Join(append(loadPath, microFrontendName), " -> "))
+			dependencyPath := strings.Join(append(loadPath, microFrontendName), " -> ")
+			logger.Error().Str("dependency-path", dependencyPath).Str("microfrontend", microFrontendName).Msg("Circular dependency detected")
+			return nil, errors.New("Circular dependency detected: " + dependencyPath)
 		}
 
 		microFrontend, err := microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
@@ -292,13 +353,14 @@ func loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepositor
 		}
 
 		if len(microFrontend) == 0 {
+			logger.Error().Str("microfrontend", microFrontendName).Msg("Microfrontend not found")
 			return nil, errors.New("Microfrontend " + microFrontendName + " not found")
 		}
 
 		result = append(result, microFrontend[0])
 
 		if len(microFrontend[0].Spec.DependsOn) > 0 {
-			dependsOn, err := loadAllMicroFrontends(microFrontend[0].Spec.DependsOn, microFrontendRepository, append(loadPath, microFrontendName))
+			dependsOn, err := s.loadAllMicroFrontends(microFrontend[0].Spec.DependsOn, microFrontendRepository, append(loadPath, microFrontendName))
 
 			if err != nil {
 				return nil, err

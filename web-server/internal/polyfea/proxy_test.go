@@ -17,6 +17,7 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/api"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/rs/zerolog"
 )
 
 var proxyTestSuite = IntegrationTestSuite{
@@ -63,7 +64,7 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 		},
 	)
 
-	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &zerolog.Logger{})
 
 	writer := httptest.NewRecorder()
 
@@ -97,7 +98,7 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
 	testMicrofrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
-	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &zerolog.Logger{})
 
 	writer := httptest.NewRecorder()
 
@@ -148,7 +149,7 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 		},
 	)
 
-	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &zerolog.Logger{})
 
 	writer := httptest.NewRecorder()
 
@@ -342,7 +343,8 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{})
 
 	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
 
@@ -350,7 +352,7 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 
-	proxy := NewPolyfeaProxy(testMicroFrontendClassRepository, testMicroFrontendRepository, &http.Client{})
+	proxy := NewPolyfeaProxy(testMicroFrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &zerolog.Logger{})
 
 	router.HandleFunc("/polyfea/proxy/{"+NamespacePathParamName+"}/{"+MicrofrontendPathParamName+"}/{"+PathPathParamName+"}", proxy.HandleProxy)
 

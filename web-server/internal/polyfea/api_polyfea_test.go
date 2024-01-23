@@ -10,6 +10,7 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/api"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/rs/zerolog"
 )
 
 var apiPolyfeaTestSuite = IntegrationTestSuite{
@@ -274,7 +275,9 @@ func polyfeaApiSetupRouter() http.Handler {
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
 

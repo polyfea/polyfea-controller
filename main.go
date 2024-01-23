@@ -19,12 +19,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,7 +43,16 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 	webserver "github.com/polyfea/polyfea-controller/web-server"
 	"github.com/polyfea/polyfea-controller/web-server/configuration"
+
 	//+kubebuilder:scaffold:imports
+
+	"github.com/rs/zerolog"
+
+	"go.opentelemetry.io/contrib/exporters/autoexport"
+	metricsdk "go.opentelemetry.io/otel/sdk/metric"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 )
 
 var (
@@ -75,8 +87,6 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "a2eec30c.github.io",
@@ -130,6 +140,20 @@ func main() {
 	}
 	//+kubebuilder:scaffold:builder
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	initTelemetry(context.Background(), &logger)
+
+	shutdown, err := initTelemetry(ctx, &logger)
+	defer shutdown(context.Background())
+
+	if err != nil {
+		setupLog.Error(err, "unable to initialize telemetry")
+		os.Exit(1)
+	}
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -139,14 +163,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	wg.Add(1)
 	go startManager(ctx, cancel, mgr)
 
 	wg.Add(1)
-	go startHTTPServer(ctx, cancel, microFrontendClassRepository, microFrontendRepository, webComponentRepository)
+	go startHTTPServer(ctx, cancel, microFrontendClassRepository, microFrontendRepository, webComponentRepository, &logger)
 
 	<-ctx.Done()
 
@@ -168,14 +189,18 @@ func startHTTPServer(
 	cancel context.CancelFunc,
 	microFrontendClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass],
 	microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend],
-	webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]) {
+	webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent],
+	logger *zerolog.Logger) {
 
 	defer wg.Done()
 	defer cancel()
 
 	server := &http.Server{
-		Addr:    ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8082"),
-		Handler: webserver.SetupRouter(microFrontendClassRepository, microFrontendRepository, webComponentRepository),
+		Addr: ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8082"),
+		Handler: otelhttp.NewHandler(
+			webserver.SetupRouter(microFrontendClassRepository, microFrontendRepository, webComponentRepository, logger),
+			"polyfea-web-server",
+		),
 	}
 
 	go func() {
@@ -186,4 +211,38 @@ func startHTTPServer(
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		setupLog.Error(err, "problem running server")
 	}
+}
+
+func initTelemetry(ctx context.Context, logger *zerolog.Logger) (shutdown func(context.Context) error, err error) {
+	metricReader, err := autoexport.NewMetricReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	metricProvider :=
+		metricsdk.NewMeterProvider(metricsdk.WithReader(metricReader))
+	otel.SetMeterProvider(metricProvider)
+
+	traceExporter, err := autoexport.NewSpanExporter(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	traceProvider := tracesdk.NewTracerProvider(
+		tracesdk.WithSyncer(traceExporter))
+
+	otel.SetTracerProvider(traceProvider)
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	shutdown = func(context.Context) error {
+		errMetric := metricProvider.Shutdown(ctx)
+		errTrace := traceProvider.Shutdown(ctx)
+
+		if errMetric != nil || errTrace != nil {
+			return fmt.Errorf("error shutting down telemetry: %v, %v", errMetric, errTrace)
+		}
+		return nil
+	}
+
+	return shutdown, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/rs/zerolog"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -44,7 +45,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -109,7 +112,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -170,7 +175,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -227,7 +234,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -300,7 +309,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -363,7 +374,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -428,7 +441,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -493,7 +508,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -553,7 +570,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatchin
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -613,7 +632,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testi
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -678,7 +699,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testin
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -738,7 +761,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *test
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 
@@ -813,7 +838,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofronten
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -890,7 +917,9 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -967,7 +996,9 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -1047,7 +1078,9 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	expectedContextArea := createTestContextArea(
 		[]generated.ElementSpec{
@@ -1130,7 +1163,9 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependencyMissingErrorIsRet
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	// Act
@@ -1198,7 +1233,9 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository)
+		testMicroFrontendClassRepository,
+		&zerolog.Logger{},
+	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	// Act
