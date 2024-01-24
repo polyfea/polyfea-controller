@@ -60,7 +60,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		))
 	defer span.End()
 
-	basePath, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
+	basePath, microFrontendClass, err := s.getMicrofrontendClassAndBase(r.URL.Path)
 
 	if err != nil {
 		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
@@ -141,7 +141,7 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 		))
 	defer span.End()
 
-	_, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
+	_, microFrontendClass, err := s.getMicrofrontendClassAndBase(r.URL.Path)
 
 	if err != nil {
 		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
@@ -197,7 +197,7 @@ func generateNonce() (string, error) {
 	return nonce, nil
 }
 
-func (s *SingePageApplication) getMicrofrontendAndBase(requestPath string) (string, *v1alpha1.MicroFrontendClass, error) {
+func (s *SingePageApplication) getMicrofrontendClassAndBase(requestPath string) (string, *v1alpha1.MicroFrontendClass, error) {
 
 	slash := func(in string) string {
 		if in[len(in)-1] != '/' {
@@ -220,17 +220,19 @@ func (s *SingePageApplication) getMicrofrontendAndBase(requestPath string) (stri
 	}
 
 	if len(microFrontendClasses) == 0 {
-		return "", nil, nil
+		return "/", nil, nil
 	}
 
 	baseHref := "/"
+	longestMfc := microFrontendClasses[0]
 	// find longest match
 	for _, mfc := range microFrontendClasses {
 		mfcBase := slash(*mfc.Spec.BaseUri)
 		if len(mfcBase) > len(baseHref) {
 			baseHref = mfcBase
+			longestMfc = mfc
 		}
 	}
 
-	return baseHref, microFrontendClasses[0], nil
+	return baseHref, longestMfc, nil
 }
