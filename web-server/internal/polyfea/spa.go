@@ -12,10 +12,15 @@ import (
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/rs/zerolog"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type SingePageApplication struct {
 	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
+	logger                       *zerolog.Logger
 }
 
 type TemplateData struct {
@@ -31,31 +36,58 @@ var html string
 //go:embed .resources/boot.mjs
 var bootJs []byte
 
-func NewSinglePageApplication(microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) *SingePageApplication {
+func NewSinglePageApplication(
+	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
+	logger *zerolog.Logger,
+) *SingePageApplication {
 	return &SingePageApplication{
 		microFrontendClassRepository: microFrontendClassRepository,
+		logger:                       logger,
 	}
 }
 
 func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter, r *http.Request) {
+	logger := s.logger.With().
+		Str("function", "HandleSinglePageApplication").
+		Str("method", r.Method).
+		Str("path", r.URL.Path).Logger()
+
+	_, span := telemetry().tracer.Start(
+		r.Context(), "spa_d.serve_asset",
+		trace.WithAttributes(
+			attribute.String("path", r.URL.Path),
+			attribute.String("method", r.Method),
+		))
+	defer span.End()
 
 	basePath, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
 
 	if err != nil {
-		log.Println(err)
+		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
+		span.SetStatus(codes.Error, err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	if microFrontendClass == nil {
+		logger.Warn().Msg("Microfrontend class not found")
 		w.Write([]byte("Microfrontend class not found"))
 		w.WriteHeader(http.StatusNotFound)
+		telemetry().not_found.Add(r.Context(), 1)
+		span.SetStatus(codes.Error, "microfrontend_class_not_found")
 		return
 	}
+
+	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
+	span.SetAttributes(
+		attribute.String("base", basePath),
+		attribute.String("frontendClass", microFrontendClass.Name),
+	)
 
 	nonce, err := generateNonce()
 
 	if err != nil {
-		log.Println(err)
+		logger.Err(err).Msg("Error while generating nonce")
+		span.SetStatus(codes.Error, "nonce_error: "+err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -75,7 +107,8 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	templatedHtml, err := templateHtml(html, &templateVars)
 
 	if err != nil {
-		log.Println(err)
+		logger.Err(err).Msg("Error while templating html")
+		span.SetStatus(codes.Error, "template_error: "+err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
@@ -89,19 +122,37 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	w.Header().Set("Content-Security-Policy", cspHeader)
 
 	w.Write([]byte(templatedHtml))
+	logger.Info().Msg("Served single page application")
+	telemetry().spa_served.Add(r.Context(), 1)
+	span.SetStatus(codes.Ok, "served")
 }
 
 func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Request) {
+	logger := s.logger.With().
+		Str("function", "HandleBootJs").
+		Str("method", r.Method).
+		Str("path", r.URL.Path).Logger()
+
+	_, span := telemetry().tracer.Start(
+		r.Context(), "spa_d.serve_boot_js",
+		trace.WithAttributes(
+			attribute.String("path", r.URL.Path),
+			attribute.String("method", r.Method),
+		))
+	defer span.End()
+
 	_, microFrontendClass, err := s.getMicrofrontendAndBase(r.URL.Path)
 
 	if err != nil {
-		log.Println(err)
+		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 
 	if microFrontendClass == nil {
+		logger.Warn().Msg("Microfrontend class not found")
 		w.Write([]byte("Microfrontend class not found"))
 		w.WriteHeader(http.StatusNotFound)
+		telemetry().not_found.Add(r.Context(), 1)
 		return
 	}
 
@@ -112,6 +163,8 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/javascript;")
 
 	w.Write(bootJs)
+	logger.Info().Msg("Served boot js")
+	telemetry().boot_served.Add(r.Context(), 1)
 }
 
 func templateHtml(content string, templateVars *TemplateData) (string, error) {

@@ -12,6 +12,7 @@ import (
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/rs/zerolog"
 )
 
 var spaTestSuite = IntegrationTestSuite{
@@ -224,7 +225,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	router := generated.NewRouter()
 
-	spa := NewSinglePageApplication(testMicroFrontendClassRepository)
+	spa := NewSinglePageApplication(testMicroFrontendClassRepository, &zerolog.Logger{})
 
 	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
