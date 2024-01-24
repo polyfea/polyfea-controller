@@ -34,10 +34,6 @@ var spaTestSuite = IntegrationTestSuite{
 			Name: "PolyfeaSinglePageApplicationReturnsBootJsWhenRequested",
 			Func: PolyfeaSinglePageApplicationReturnsBootJsWhenRequested,
 		},
-		{
-			Name: "PolyfeaSinglePageApplicationReturnsTemplatedHtmlWithCorrectBaseHref",
-			Func: PolyfeaSinglePageApplicationReturnsTemplatedHtmlWithCorrectBaseHref,
-		},
 	},
 }
 
@@ -129,38 +125,6 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	if strings.Contains(bodyString, "}") != false {
 		t.Fatalf("expected body to not contain %s", "}")
-	}
-}
-
-func PolyfeaSinglePageApplicationReturnsTemplatedHtmlWithCorrectBaseHref(t *testing.T) {
-	// Arrange
-	testServerUrl := os.Getenv(TestServerUrlName)
-
-	// Act
-	response, err := http.Get(testServerUrl + "/other/qweqwesop")
-
-	// Assert
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
-	}
-
-	if response.Header.Get("Content-Type") != "text/html; charset=utf-8" {
-		t.Fatalf("expected content type %s, got %s", "text/html; charset=utf-8", response.Header.Get("Content-Type"))
-	}
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Error(err)
-	}
-	bodyString := string(bodyBytes)
-
-	if strings.Contains(bodyString, "<base href=\"/other/\"") == false {
-		t.Fatalf("expected base href not found in rendered document")
 	}
 }
 

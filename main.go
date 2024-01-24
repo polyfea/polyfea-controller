@@ -214,6 +214,7 @@ func startHTTPServer(
 }
 
 func initTelemetry(ctx context.Context, logger *zerolog.Logger) (shutdown func(context.Context) error, err error) {
+	// prometheus exporter will be in conflict with kubebuilder metrics server
 	metricReader, err := autoexport.NewMetricReader(ctx)
 	if err != nil {
 		return nil, err
