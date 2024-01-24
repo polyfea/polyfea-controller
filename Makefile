@@ -299,4 +299,4 @@ openapi: ## Download latest openapi spec and generate web api skeleton
 
 .PHONY: boot-package
 boot-package: 
-	curl "https://cdn.jsdelivr.net/npm/@polyfea/core@1/dist/boot.mjs" > web-server/internal/polyfea/.resources/boot.mjs
+	curl "https://github.com/polyfea/core/releases/latest/download/boot.mjs" > web-server/internal/polyfea/.resources/boot.mjs
