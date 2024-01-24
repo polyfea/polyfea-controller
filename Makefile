@@ -297,6 +297,10 @@ openapi: ## Download latest openapi spec and generate web api skeleton
 	curl "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
 	docker run --rm -v $(CURDIR)/web-server/:/local openapitools/openapi-generator-cli generate -c /local/scripts/generator-cfg.yaml
 
+
+BOOT_MJS_URL := "https://github.com/polyfea/core/releases/latest/download/boot.mjs"
+BOOT_MJS_FILEPATH := "web-server/internal/polyfea/.resources/boot.mjs"
 .PHONY: boot-package
 boot-package: 
-	curl "https://github.com/polyfea/core/releases/latest/download/boot.mjs" > web-server/internal/polyfea/.resources/boot.mjs
+	rm  $(BOOT_MJS_FILEPATH)
+	wget $(BOOT_MJS_URL) -O $(BOOT_MJS_FILEPATH)
