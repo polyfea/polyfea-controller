@@ -65,6 +65,7 @@ type MicroFrontendClassSpec struct {
 
 // Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
 // +kubebuilder:validation:MaxProperties=1
+// +kubebuilder:validation:MinProperties=1
 type Routing struct {
 	// ParentRefs is the name of the parent refs that the created HTTPRoute will be attached to.
 	// If specified an HttpRoute will be created for the frontend class automatically.

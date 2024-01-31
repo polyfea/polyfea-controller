@@ -191,6 +191,46 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	}
 
+	if microFrontendClass.Spec.Routing != nil && httpRoute != nil {
+		if microFrontendClass.Spec.Routing.ParentRefs == nil && microFrontendClass.Spec.Routing.IngressClassName != nil {
+			err = r.Delete(ctx, httpRoute)
+
+			if err != nil {
+				log.Error(err, "Failed to delete HttpRoute!")
+				return ctrl.Result{}, err
+			}
+
+			err = r.createIngress(ctx, log, microFrontendClass, r.getOperatorService(ctx, log))
+
+			if err != nil {
+				log.Error(err, "Failed to create Ingress!")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+	}
+
+	if microFrontendClass.Spec.Routing != nil && ingress != nil {
+		if microFrontendClass.Spec.Routing.IngressClassName == nil && microFrontendClass.Spec.Routing.ParentRefs != nil {
+			err = r.Delete(ctx, ingress)
+
+			if err != nil {
+				log.Error(err, "Failed to delete Ingress!")
+				return ctrl.Result{}, err
+			}
+
+			err = r.createHttpRoute(ctx, log, microFrontendClass, r.getOperatorService(ctx, log))
+
+			if err != nil {
+				log.Error(err, "Failed to create HttpRoute!")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{}, nil
+		}
+	}
+
 	if microFrontendClass.Spec.Routing == nil && httpRoute != nil {
 		err = r.Delete(ctx, httpRoute)
 

@@ -96,6 +96,7 @@ spec:
                   for the operator with label 'app' set to 'polyfea-webserver' and
                   a port with name webserver for the routing to work.
                 maxProperties: 1
+                minProperties: 1
                 properties:
                   ingressClassName:
                     description: IngressClassName is the name of the ingress class
