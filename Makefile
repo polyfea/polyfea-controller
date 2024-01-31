@@ -5,6 +5,7 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= dev-latest
 CONTAINER_REGISTRY ?= ghcr.io/polyfea
+GATEWAY_API_RELEASE_VERSION ?= v1.0.0
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "candidate,fast,stable")
@@ -215,6 +216,7 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
+	curl -L "https://github.com/kubernetes-sigs/gateway-api/releases/download/$(GATEWAY_API_RELEASE_VERSION)/standard-install.yaml" > config/test/gateway_api.yaml
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
 .PHONY: operator-sdk
@@ -294,7 +296,7 @@ catalog-push: ## Push a catalog image.
 .PHONY: openapi
 LATEST_TAG := $(shell curl -s https://api.github.com/repos/polyfea/browser-api/releases/latest | grep "tag_name" | cut -d : -f 2,3 | tr -d \",' ')
 openapi: ## Download latest openapi spec and generate web api skeleton
-	curl "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
+	curl -L "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > web-server/api/v1alpha1.openapi.yaml
 	docker run --rm -v $(CURDIR)/web-server/:/local openapitools/openapi-generator-cli generate -c /local/scripts/generator-cfg.yaml
 
 

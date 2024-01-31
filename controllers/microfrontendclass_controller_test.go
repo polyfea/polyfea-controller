@@ -23,9 +23,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
 var _ = Describe("MicroFrontendClass controller", func() {
@@ -251,6 +253,99 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				})
 				return result
 			}, timeout, interval).Should(HaveLen(0))
+		})
+
+		It("Should add and remove http route when routing parent refs are specified", func() {
+			By("By creating a new MicroFrontendClass with routing parent refs")
+			ctx := context.Background()
+
+			operatorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "polyfea-webserver",
+					Namespace: MicroFrontendClassNamespace,
+					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name: PortName,
+							Port: 80,
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					Routing: &polyfeav1alpha1.Routing{
+						ParentRefs: []gatewayv1.ParentReference{
+							{
+								Name: "abcd",
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+
+			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			httpRoute := &gatewayv1.HTTPRoute{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
+			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
+
+			Expect(k8sClient.Delete(ctx, httpRoute)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
 		})
 	})
 })

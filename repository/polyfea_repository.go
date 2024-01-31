@@ -8,6 +8,8 @@ type PolyfeaRepositoryFilterFunc[ItemType interface{}] func(mf ItemType) bool
 type PolyfeaRepository[ItemType interface{ GetName() string }] interface {
 	StoreItem(item ItemType) error
 
+	GetItem(item ItemType) (ItemType, error)
+
 	GetItems(filter PolyfeaRepositoryFilterFunc[ItemType]) ([]ItemType, error)
 
 	DeleteItem(item ItemType) error
@@ -26,6 +28,10 @@ func NewInMemoryPolyfeaRepository[ItemType interface{ GetName() string }]() *InM
 func (r *InMemoryPolyfeaRepository[ItemType]) StoreItem(item ItemType) error {
 	r.items[item.GetName()] = item
 	return nil
+}
+
+func (r *InMemoryPolyfeaRepository[ItemType]) GetItem(item ItemType) (ItemType, error) {
+	return r.items[item.GetName()], nil
 }
 
 func (r *InMemoryPolyfeaRepository[ItemType]) GetItems(filter PolyfeaRepositoryFilterFunc[ItemType]) ([]ItemType, error) {
