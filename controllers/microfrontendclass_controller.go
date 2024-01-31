@@ -316,6 +316,7 @@ func createIngressForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.Micr
 			Namespace: microFrontendClass.Namespace,
 		},
 		Spec: networkingv1.IngressSpec{
+			IngressClassName: microFrontendClass.Spec.Routing.IngressClassName,
 			Rules: []networkingv1.IngressRule{
 				{
 					IngressRuleValue: networkingv1.IngressRuleValue{

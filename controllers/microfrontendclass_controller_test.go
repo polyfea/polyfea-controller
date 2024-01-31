@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -325,6 +326,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			}, timeout, interval).Should(BeTrue())
 			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
 			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
+			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
 
 			By("By deleting the MicroFrontend")
 			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
@@ -346,6 +348,136 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
 				return errors.IsNotFound(err)
 			}, timeout, interval).Should(BeTrue())
+			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
+		})
+
+		It("Should add and remove ingres when routing ingress class is specified", func() {
+			By("By creating a new MicroFrontendClass with routing ingress class")
+			ctx := context.Background()
+
+			operatorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "polyfea-webserver",
+					Namespace: MicroFrontendClassNamespace,
+					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name: PortName,
+							Port: 80,
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					Routing: &polyfeav1alpha1.Routing{
+						IngressClassName: &[]string{"nginx"}[0],
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+
+			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			ingress := &networkingv1.Ingress{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(ingress.Spec.IngressClassName).Should(Equal(microFrontendClass.Spec.Routing.IngressClassName))
+			Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
+			Expect(ingress.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(*microFrontendClass.Spec.BaseUri))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
+
+			Expect(k8sClient.Delete(ctx, ingress)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
+		})
+
+		It("Should not allow creating both ingress and httproute", func() {
+			By("By creating a new MicroFrontendClass with routing ingress and parent refs")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					Routing: &polyfeav1alpha1.Routing{
+						IngressClassName: &[]string{"nginx"}[0],
+						ParentRefs: []gatewayv1.ParentReference{
+							{
+								Name: "abcd",
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
 		})
 	})
 })
