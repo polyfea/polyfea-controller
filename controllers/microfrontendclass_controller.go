@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 	"slices"
 
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +56,9 @@ const (
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontendclasses/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontendclasses/finalizers,verbs=update
 //+kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -101,7 +104,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, err
 		}
 
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Check if the MicroFrontendClass instance is marked to be deleted, which is
@@ -141,6 +144,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	httpRoute := &gatewayv1.HTTPRoute{}
 	ingress := &networkingv1.Ingress{}
 
+	log.Info("Checking if HttpRoute and Ingress resources exist for MicroFrontendClass.")
 	err = r.Get(ctx, client.ObjectKey{Namespace: microFrontendClass.Namespace, Name: microFrontendClass.Name}, httpRoute)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -163,6 +167,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
+	log.Info("Checking if HttpRoute and Ingress resources should be created for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing != nil && httpRoute == nil && ingress == nil {
 		operatorService := r.getOperatorService(ctx, log)
 
@@ -191,6 +196,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	}
 
+	log.Info("Checking if HttpRoute and Ingress resources should be updated for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing != nil && httpRoute != nil {
 		if microFrontendClass.Spec.Routing.ParentRefs == nil && microFrontendClass.Spec.Routing.IngressClassName != nil {
 			err = r.Delete(ctx, httpRoute)
@@ -207,10 +213,33 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{}, err
 			}
 
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		operatorService := r.getOperatorService(ctx, log)
+
+		if operatorService == nil {
+			log.Error(err, "Failed to get OperatorService!")
+			return ctrl.Result{}, err
+		}
+		update := createRouteForMicroFrontendClass(microFrontendClass, operatorService)
+		controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
+
+		if httpRoute.Name != update.Name || httpRoute.Namespace != update.Namespace || !reflect.DeepEqual(httpRoute.Spec, update.Spec) {
+			log.Info("Updating HttpRoute for MicroFrontendClass.")
+			update.ResourceVersion = httpRoute.ResourceVersion
+			err = r.Update(ctx, update)
+
+			if err != nil {
+				log.Error(err, "Failed to update HttpRoute!")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
+	log.Info("Checking if HttpRoute and Ingress resources should be deleted for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing != nil && ingress != nil {
 		if microFrontendClass.Spec.Routing.IngressClassName == nil && microFrontendClass.Spec.Routing.ParentRefs != nil {
 			err = r.Delete(ctx, ingress)
@@ -227,7 +256,29 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{}, err
 			}
 
-			return ctrl.Result{}, nil
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		operatorService := r.getOperatorService(ctx, log)
+
+		if operatorService == nil {
+			log.Error(err, "Failed to get OperatorService!")
+			return ctrl.Result{}, err
+		}
+
+		update := createIngressForMicroFrontendClass(microFrontendClass, operatorService)
+		controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
+		if ingress.Name != update.Name || ingress.Namespace != update.Namespace || !reflect.DeepEqual(ingress.Spec, update.Spec) {
+			log.Info("Updating Ingress for MicroFrontendClass.")
+			update.ResourceVersion = ingress.ResourceVersion
+			err = r.Update(ctx, update)
+
+			if err != nil {
+				log.Error(err, "Failed to update HttpRoute!")
+				return ctrl.Result{}, err
+			}
+
+			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
