@@ -191,6 +191,24 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	}
 
+	if microFrontendClass.Spec.Routing == nil && httpRoute != nil {
+		err = r.Delete(ctx, httpRoute)
+
+		if err != nil {
+			log.Error(err, "Failed to delete HttpRoute!")
+			return ctrl.Result{}, err
+		}
+	}
+
+	if microFrontendClass.Spec.Routing == nil && ingress != nil {
+		err = r.Delete(ctx, ingress)
+
+		if err != nil {
+			log.Error(err, "Failed to delete Ingress!")
+			return ctrl.Result{}, err
+		}
+	}
+
 	err = r.Repository.StoreItem(microFrontendClass)
 
 	if err != nil {
