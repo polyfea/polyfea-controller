@@ -29,8 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	v1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1beta1"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 var _ = Describe("MicroFrontendClass controller", func() {
@@ -1199,7 +1198,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				return err == nil
 			}, timeout, interval).Should(BeTrue())
 			expectedPort := gatewayv1.PortNumber(8080)
-			Eventually(func() *v1.PortNumber {
+			Eventually(func() *gatewayv1.PortNumber {
 				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
 
 				if err != nil {
