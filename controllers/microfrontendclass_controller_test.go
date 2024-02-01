@@ -29,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	v1 "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 )
 
@@ -1098,6 +1099,116 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				return ingress.Spec.IngressClassName
 
 			}, timeout, interval).Should(Equal(&[]string{"notnginx"}[0]))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
+
+			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
+		})
+
+		It("Should apply changes for routing service port is changed", func() {
+			By("By creating a new MicroFrontendClass with routing parent refs")
+			ctx := context.Background()
+
+			operatorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "polyfea-webserver",
+					Namespace: MicroFrontendClassNamespace,
+					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name: PortName,
+							Port: 80,
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					Routing: &polyfeav1alpha1.Routing{
+						ParentRefs: []gatewayv1.ParentReference{
+							{
+								Name: "abcd",
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+
+			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			httpRoute := &gatewayv1.HTTPRoute{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
+			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
+			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
+
+			By("By changing the port on service")
+			operatorServiceLookupName := types.NamespacedName{Name: "polyfea-webserver", Namespace: MicroFrontendClassNamespace}
+			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"ports":[{"name":"webserver", "port": 8080}]}}`))
+			Expect(k8sClient.Patch(ctx, operatorService, patch)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, operatorServiceLookupName, operatorService)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			expectedPort := gatewayv1.PortNumber(8080)
+			Eventually(func() *v1.PortNumber {
+				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
+
+				if err != nil {
+					return nil
+				}
+
+				return httpRoute.Spec.Rules[0].BackendRefs[0].Port
+
+			}, timeout, interval).Should(Equal(&expectedPort))
 
 			By("By deleting the MicroFrontend")
 			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())

@@ -24,13 +24,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1beta1"
 
 	"github.com/go-logr/logr"
@@ -41,9 +47,12 @@ import (
 // MicroFrontendClassReconciler reconciles a MicroFrontendClass object
 type MicroFrontendClassReconciler struct {
 	client.Client
-	Scheme     *runtime.Scheme
-	Recorder   record.EventRecorder
-	Repository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
+	Scheme            *runtime.Scheme
+	Recorder          record.EventRecorder
+	Repository        repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
+	selfRef           controller.Controller
+	cacheRef          cache.Cache
+	isAlreadyWatching bool
 }
 
 const (
@@ -142,17 +151,31 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	httpRoute := &gatewayv1.HTTPRoute{}
+	httpRoutePresent := true
 	ingress := &networkingv1.Ingress{}
 
 	log.Info("Checking if HttpRoute and Ingress resources exist for MicroFrontendClass.")
 	err = r.Get(ctx, client.ObjectKey{Namespace: microFrontendClass.Namespace, Name: microFrontendClass.Name}, httpRoute)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
+			if !r.isAlreadyWatching {
+				r.selfRef.Watch(source.Kind(r.cacheRef, &gatewayv1.HTTPRoute{}), &handler.EnqueueRequestForObject{})
+				r.isAlreadyWatching = true
+			}
 			log.Info("HttpRoute resource not found. Setting to nil")
+			httpRoute = nil
+		} else if meta.IsNoMatchError(err) {
+			log.Info("HttpRoute CRD not installed. It will not be created")
+			httpRoutePresent = false
 			httpRoute = nil
 		} else {
 			log.Error(err, "Failed to get HttpRoute!")
 			return ctrl.Result{}, err
+		}
+	} else {
+		if !r.isAlreadyWatching {
+			r.selfRef.Watch(source.Kind(r.cacheRef, &gatewayv1.HTTPRoute{}), &handler.EnqueueRequestForObject{})
+			r.isAlreadyWatching = true
 		}
 	}
 
@@ -169,19 +192,24 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	log.Info("Checking if HttpRoute and Ingress resources should be created for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing != nil && httpRoute == nil && ingress == nil {
-		operatorService := r.getOperatorService(ctx, log)
+		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
 
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService!")
 			return ctrl.Result{}, err
 		}
 
-		if microFrontendClass.Spec.Routing.ParentRefs != nil {
+		if microFrontendClass.Spec.Routing.ParentRefs != nil && httpRoutePresent {
 			err = r.createHttpRoute(ctx, log, microFrontendClass, operatorService)
 
 			if err != nil {
-				log.Error(err, "Failed to create HttpRoute!")
-				return ctrl.Result{}, err
+				if apierrors.IsNotFound(err) {
+					log.Info("HttpRoute CRD not installed. It will not be created")
+					httpRoutePresent = false
+				} else {
+					log.Error(err, "Failed to create HttpRoute!")
+					return ctrl.Result{}, err
+				}
 			}
 		}
 
@@ -206,7 +234,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{}, err
 			}
 
-			err = r.createIngress(ctx, log, microFrontendClass, r.getOperatorService(ctx, log))
+			err = r.createIngress(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
 
 			if err != nil {
 				log.Error(err, "Failed to create Ingress!")
@@ -216,16 +244,21 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{Requeue: true}, nil
 		}
 
-		operatorService := r.getOperatorService(ctx, log)
+		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
 
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService!")
 			return ctrl.Result{}, err
 		}
 		update := createRouteForMicroFrontendClass(microFrontendClass, operatorService)
-		controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
+		err := controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
 
-		if httpRoute.Name != update.Name || httpRoute.Namespace != update.Namespace || !reflect.DeepEqual(httpRoute.Spec, update.Spec) {
+		if err != nil {
+			log.Error(err, "Failed to set controller reference for HttpRoute!")
+			return ctrl.Result{}, err
+		}
+
+		if areNotSameHttpRoute(httpRoute, update) {
 			log.Info("Updating HttpRoute for MicroFrontendClass.")
 			update.ResourceVersion = httpRoute.ResourceVersion
 			err = r.Update(ctx, update)
@@ -239,7 +272,6 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
-	log.Info("Checking if HttpRoute and Ingress resources should be deleted for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing != nil && ingress != nil {
 		if microFrontendClass.Spec.Routing.IngressClassName == nil && microFrontendClass.Spec.Routing.ParentRefs != nil {
 			err = r.Delete(ctx, ingress)
@@ -249,7 +281,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{}, err
 			}
 
-			err = r.createHttpRoute(ctx, log, microFrontendClass, r.getOperatorService(ctx, log))
+			err = r.createHttpRoute(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
 
 			if err != nil {
 				log.Error(err, "Failed to create HttpRoute!")
@@ -259,7 +291,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{Requeue: true}, nil
 		}
 
-		operatorService := r.getOperatorService(ctx, log)
+		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
 
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService!")
@@ -268,7 +300,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		update := createIngressForMicroFrontendClass(microFrontendClass, operatorService)
 		controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
-		if ingress.Name != update.Name || ingress.Namespace != update.Namespace || !reflect.DeepEqual(ingress.Spec, update.Spec) {
+		if areNotSameIngress(ingress, update) {
 			log.Info("Updating Ingress for MicroFrontendClass.")
 			update.ResourceVersion = ingress.ResourceVersion
 			err = r.Update(ctx, update)
@@ -282,6 +314,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
+	log.Info("Checking if HttpRoute and Ingress resources should be deleted for MicroFrontendClass.")
 	if microFrontendClass.Spec.Routing == nil && httpRoute != nil {
 		err = r.Delete(ctx, httpRoute)
 
@@ -319,11 +352,74 @@ func (r *MicroFrontendClassReconciler) finalizeOperationsForMicroFrontendClass(m
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *MicroFrontendClassReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	selfRef, err := ctrl.NewControllerManagedBy(mgr).
 		For(&polyfeav1alpha1.MicroFrontendClass{}).
-		Owns(&gatewayv1.HTTPRoute{}).
 		Owns(&networkingv1.Ingress{}).
-		Complete(r)
+		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.findObjectsForService)).
+		Build(r)
+
+	if err != nil {
+		return err
+	}
+
+	r.selfRef = selfRef
+	r.cacheRef = mgr.GetCache()
+
+	return nil
+}
+
+func (r *MicroFrontendClassReconciler) findObjectsForService(ctx context.Context, service client.Object) []reconcile.Request {
+	var requests []reconcile.Request
+	log := log.FromContext(ctx)
+
+	microFrontendClasses := &polyfeav1alpha1.MicroFrontendClassList{}
+	err := r.List(ctx, microFrontendClasses)
+
+	if err != nil {
+		log.Error(err, "Failed to list MicroFrontendClasses!")
+		return nil
+	}
+
+	for _, microFrontendClass := range microFrontendClasses.Items {
+		ownerReferences := service.GetOwnerReferences()
+		containsReference := false
+
+		for _, ownerReference := range ownerReferences {
+			if ownerReference.Name == microFrontendClass.Name && ownerReference.Kind == microFrontendClass.Kind {
+				containsReference = true
+				break
+			}
+		}
+
+		if len(ownerReferences) > 0 && containsReference {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKey{
+					Namespace: microFrontendClass.Namespace,
+					Name:      microFrontendClass.Name,
+				},
+			})
+		}
+	}
+
+	return requests
+}
+
+func areNotSameHttpRoute(httpRoute *gatewayv1.HTTPRoute, update *gatewayv1.HTTPRoute) bool {
+	return httpRoute.Name != update.Name ||
+		httpRoute.Namespace != update.Namespace ||
+		!reflect.DeepEqual(httpRoute.Spec.ParentRefs, update.Spec.ParentRefs) ||
+		*httpRoute.Spec.Rules[0].Matches[0].Path.Value != *update.Spec.Rules[0].Matches[0].Path.Value ||
+		httpRoute.Spec.Rules[0].BackendRefs[0].BackendRef.Name != update.Spec.Rules[0].BackendRefs[0].BackendRef.Name ||
+		*httpRoute.Spec.Rules[0].BackendRefs[0].BackendRef.Port != *update.Spec.Rules[0].BackendRefs[0].BackendRef.Port
+}
+
+func areNotSameIngress(ingress *networkingv1.Ingress, update *networkingv1.Ingress) bool {
+	return ingress.Name != update.Name ||
+		ingress.Namespace != update.Namespace ||
+		*ingress.Spec.IngressClassName != *update.Spec.IngressClassName ||
+		ingress.Spec.Rules[0].HTTP.Paths[0].Path != update.Spec.Rules[0].HTTP.Paths[0].Path ||
+		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name != update.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name ||
+		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Name != update.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Name
 }
 
 func (r *MicroFrontendClassReconciler) createHttpRoute(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
@@ -331,14 +427,12 @@ func (r *MicroFrontendClassReconciler) createHttpRoute(ctx context.Context, log 
 	err := controllerutil.SetControllerReference(microFrontendClass, httpRoute, r.Scheme)
 
 	if err != nil {
-		log.Error(err, "Failed to set controller reference for HttpRoute!")
 		return err
 	}
 
 	err = r.Create(ctx, httpRoute)
 
 	if err != nil {
-		log.Error(err, "Failed to create HttpRoute!")
 		return err
 	}
 
@@ -347,18 +441,22 @@ func (r *MicroFrontendClassReconciler) createHttpRoute(ctx context.Context, log 
 
 func (r *MicroFrontendClassReconciler) createIngress(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
 	ingress := createIngressForMicroFrontendClass(microFrontendClass, operatorService)
-	controllerutil.SetControllerReference(microFrontendClass, ingress, r.Scheme)
-	err := r.Create(ctx, ingress)
+	err := controllerutil.SetControllerReference(microFrontendClass, ingress, r.Scheme)
 
 	if err != nil {
-		log.Error(err, "Failed to create Ingress!")
+		return err
+	}
+
+	err = r.Create(ctx, ingress)
+
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, log logr.Logger) *corev1.Service {
+func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass) *corev1.Service {
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{OperatorServiceSelectorName: OperatorServiceSelectorValue}),
 	}
@@ -369,6 +467,15 @@ func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, l
 		log.Error(err, "Failed to list services or no services found!")
 		return nil
 	}
+
+	err := controllerutil.SetOwnerReference(microFrontendClass, &services.Items[0], r.Scheme)
+
+	if err != nil {
+		log.Error(err, "Failed to set owner reference for OperatorService!")
+		return nil
+	}
+
+	r.Update(ctx, &services.Items[0])
 
 	return &services.Items[0]
 }
