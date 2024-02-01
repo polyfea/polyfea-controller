@@ -38,6 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 
 	"github.com/go-logr/logr"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -211,6 +212,13 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 					return ctrl.Result{}, err
 				}
 			}
+
+			err := r.recreateRefGrant(ctx, log, microFrontendClass, operatorService)
+
+			if err != nil {
+				log.Error(err, "Failed to recreate ReferenceGrant!")
+				return ctrl.Result{}, err
+			}
 		}
 
 		if microFrontendClass.Spec.Routing.IngressClassName != nil {
@@ -285,6 +293,13 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 			if err != nil {
 				log.Error(err, "Failed to create HttpRoute!")
+				return ctrl.Result{}, err
+			}
+
+			err := r.recreateRefGrant(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
+
+			if err != nil {
+				log.Error(err, "Failed to recreate ReferenceGrant!")
 				return ctrl.Result{}, err
 			}
 
@@ -368,6 +383,54 @@ func (r *MicroFrontendClassReconciler) SetupWithManager(mgr ctrl.Manager) error 
 	return nil
 }
 
+func (r *MicroFrontendClassReconciler) recreateRefGrant(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
+	refGrant := &gatewayv1alpha2.ReferenceGrant{}
+	err := r.Get(ctx, client.ObjectKey{Namespace: operatorService.Namespace, Name: microFrontendClass.Name}, refGrant)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			refGrant = &gatewayv1alpha2.ReferenceGrant{
+				ObjectMeta: ctrl.ObjectMeta{
+					Name:      microFrontendClass.Name,
+					Namespace: operatorService.Namespace,
+				},
+				Spec: gatewayv1alpha2.ReferenceGrantSpec{
+					From: []gatewayv1alpha2.ReferenceGrantFrom{
+						{
+							Group:     "gateway.networking.k8s.io",
+							Kind:      "HTTPRoute",
+							Namespace: gatewayv1.Namespace(microFrontendClass.Namespace),
+						},
+					},
+					To: []gatewayv1alpha2.ReferenceGrantTo{
+						{
+							Kind: "Service",
+						},
+					},
+				},
+			}
+		} else {
+			log.Error(err, "Failed to get ReferenceGrant!")
+			return err
+		}
+	} else {
+		err = r.Delete(ctx, refGrant)
+
+		if err != nil {
+			log.Error(err, "Failed to delete ReferenceGrant!")
+			return err
+		}
+	}
+
+	err = r.Create(ctx, refGrant)
+
+	if err != nil {
+		log.Error(err, "Failed to create ReferenceGrant!")
+		return err
+	}
+
+	return nil
+}
+
 func (r *MicroFrontendClassReconciler) findObjectsForService(ctx context.Context, service client.Object) []reconcile.Request {
 	var requests []reconcile.Request
 	log := log.FromContext(ctx)
@@ -381,17 +444,8 @@ func (r *MicroFrontendClassReconciler) findObjectsForService(ctx context.Context
 	}
 
 	for _, microFrontendClass := range microFrontendClasses.Items {
-		ownerReferences := service.GetOwnerReferences()
-		containsReference := false
 
-		for _, ownerReference := range ownerReferences {
-			if ownerReference.Name == microFrontendClass.Name && ownerReference.Kind == microFrontendClass.Kind {
-				containsReference = true
-				break
-			}
-		}
-
-		if len(ownerReferences) > 0 && containsReference {
+		if string(microFrontendClass.UID) == service.GetAnnotations()["Owner"] {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKey{
 					Namespace: microFrontendClass.Namespace,
@@ -468,12 +522,11 @@ func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, l
 		return nil
 	}
 
-	err := controllerutil.SetOwnerReference(microFrontendClass, &services.Items[0], r.Scheme)
-
-	if err != nil {
-		log.Error(err, "Failed to set owner reference for OperatorService!")
-		return nil
+	if services.Items[0].Annotations == nil {
+		services.Items[0].Annotations = make(map[string]string)
 	}
+
+	services.Items[0].Annotations["Owner"] = string(microFrontendClass.UID)
 
 	r.Update(ctx, &services.Items[0])
 
@@ -483,6 +536,7 @@ func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, l
 func createRouteForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) *gatewayv1.HTTPRoute {
 	kind := gatewayv1.Kind("Service")
 	name := gatewayv1.ObjectName(operatorService.Name)
+	namespace := gatewayv1.Namespace(operatorService.Namespace)
 	portIndex := slices.IndexFunc(operatorService.Spec.Ports, func(port corev1.ServicePort) bool {
 		return port.Name == PortName
 	})
@@ -510,9 +564,10 @@ func createRouteForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroF
 						{
 							BackendRef: gatewayv1.BackendRef{
 								BackendObjectReference: gatewayv1.BackendObjectReference{
-									Kind: &kind,
-									Name: name,
-									Port: &port,
+									Kind:      &kind,
+									Name:      name,
+									Port:      &port,
+									Namespace: &namespace,
 								},
 							},
 						},

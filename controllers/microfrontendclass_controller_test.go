@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 )
 
 var _ = Describe("MicroFrontendClass controller", func() {
@@ -1208,6 +1209,94 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				return httpRoute.Spec.Rules[0].BackendRefs[0].Port
 
 			}, timeout, interval).Should(Equal(&expectedPort))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+
+			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
+				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
+					println("Checking microfrontend " + mf.Name)
+					return mf.Name == MicroFrontendClassName
+				})
+				return result
+			}, timeout, interval).Should(HaveLen(0))
+
+			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
+		})
+
+		It("Should create RefGrant", func() {
+			By("By creating a new MicroFrontendClass with routing parent refs")
+			ctx := context.Background()
+
+			operatorService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "polyfea-webserver",
+					Namespace: MicroFrontendClassNamespace,
+					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Name: PortName,
+							Port: 80,
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					Routing: &polyfeav1alpha1.Routing{
+						ParentRefs: []gatewayv1.ParentReference{
+							{
+								Name: "abcd",
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+
+			refGrantLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			refGrant := &gatewayv1alpha2.ReferenceGrant{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, refGrantLookupKey, refGrant)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(refGrant.Namespace).Should(Equal(operatorService.Namespace))
 
 			By("By deleting the MicroFrontend")
 			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
