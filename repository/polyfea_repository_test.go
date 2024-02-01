@@ -29,6 +29,25 @@ func TestInMemoryPolyfeaRepositoryItemStoredCanBeRetrieved(t *testing.T) {
 	}
 }
 
+func TestInMemoryPolyfeaRepositoryItemStoredCanBeRetrievedAsSingleItem(t *testing.T) {
+
+	// Arrange
+	repository := NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	expectedMicrofrontend := createTestMicrofrontend()
+
+	// Act
+	repository.StoreItem(expectedMicrofrontend)
+	result, _ := repository.GetItem(expectedMicrofrontend)
+
+	// Assert
+	expectedMicrofrontendBytes, _ := json.Marshal(expectedMicrofrontend)
+	resultMicrofrontendBytes, _ := json.Marshal(result)
+
+	if string(expectedMicrofrontendBytes) != string(resultMicrofrontendBytes) {
+		t.Errorf("Expected microfrontend %v, but got %v", string(expectedMicrofrontendBytes), string(resultMicrofrontendBytes))
+	}
+}
+
 func TestInMemoryPolyfeaRepositoryItemsNotFoundReturnsEmptySlice(t *testing.T) {
 
 	// Arrange
