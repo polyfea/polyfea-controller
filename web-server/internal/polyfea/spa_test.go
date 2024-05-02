@@ -10,7 +10,6 @@ import (
 
 	"github.com/dlclark/regexp2"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 	"github.com/rs/zerolog"
 )
@@ -163,8 +162,6 @@ func PolyfeaSinglePageApplicationReturnsBootJsWhenRequested(t *testing.T) {
 }
 
 func polyfeaSPAApiSetupRouter() http.Handler {
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-
 	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
 	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
@@ -172,24 +169,18 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 			Value: "test-value",
 		},
 	}
-
 	mfc.Spec.ExtraMetaTags = []v1alpha1.MetaTag{
 		{
 			Name:    "test-meta-tag",
 			Content: "test-content",
 		},
 	}
-
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
-
 	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
-
-	testMicroFrontendClassRepository.StoreItem(mfc)
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
 
 	router := generated.NewRouter()
 
-	spa := NewSinglePageApplication(testMicroFrontendClassRepository, &zerolog.Logger{})
+	spa := NewSinglePageApplication(&zerolog.Logger{})
 
 	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -203,5 +194,5 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
 
-	return router
+	return addDummyMiddleware(router, "/", mfc)
 }

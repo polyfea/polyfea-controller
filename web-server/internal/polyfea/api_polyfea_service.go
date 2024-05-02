@@ -20,25 +20,22 @@ import (
 )
 
 type PolyfeaApiService struct {
-	webComponentRepository       repository.PolyfeaRepository[*v1alpha1.WebComponent]
-	microFrontendRepository      repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
-	logger                       *zerolog.Logger
+	webComponentRepository  repository.PolyfeaRepository[*v1alpha1.WebComponent]
+	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
+	logger                  *zerolog.Logger
 }
 
 func NewPolyfeaAPIService(
 	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
 	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
 	logger *zerolog.Logger,
 ) *PolyfeaApiService {
 
 	l := logger.With().Str("component", "PolyfeaApiService").Logger()
 	return &PolyfeaApiService{
-		webComponentRepository:       webComponentRepository,
-		microFrontendRepository:      microFrontendRepository,
-		microFrontendClassRepository: microFrontendClassRepository,
-		logger:                       &l,
+		webComponentRepository:  webComponentRepository,
+		microFrontendRepository: microFrontendRepository,
+		logger:                  &l,
 	}
 }
 
@@ -63,49 +60,12 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	// Get base path from context or use default
-	basePathValue := ctx.Value(PolyfeaContextKeyBasePath)
-	var basePath string
-	if basePathValue == nil {
-		basePath = "/"
-	} else {
-		basePath = basePathValue.(string)
-	}
+	basePath := ctx.Value(PolyfeaContextKeyBasePath).(string)
+	frontendClass := ctx.Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
 	logger = logger.With().Str("base-path", basePath).Logger()
 	span.SetAttributes(attribute.String("base-path", basePath))
 
 	// Get frontend class for base path
-	frontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		frontendClassBasePath := *mfc.Spec.BaseUri
-		if frontendClassBasePath[0] != '/' {
-			frontendClassBasePath = "/" + frontendClassBasePath
-		}
-		if frontendClassBasePath[len(frontendClassBasePath)-1] != '/' {
-			frontendClassBasePath += "/"
-		}
-
-		return basePath == frontendClassBasePath
-	})
-
-	if err != nil {
-		logger.Err(err).Msg("Error while getting frontend class")
-		span.SetStatus(codes.Error, "microfrontend_class_repository_error")
-		return generated.Response(http.StatusInternalServerError, "Internal Server Error"), err
-	}
-
-	if len(frontendClasses) == 0 {
-		logger.Info().Msg("No frontend class found for base path")
-		telemetry().not_found.Add(ctx, 1)
-		span.SetStatus(codes.Error, "microfrontend_class_not_found")
-		return generated.Response(http.StatusNotFound, "No frontend class found for base path "+basePath), nil
-	}
-
-	if len(frontendClasses) > 1 {
-		logger.Warn().Msg("Multiple frontend classes found for base path")
-		span.SetStatus(codes.Error, "multiple_frontend_classes_found")
-		return generated.Response(http.StatusBadRequest, "Multiple frontend classes found for base path "+basePath), nil
-	}
-
-	frontendClass := frontendClasses[0]
 
 	// Read user roles from header
 	userRoleHeaders := headers.Values(frontendClass.Spec.UserRolesHeader)

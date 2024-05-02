@@ -6,24 +6,23 @@ import (
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/repository"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type SpaTestSuite struct {
+type MiddlewaresTestSuite struct {
 	suite.Suite
 	mfcRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
 }
 
-func TestSpaTestSuite(t *testing.T) {
-	suite.Run(t, new(SpaTestSuite))
+func TestMiddlewaresTestSuite(t *testing.T) {
+	suite.Run(t, new(MiddlewaresTestSuite))
 }
 
-func (suite *SpaTestSuite) SetupTest() {
+func (suite *MiddlewaresTestSuite) SetupTest() {
 	suite.SetupMfcRepository()
 }
-func (suite *SpaTestSuite) SetupMfcRepository() {
+func (suite *MiddlewaresTestSuite) SetupMfcRepository() {
 	suite.mfcRepository = repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	defaultBase := "/"
 	suite.mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
@@ -59,7 +58,7 @@ func (suite *SpaTestSuite) SetupMfcRepository() {
 	})
 }
 
-func (suite *SpaTestSuite) TestGetMicrofrontendAndBase() {
+func (suite *MiddlewaresTestSuite) TestGetMicrofrontendAndBase() {
 	testParams := []struct {
 		requestPath     string
 		expectBasePath  string
@@ -77,9 +76,8 @@ func (suite *SpaTestSuite) TestGetMicrofrontendAndBase() {
 	for _, params := range testParams {
 		suite.Run(params.requestPath, func() {
 			// Arrange
-			sut := NewSinglePageApplication(suite.mfcRepository, &zerolog.Logger{})
 			// Act
-			basePath, microfrontend, err := sut.getMicrofrontendClassAndBase(params.requestPath)
+			basePath, microfrontend, err := getMicrofrontendClassAndBase(params.requestPath, suite.mfcRepository)
 
 			// Assert
 			suite.Nil(err)
