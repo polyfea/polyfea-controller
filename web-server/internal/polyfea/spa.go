@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -19,8 +18,7 @@ import (
 )
 
 type SingePageApplication struct {
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
-	logger                       *zerolog.Logger
+	logger *zerolog.Logger
 }
 
 type TemplateData struct {
@@ -37,12 +35,10 @@ var html string
 var bootJs []byte
 
 func NewSinglePageApplication(
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
 	logger *zerolog.Logger,
 ) *SingePageApplication {
 	return &SingePageApplication{
-		microFrontendClassRepository: microFrontendClassRepository,
-		logger:                       logger,
+		logger: logger,
 	}
 }
 
@@ -60,13 +56,8 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		))
 	defer span.End()
 
-	basePath, microFrontendClass, err := s.getMicrofrontendClassAndBase(r.URL.Path)
-
-	if err != nil {
-		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
-		span.SetStatus(codes.Error, err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	basePath := r.Context().Value(PolyfeaContextKeyBasePath).(string)
+	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
 
 	if microFrontendClass == nil {
 		logger.Warn().Msg("Microfrontend class not found")
@@ -141,12 +132,7 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 		))
 	defer span.End()
 
-	_, microFrontendClass, err := s.getMicrofrontendClassAndBase(r.URL.Path)
-
-	if err != nil {
-		logger.Warn().Err(err).Msg("Error while getting microfrontend and base")
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
 
 	if microFrontendClass == nil {
 		logger.Warn().Msg("Microfrontend class not found")
@@ -195,44 +181,4 @@ func generateNonce() (string, error) {
 	nonce := base64.StdEncoding.EncodeToString([]byte(text))
 
 	return nonce, nil
-}
-
-func (s *SingePageApplication) getMicrofrontendClassAndBase(requestPath string) (string, *v1alpha1.MicroFrontendClass, error) {
-
-	slash := func(in string) string {
-		if in[len(in)-1] != '/' {
-			in += "/"
-		}
-		if in[0] != '/' {
-			in = "/" + in
-		}
-		return in
-	}
-
-	requestPath = slash(requestPath) // needed for user's forgotten trailing slash
-
-	microFrontendClasses, err := s.microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		return strings.HasPrefix(requestPath, slash(*mfc.Spec.BaseUri))
-	})
-
-	if err != nil {
-		return "", nil, err
-	}
-
-	if len(microFrontendClasses) == 0 {
-		return "/", nil, nil
-	}
-
-	baseHref := "/"
-	longestMfc := microFrontendClasses[0]
-	// find longest match
-	for _, mfc := range microFrontendClasses {
-		mfcBase := slash(*mfc.Spec.BaseUri)
-		if len(mfcBase) > len(baseHref) {
-			baseHref = mfcBase
-			longestMfc = mfc
-		}
-	}
-
-	return baseHref, longestMfc, nil
 }

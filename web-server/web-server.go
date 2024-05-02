@@ -21,7 +21,6 @@ func SetupRouter(
 	polyfeaAPIService := polyfea.NewPolyfeaAPIService(
 		webComponentRepository,
 		microFrontendRepository,
-		microFrontendClassRepository,
 		logger,
 	)
 
@@ -35,7 +34,7 @@ func SetupRouter(
 
 	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+":.*}", proxy.HandleProxy)
 
-	spa := polyfea.NewSinglePageApplication(microFrontendClassRepository, logger)
+	spa := polyfea.NewSinglePageApplication(logger)
 
 	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
@@ -45,5 +44,5 @@ func SetupRouter(
 
 	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
 
-	return polyfea.BasePathStrippingMiddleware(router)
+	return polyfea.BasePathStrippingMiddleware(router, microFrontendClassRepository)
 }

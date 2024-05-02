@@ -343,7 +343,6 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{})
 
 	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)

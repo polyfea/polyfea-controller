@@ -39,13 +39,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -57,6 +53,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
@@ -98,7 +95,6 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
 	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
 	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
@@ -107,12 +103,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 		},
 	}
 
-	testMicroFrontendClassRepository.StoreItem(mfc)
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -124,6 +117,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, mfc)
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
@@ -169,13 +163,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -187,6 +177,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
@@ -228,13 +219,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -246,6 +233,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
@@ -303,13 +291,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -321,6 +305,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
@@ -368,13 +353,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -386,6 +367,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -435,13 +417,10 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 		},
 		&[]int32{1}[0]))
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -451,6 +430,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 		},
 		map[string]generated.MicrofrontendSpec{})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -502,17 +482,14 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -564,17 +541,14 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatchin
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -626,17 +600,14 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testi
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -693,17 +664,14 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testin
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -755,17 +723,14 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *test
 	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	headers := http.Header{}
 	headers.Set("test-user-roles-header", "some-different-role")
@@ -785,85 +750,6 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *test
 
 	if len(response.Body.(generated.ContextArea).Elements) != 0 {
 		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaForCorrectMicrofrontendClass(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
-
-	testWebComponentRepository.StoreItem(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		"test-tag-name",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-				},
-			},
-		},
-		&[]int32{2}[0]))
-
-	testWebComponentRepository.StoreItem(createTestWebComponent(
-		"test-other-name",
-		"other-microfrontend",
-		"test-tag-name",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-				},
-			},
-		},
-		&[]int32{1}[0]))
-	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "other-frontend-class", true))
-
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "other"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "/"))
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
-		&zerolog.Logger{},
-	)
-
-	expectedContextArea := createTestContextArea(
-		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
-		},
-		map[string]generated.MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
-		})
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/other/")
-	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
-
-	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
-
-	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
-	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
-
-	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
 	}
 }
 
@@ -910,14 +796,9 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -929,6 +810,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 1, map[string][]string{})
 
@@ -989,14 +871,9 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -1008,6 +885,8 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 1, map[string][]string{})
 
@@ -1071,14 +950,9 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class", true))
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("yet-another-test-dependency", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -1094,6 +968,8 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 			"yet-another-test-dependency": createTestMicroFrontendSpec("yet-another-test-dependency", []string{}, true),
 		})
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+
 	// Act
 	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
 
@@ -1156,18 +1032,15 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependencyMissingErrorIsRet
 
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"yet-another-test-dependency"}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+
 	// Act
 	_, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
 
@@ -1226,18 +1099,15 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-dependency", []string{"test-microfrontend"}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaApiService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+
 	// Act
 	_, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
 

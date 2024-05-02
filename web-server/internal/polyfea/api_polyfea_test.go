@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -259,23 +260,9 @@ func polyfeaApiSetupRouter() http.Handler {
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 
-	testMicroFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
-
-	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
-	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
-		{
-			Name:  "test-header",
-			Value: "test-value",
-		},
-	}
-
-	testMicroFrontendClassRepository.StoreItem(mfc)
-	testMicroFrontendClassRepository.StoreItem(createTestMicroFrontendClass("other-frontend-class", "other"))
-
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		testMicroFrontendClassRepository,
 		&zerolog.Logger{},
 	)
 
@@ -285,5 +272,24 @@ func polyfeaApiSetupRouter() http.Handler {
 
 	router.HandleFunc("/openapi", api.HandleOpenApi)
 
-	return router
+	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
+		{
+			Name:  "test-header",
+			Value: "test-value",
+		},
+	}
+
+	return addDummyMiddleware(router, "/", mfc)
+}
+
+func addDummyMiddleware(next http.Handler, basePath string, microFrontendClass *v1alpha1.MicroFrontendClass) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), PolyfeaContextKeyBasePath, basePath)
+		ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, microFrontendClass)
+
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+	})
 }
