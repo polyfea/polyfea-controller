@@ -66,7 +66,7 @@ type MicroFrontendClassSpec struct {
 	// It includes specifications for the web app manifest and cache options, which are crucial for the PWA's functionality and performance.
 	// This field is optional and can be omitted if not needed.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ProgressiveWebApp ProgressiveWebApp `json:"progressiveWebApp,omitempty"`
+	ProgressiveWebApp *ProgressiveWebApp `json:"progressiveWebApp,omitempty"`
 }
 
 // Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
@@ -112,57 +112,54 @@ type Header struct {
 type ProgressiveWebApp struct {
 	// WebAppManifest represents the web app manifest file for the PWA.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	WebAppManifest WebAppManifest `json:"webAppManifest"`
+	WebAppManifest *WebAppManifest `json:"webAppManifest"`
 
 	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheOptions PWACache `json:"cacheOptions,omitempty"`
+	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
 
-	// TODO: Test default value test override
 	// Time for reconciliation of the strategies from the frontend side.
 	// +kubebuilder:default=1800000
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
 }
 
-// TODO: Test required values
 // WebAppManifest represents the web app manifest file for the PWA.
 type WebAppManifest struct {
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Name string
+	Name *string `json:"name"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Icons []PWAIcon
+	Icons []PWAIcon `json:"icons"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StartUrl string
+	StartUrl *string `json:"startUrl"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Display string
+	Display *string `json:"display"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	DisplayOverride []string
+	DisplayOverride []string `json:"displayOverride,omitempty"`
 }
 
-// TODO: Test required values
 // Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
 type PWAIcon struct {
 	// A string containing space-separated image dimensions using the same syntax as the sizes attribute.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Sizes string
+	Sizes *string `json:"sizes"`
 
 	// The path to the image file. If src is a relative URL, the base URL will be the URL of the manifest.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Src string
+	Src *string `json:"src"`
 
 	// A hint as to the media type of the image. The purpose of this member is to allow a user agent to quickly ignore images with media types it does not support.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Type string
+	Type *string `json:"type"`
 
 	// Defines the purpose of the image, for example if the image is intended to serve some special purpose in the context of the host OS (i.e., for better integration).
 	// purpose can have one or more of the following values, separated by spaces:
@@ -171,7 +168,7 @@ type PWAIcon struct {
 	// 	any: The user agent is free to display the icon in any context (this is the default value).
 	// +kubebuilder:validation:Enum=monochrome;maskable;any;
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Purpose *string
+	Purpose *string `json:"purpose,omitempty"`
 }
 
 // PWACache defines the caching options for a Progressive Web Application (PWA).
@@ -186,13 +183,12 @@ type PWACache struct {
 	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
 }
 
-// TODO: Test required values
 // PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
 // Each entry specifies a URL to be cached and an optional revision identifier to manage cache updates and invalidation.
 type PreCacheEntry struct {
 	// URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	URL string `json:"url"`
+	URL *string `json:"url"`
 
 	// Revision is an optional field that specifies a revision identifier for the resource.
 	// The revision helps in cache management by allowing the service worker to recognize and update cached assets when their content changes. This ensures users always have access to the most up-to-date resources.
@@ -200,14 +196,12 @@ type PreCacheEntry struct {
 	Revision *string `json:"revision,omitempty"`
 }
 
-// TODO: Test required values
-// TODO: Test default values
 // CacheRoute defines the caching strategy for a specific URL pattern within a Progressive Web Application (PWA).
 // This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
 type CacheRoute struct {
 	// Pattern is the URL pattern to which this caching strategy applies.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Pattern string `json:"pattern"`
+	Pattern *string `json:"pattern"`
 
 	// Destination is the optional destination URL for this caching strategy.
 	// You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination

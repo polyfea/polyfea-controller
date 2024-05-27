@@ -61,10 +61,9 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DependsOn []string `json:"dependsOn,omitempty"`
 
-	// TODO: Test similar to MFC values
 	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheOptions PWACache `json:"cacheOptions"`
+	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
 }
 
 // StaticResources defines the static resources that should be loaded before this micro frontend.

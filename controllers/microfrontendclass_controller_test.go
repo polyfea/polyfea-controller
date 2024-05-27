@@ -1315,5 +1315,633 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
 		})
+
+		It("Should create pwa with default PolyfeaSWReconcileInterval when not specified", func() {
+			By("By creating a new MicroFrontendClass with PWA")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Src:   &[]string{"icon.png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Type:  &[]string{"image/png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+			defaultPolyfeaSWReconcileInterval := &[]int32{1800000}[0]
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval).Should(Equal(defaultPolyfeaSWReconcileInterval))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should not create pwa without WebAppManifest", func() {
+			By("By creating a new MicroFrontendClass with PWA")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader:   "X-User-Roles",
+					UserHeader:        "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in web manifest", func() {
+			By("By creating a new MicroFrontendClass with manifest without name")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Src:   &[]string{"icon.png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Type:  &[]string{"image/png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in web manifest", func() {
+			By("By creating a new MicroFrontendClass with manifest without Icons")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name:     &[]string{"Test"}[0],
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in web manifest", func() {
+			By("By creating a new MicroFrontendClass with manifest without starturl")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Src:   &[]string{"icon.png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Type:  &[]string{"image/png"}[0],
+								},
+							},
+							Display: &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in web manifest", func() {
+			By("By creating a new MicroFrontendClass with manifest without display")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Src:   &[]string{"icon.png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Type:  &[]string{"image/png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in icon", func() {
+			By("By creating a new MicroFrontendClass with PWA without mandatory sizes in icon")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Src:  &[]string{"icon.png"}[0],
+									Type: &[]string{"image/png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in icon", func() {
+			By("By creating a new MicroFrontendClass with PWA without mandatory src in icon")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Sizes: &[]string{"192x192"}[0],
+									Type:  &[]string{"image/png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in icon", func() {
+			By("By creating a new MicroFrontendClass with PWA without mandatory type in icon")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Sizes: &[]string{"192x192"}[0],
+									Src:   &[]string{"icon.png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should not create pwa without mandatory fields in pre cache", func() {
+			By("By creating a new MicroFrontendClass with PWA without mandatory url in pre cache")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Type:  &[]string{"image/png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Src:   &[]string{"icon.png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+						CacheOptions: &polyfeav1alpha1.PWACache{
+							PreCache: []polyfeav1alpha1.PreCacheEntry{
+								{
+									Revision: &[]string{"1"}[0],
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
+
+		It("Should should create pwa without optional fields in pre cache", func() {
+			By("By creating a new MicroFrontendClass with PWA without optional revision in pre cache")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Type:  &[]string{"image/png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Src:   &[]string{"icon.png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+						CacheOptions: &polyfeav1alpha1.PWACache{
+							PreCache: []polyfeav1alpha1.PreCacheEntry{
+								{
+									URL: &[]string{"https://example.com"}[0],
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.PreCache[0].Revision).Should(BeNil())
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should should create pwa without optional fields in runtime cache", func() {
+			By("By creating a new MicroFrontendClass with PWA without optional fields in runtime cache")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Type:  &[]string{"image/png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Src:   &[]string{"icon.png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+						CacheOptions: &polyfeav1alpha1.PWACache{
+							CacheRoutes: []polyfeav1alpha1.CacheRoute{
+								{
+									Pattern: &[]string{"/"}[0],
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+
+			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
+			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Strategy).Should(Equal(&[]string{"cache-first"}[0]))
+			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Method).Should(Equal(&[]string{"GET"}[0]))
+			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Statuses).Should(Equal([]int32{0, 200, 201, 202, 204}))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should should not create pwa without mandatory fields in runtime cache", func() {
+			By("By creating a new MicroFrontendClass with PWA without pattern field in runtime cache")
+			ctx := context.Background()
+
+			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontendClass",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendClassName,
+					Namespace: MicroFrontendClassNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+					Title:     &[]string{"Test MicroFrontendClass"}[0],
+					BaseUri:   &[]string{"/someother"}[0],
+					CspHeader: "default-src 'self';",
+					ExtraHeaders: []polyfeav1alpha1.Header{
+						{
+							Name:  "X-Frame-Options",
+							Value: "DENY",
+						},
+					},
+					UserRolesHeader: "X-User-Roles",
+					UserHeader:      "X-User-Id",
+					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
+						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
+							Name: &[]string{"Test"}[0],
+							Icons: []polyfeav1alpha1.PWAIcon{
+								{
+									Type:  &[]string{"image/png"}[0],
+									Sizes: &[]string{"192x192"}[0],
+									Src:   &[]string{"icon.png"}[0],
+								},
+							},
+							StartUrl: &[]string{"/"}[0],
+							Display:  &[]string{"standalone"}[0],
+						},
+						CacheOptions: &polyfeav1alpha1.PWACache{
+							CacheRoutes: []polyfeav1alpha1.CacheRoute{
+								{
+									Strategy: &[]string{"network-first"}[0],
+								},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
+		})
 	})
 })
