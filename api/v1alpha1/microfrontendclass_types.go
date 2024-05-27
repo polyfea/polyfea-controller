@@ -61,6 +61,9 @@ type MicroFrontendClassSpec struct {
 	// You need to have a service for the operator with label 'app' set to 'polyfea-webserver' and a port with name webserver for the routing to work.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Routing *Routing `json:"routing,omitempty"`
+
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ProgressiveWebApp ProgressiveWebApp `json:"progressiveWebApp,omitempty"`
 }
 
 // Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
@@ -98,6 +101,75 @@ type Header struct {
 	// Value of the header
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Value string `json:"value"`
+}
+
+type ProgressiveWebApp struct {
+
+	// TODO: MAKE IT LITTLE BIT MORE SPECIFIC
+	// WebAppManifest represents the web app manifest file for the PWA.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WebAppManifest interface{} `json:"webAppManifest"`
+
+	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheOptions PWACache `json:"cacheOptions"`
+
+	// Time for reconciliation of the strategies from the frontend side.
+	// +kubebuilder:default=1800000
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
+}
+
+type PWACache struct {
+
+	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	PreCache []PreCacheEntry `json:"preCache"`
+
+	// CacheRoutes specifies the caching strategies for different URL patterns.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheRoutes []CacheRoute `json:"cacheRoutes"`
+}
+
+type PreCacheEntry struct {
+	URL      string `json:"url"`
+	Revision string `json:"revision"`
+}
+
+type CacheRoute struct {
+
+	// Pattern is the URL pattern to which this caching strategy applies.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Pattern string `json:"pattern"`
+
+	// Destination is the optional destination URL for this caching strategy.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Destination *string `json:"destination,omitempty"`
+
+	// Strategy defines the caching strategy to be used for this URL pattern. It defaults to "cache-first".
+	// +kubebuilder:default=cache-first
+	// +kubebuilder:validation:Enum=cache-first;network-first;cache-only;network-only;stale-while-revalidate;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Strategy *string `json:"strategy,omitempty"`
+
+	// MaxAgeSeconds specifies the maximum age (in seconds) for cached content.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	MaxAgeSeconds *int32 `json:"maxAgeSeconds,omitempty"`
+
+	// SyncRetentionMinutes specifies the duration (in minutes) to retain synced content in the cache.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SyncRetentionMinutes *int32 `json:"syncRetentionMinutes,omitempty"`
+
+	// Method specifies the HTTP method to be used with this caching strategy. It defaults to "GET".
+	// +kubebuilder:default=GET
+	// +kubebuilder:validation:Enum=DELETE;GET;HEAD;PATCH;POST;PUT;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Method *string `json:"method,omitempty"`
+
+	// Statuses lists the HTTP status codes to be cached. It defaults to [0, 200, 201, 202, 204].
+	// +kubebuilder:default={0,200,201,202,204}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Statuses []int32 `json:"statuses,omitempty"`
 }
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass
