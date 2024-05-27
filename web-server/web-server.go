@@ -42,6 +42,11 @@ func SetupRouter(
 		http.NotFound(w, r)
 	})
 
+	// TODO: Add endpoint for manifest json
+	// TODO: Add endpoint for register.mjs
+	// TODO: Add endpoint for sw.js
+	// TODO: Add enpoint for ./polyfea-caching.json
+
 	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
 
 	return polyfea.BasePathStrippingMiddleware(router, microFrontendClassRepository)

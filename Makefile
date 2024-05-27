@@ -306,3 +306,6 @@ BOOT_MJS_FILEPATH := "web-server/internal/polyfea/.resources/boot.mjs"
 boot-package: 
 	rm  $(BOOT_MJS_FILEPATH)
 	wget $(BOOT_MJS_URL) -O $(BOOT_MJS_FILEPATH)
+
+
+# TODO add download of register.mjs

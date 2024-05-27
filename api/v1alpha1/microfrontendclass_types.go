@@ -118,12 +118,14 @@ type ProgressiveWebApp struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheOptions PWACache `json:"cacheOptions,omitempty"`
 
+	// TODO: Test default value test override
 	// Time for reconciliation of the strategies from the frontend side.
 	// +kubebuilder:default=1800000
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
 }
 
+// TODO: Test required values
 // WebAppManifest represents the web app manifest file for the PWA.
 type WebAppManifest struct {
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name
@@ -147,6 +149,7 @@ type WebAppManifest struct {
 	DisplayOverride []string
 }
 
+// TODO: Test required values
 // Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
 type PWAIcon struct {
 	// A string containing space-separated image dimensions using the same syntax as the sizes attribute.
@@ -183,6 +186,7 @@ type PWACache struct {
 	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
 }
 
+// TODO: Test required values
 // PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
 // Each entry specifies a URL to be cached and an optional revision identifier to manage cache updates and invalidation.
 type PreCacheEntry struct {
@@ -196,6 +200,8 @@ type PreCacheEntry struct {
 	Revision *string `json:"revision,omitempty"`
 }
 
+// TODO: Test required values
+// TODO: Test default values
 // CacheRoute defines the caching strategy for a specific URL pattern within a Progressive Web Application (PWA).
 // This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
 type CacheRoute struct {
