@@ -98,7 +98,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		EnablePWA: microFrontendClass.Spec.ProgressiveWebApp != nil,
 	}
 
-	if microFrontendClass.Spec.ProgressiveWebApp != nil {
+	if microFrontendClass.Spec.ProgressiveWebApp != nil && microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval != nil {
 		templateVars.ReconcileInterval = *microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval
 	}
 
