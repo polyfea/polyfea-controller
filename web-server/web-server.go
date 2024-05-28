@@ -40,6 +40,7 @@ func SetupRouter(
 	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
 	router.HandleFunc("/polyfea/app.webmanifest", pwa.ServeAppWebManifest)
+	router.HandleFunc("/polyfea/register.mjs", pwa.ServeRegister)
 
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

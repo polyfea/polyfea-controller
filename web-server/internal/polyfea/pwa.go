@@ -4,12 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
+	_ "embed"
+
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
+
+//go:embed .resources/register.mjs
+var register []byte
 
 type ProgressiveWebApplication struct {
 	logger *zerolog.Logger
@@ -77,7 +82,42 @@ func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, 
 }
 
 func (pwa *ProgressiveWebApplication) ServeRegister(w http.ResponseWriter, r *http.Request) {
+	logger := pwa.logger.With().
+		Str("function", "ServeRegister").
+		Str("method", r.Method).
+		Str("path", r.URL.Path).Logger()
 
+	_, span := telemetry().tracer.Start(
+		r.Context(), "pwa_d.serve_register",
+		trace.WithAttributes(
+			attribute.String("path", r.URL.Path),
+			attribute.String("method", r.Method),
+		))
+	defer span.End()
+
+	basePath := r.Context().Value(PolyfeaContextKeyBasePath).(string)
+	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
+
+	if microFrontendClass == nil {
+		logger.Warn().Msg("Microfrontend class not found")
+		w.Write([]byte("Microfrontend class not found"))
+		w.WriteHeader(http.StatusNotFound)
+		telemetry().not_found.Add(r.Context(), 1)
+		span.SetStatus(codes.Error, "microfrontend_class_not_found")
+		return
+	}
+
+	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
+	span.SetAttributes(
+		attribute.String("base", basePath),
+		attribute.String("frontendClass", microFrontendClass.Name),
+	)
+
+	for _, header := range microFrontendClass.Spec.ExtraHeaders {
+		w.Header().Set(header.Name, header.Value)
+	}
+
+	w.Write(register)
 }
 
 func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *http.Request) {

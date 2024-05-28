@@ -20,6 +20,10 @@ var pwaTestSuite = IntegrationTestSuite{
 			Name: "ServeAppWebManifestReturnsExpectedManifest",
 			Func: ServeAppWebManifestReturnsExpectedManifest,
 		},
+		{
+			Name: "ServeRegisterReturnsExpectedFile",
+			Func: ServeRegisterReturnsExpectedFile,
+		},
 	},
 }
 
@@ -80,6 +84,34 @@ func ServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 	}
 }
 
+func ServeRegisterReturnsExpectedFile(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+	file, err := os.ReadFile(".resources/register.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := string(file)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea/register.mjs")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Assert
+	if string(body) != expected {
+		t.Errorf("Expected %s, got %s", expected, string(body))
+	}
+}
+
 func polyfeaPWAApiSetupRouter() http.Handler {
 	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
 
@@ -103,6 +135,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 	spa := NewProgressiveWebApplication(&zerolog.Logger{})
 
 	router.HandleFunc("/polyfea/app.webmanifest", spa.ServeAppWebManifest)
+	router.HandleFunc("/polyfea/register.mjs", spa.ServeRegister)
 
 	return addDummyMiddleware(router, "/", mfc)
 }

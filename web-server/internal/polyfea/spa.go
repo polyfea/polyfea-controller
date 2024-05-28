@@ -22,11 +22,11 @@ type SingePageApplication struct {
 }
 
 type TemplateData struct {
-	BaseUri         string
-	Title           string
-	Nonce           string
-	ExtraMeta       template.HTML
-	IncludeManifest bool
+	BaseUri   string
+	Title     string
+	Nonce     string
+	ExtraMeta template.HTML
+	EnablePWA bool
 }
 
 //go:embed .resources/index.html
@@ -90,11 +90,11 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	}
 
 	templateVars := TemplateData{
-		BaseUri:         basePath,
-		Title:           *microFrontendClass.Spec.Title,
-		Nonce:           nonce,
-		ExtraMeta:       template.HTML(extraMeta),
-		IncludeManifest: microFrontendClass.Spec.ProgressiveWebApp != nil,
+		BaseUri:   basePath,
+		Title:     *microFrontendClass.Spec.Title,
+		Nonce:     nonce,
+		ExtraMeta: template.HTML(extraMeta),
+		EnablePWA: microFrontendClass.Spec.ProgressiveWebApp != nil,
 	}
 
 	templatedHtml, err := templateHtml(html, &templateVars)
