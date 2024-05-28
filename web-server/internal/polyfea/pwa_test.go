@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/repository"
 	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
 	"github.com/rs/zerolog"
 )
@@ -23,6 +24,14 @@ var pwaTestSuite = IntegrationTestSuite{
 		{
 			Name: "ServeRegisterReturnsExpectedFile",
 			Func: ServeRegisterReturnsExpectedFile,
+		},
+		{
+			Name: "ServeServiceWorkerReturnsExpectedFile",
+			Func: ServeServiceWorkerReturnsExpectedFile,
+		},
+		{
+			Name: "ServeCachingReturnsExpectedConfig",
+			Func: ServeCachingReturnsExpectedConfig,
 		},
 	},
 }
@@ -140,8 +149,122 @@ func ServeServiceWorkerReturnsExpectedFile(t *testing.T) {
 	}
 }
 
+func ServeCachingReturnsExpectedConfig(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	mfc := createTestMicroFrontendClass("polyfea", "/some")
+	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
+		CacheOptions: &v1alpha1.PWACache{
+			PreCache: []v1alpha1.PreCacheEntry{
+				{
+					URL: &[]string{"/test-class"}[0],
+				},
+			},
+			CacheRoutes: []v1alpha1.CacheRoute{
+				{
+					Pattern:  &[]string{"/cache-route-class"}[0],
+					Strategy: &[]string{"cache-first"}[0],
+				},
+			},
+		},
+	}
+
+	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
+	mf.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test"}[0],
+			},
+		},
+	}
+
+	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
+	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test2"}[0],
+			},
+		},
+		CacheRoutes: []v1alpha1.CacheRoute{
+			{
+				Pattern:  &[]string{"/cache-route"}[0],
+				Strategy: &[]string{"network-first"}[0],
+			},
+		},
+	}
+
+	expected := &ProxyConfigResponse{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test-class"}[0],
+			},
+			{
+				URL: buildPreCachePath(mf, *mf.Spec.CacheOptions.PreCache[0].URL),
+			},
+			{
+				URL: buildPreCachePath(mf2, *mf2.Spec.CacheOptions.PreCache[0].URL),
+			},
+		},
+		Routes: []CacheRouteResponse{
+			{
+				CacheRoute: mfc.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0],
+			},
+			{
+				CacheRoute: mf2.Spec.CacheOptions.CacheRoutes[0],
+				Prefix:     buildPreCachePath(mf2, ""), // TODO: Should there be a leading / here?
+			},
+		},
+	}
+
+	// Act
+	response, err := http.Get(testServerUrl + "/polyfea-caching.json")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	actual := &ProxyConfigResponse{}
+	err = json.Unmarshal(body, &actual)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Assert
+	if len(actual.PreCache) != len(expected.PreCache) {
+		t.Errorf("Expected %d, got %d", len(expected.PreCache), len(actual.PreCache))
+	}
+	for i, entry := range actual.PreCache {
+		if *entry.URL != *expected.PreCache[i].URL {
+			t.Errorf("Expected %s, got %s", *expected.PreCache[i].URL, *entry.URL)
+		}
+	}
+	if len(actual.Routes) != len(expected.Routes) {
+		t.Errorf("Expected %d, got %d", len(expected.Routes), len(actual.Routes))
+	}
+	for i, route := range actual.Routes {
+		if (route.Prefix == nil && expected.Routes[i].Prefix != nil) ||
+			(route.Prefix != nil && expected.Routes[i].Prefix == nil) ||
+			(route.Prefix != nil && expected.Routes[i].Prefix != nil && *route.Prefix != *expected.Routes[i].Prefix) {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Prefix, *route.Prefix)
+		}
+		if *route.Pattern != *expected.Routes[i].Pattern {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Pattern, *route.Pattern)
+		}
+		if *route.Strategy != *expected.Routes[i].Strategy {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Strategy, *route.Strategy)
+		}
+	}
+}
+
 func polyfeaPWAApiSetupRouter() http.Handler {
-	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc := createTestMicroFrontendClass("polyfea", "/some")
 
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
 		WebAppManifest: &v1alpha1.WebAppManifest{
@@ -156,14 +279,77 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			StartUrl: &[]string{"/"}[0],
 			Display:  &[]string{"standalone"}[0],
 		},
+		CacheOptions: &v1alpha1.PWACache{
+			PreCache: []v1alpha1.PreCacheEntry{
+				{
+					URL: &[]string{"/test-class"}[0],
+				},
+			},
+			CacheRoutes: []v1alpha1.CacheRoute{
+				{
+					Pattern:  &[]string{"/cache-route-class"}[0],
+					Strategy: &[]string{"cache-first"}[0],
+				},
+			},
+		},
 	}
 
 	router := generated.NewRouter()
 
-	spa := NewProgressiveWebApplication(&zerolog.Logger{})
+	microFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+
+	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
+	mf.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test"}[0],
+			},
+		},
+	}
+	microFrontendRepository.StoreItem(mf)
+
+	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
+	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test2"}[0],
+			},
+		},
+		CacheRoutes: []v1alpha1.CacheRoute{
+			{
+				Pattern:  &[]string{"/cache-route"}[0],
+				Strategy: &[]string{"network-first"}[0],
+			},
+		},
+	}
+	microFrontendRepository.StoreItem(mf2)
+
+	mf3 := createTestMicroFrontend("polyfea3", []string{}, "test-module", "polyfea", false)
+	mf3.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test3"}[0],
+			},
+		},
+	}
+	microFrontendRepository.StoreItem(mf3)
+
+	mf4 := createTestMicroFrontend("polyfea4", []string{}, "test-module", "someother", false)
+	mf4.Spec.CacheOptions = &v1alpha1.PWACache{
+		PreCache: []v1alpha1.PreCacheEntry{
+			{
+				URL: &[]string{"/test4"}[0],
+			},
+		},
+	}
+	microFrontendRepository.StoreItem(mf4)
+
+	spa := NewProgressiveWebApplication(&zerolog.Logger{}, microFrontendRepository)
 
 	router.HandleFunc("/polyfea/app.webmanifest", spa.ServeAppWebManifest)
 	router.HandleFunc("/polyfea/register.mjs", spa.ServeRegister)
+	router.HandleFunc("/sw.mjs", spa.ServeServiceWorker)
+	router.HandleFunc("/polyfea-caching.json", spa.ServeCaching)
 
 	return addDummyMiddleware(router, "/", mfc)
 }
