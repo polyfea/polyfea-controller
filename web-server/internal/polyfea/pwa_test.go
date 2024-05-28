@@ -112,6 +112,34 @@ func ServeRegisterReturnsExpectedFile(t *testing.T) {
 	}
 }
 
+func ServeServiceWorkerReturnsExpectedFile(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+	file, err := os.ReadFile(".resources/sw.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := string(file)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/sw.mjs")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Assert
+	if string(body) != expected {
+		t.Errorf("Expected %s, got %s", expected, string(body))
+	}
+}
+
 func polyfeaPWAApiSetupRouter() http.Handler {
 	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
 
