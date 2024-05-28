@@ -9,6 +9,7 @@
   {{if .EnablePWA}}
   <link rel="manifest" nonce="{{.Nonce}}" href="./polyfea/app.webmanifest">
   <script type="module" nonce="{{.Nonce}}" src="./polyfea/register.mjs"></script>
+  <meta name="polyfea-sw-reconcile-interval" content="{{.ReconcileInterval}}">
   {{end}}
 </head>
 <body></body>
