@@ -77,7 +77,7 @@ func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter,
 }
 
 func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1alpha1.MicroFrontendClass) *v1alpha1.WebAppManifest {
-	return microFrontendClass.Spec.ProgressiveWebApp.WebAppManifest
+	return microFrontendClass.Spec.ProgressiveWebApp.WebAppManifest // TODO: Should we set the url to basepath?
 }
 
 func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, r *http.Request) {
