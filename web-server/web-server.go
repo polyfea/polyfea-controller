@@ -35,14 +35,16 @@ func SetupRouter(
 	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+":.*}", proxy.HandleProxy)
 
 	spa := polyfea.NewSinglePageApplication(logger)
+	pwa := polyfea.NewProgressiveWebApplication(logger)
 
 	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
+
+	router.HandleFunc("/polyfea/app.webmanifest", pwa.ServeAppWebManifest)
 
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
 
-	// TODO: Add endpoint for manifest json
 	// TODO: Add endpoint for register.mjs
 	// TODO: Add endpoint for sw.js
 	// TODO: Add enpoint for ./polyfea-caching.json

@@ -6,6 +6,9 @@
   <meta name="csp-nonce" content="{{.Nonce}}">
   {{.ExtraMeta}}
   <script type="module" nonce="{{.Nonce}}" src="./polyfea/boot.mjs"></script>
+  {{if .IncludeManifest}}
+  <link rel="manifest" href="./polyfea/app.webmanifest">
+  {{end}}
 </head>
 <body></body>
 </html>
