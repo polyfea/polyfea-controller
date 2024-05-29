@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -214,6 +215,25 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 	}
 
 	// Assert
+	sort.Slice(actual.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *actual.Routes[i].Pattern < *actual.Routes[j].Pattern
+	})
+	sort.Slice(expected.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *expected.Routes[i].Pattern < *expected.Routes[j].Pattern
+	})
+
 	if len(actual.PreCache) != len(expected.PreCache) {
 		t.Errorf("Expected %d, got %d", len(expected.PreCache), len(actual.PreCache))
 	}

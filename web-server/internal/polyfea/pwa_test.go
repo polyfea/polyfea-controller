@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -235,6 +236,33 @@ func ServeCachingReturnsExpectedConfig(t *testing.T) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// sort actual and expected to make sure the order is the same
+	sort.Slice(actual.PreCache, func(i, j int) bool {
+		return *actual.PreCache[i].URL < *actual.PreCache[j].URL
+	})
+	sort.Slice(expected.PreCache, func(i, j int) bool {
+		return *expected.PreCache[i].URL < *expected.PreCache[j].URL
+	})
+
+	sort.Slice(actual.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *actual.Routes[i].Pattern < *actual.Routes[j].Pattern
+	})
+	sort.Slice(expected.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *expected.Routes[i].Pattern < *expected.Routes[j].Pattern
+	})
 
 	// Assert
 	if len(actual.PreCache) != len(expected.PreCache) {
