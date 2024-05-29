@@ -79,7 +79,7 @@ func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter,
 		w.Header().Set(header.Name, header.Value)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/manifest+json")
 
 	err := json.NewEncoder(w).Encode(pwa.serveAppWebManifest(microFrontendClass))
 	if err != nil {
@@ -128,7 +128,7 @@ func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, 
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}
-	w.Header().Set("Content-Type", "application/javascript;")
+	w.Header().Set("Content-Type", "application/javascript")
 
 	w.Write(serviceWorker)
 }
@@ -168,7 +168,7 @@ func (pwa *ProgressiveWebApplication) ServeRegister(w http.ResponseWriter, r *ht
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}
-	w.Header().Set("Content-Type", "application/javascript;")
+	w.Header().Set("Content-Type", "application/javascript")
 
 	w.Write(register)
 }
