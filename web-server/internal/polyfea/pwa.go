@@ -129,6 +129,7 @@ func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, 
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}
+	w.Header().Set("Content-Type", "application/javascript;")
 
 	w.Write(serviceWorker)
 }
@@ -168,6 +169,7 @@ func (pwa *ProgressiveWebApplication) ServeRegister(w http.ResponseWriter, r *ht
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}
+	w.Header().Set("Content-Type", "application/javascript;")
 
 	w.Write(register)
 }
