@@ -205,7 +205,7 @@ spec:
                       display:
                         description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display'
                         type: string
-                      displayOverride:
+                      display_override:
                         description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override'
                         items:
                           type: string
@@ -260,7 +260,7 @@ spec:
                       name:
                         description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name'
                         type: string
-                      startUrl:
+                      start_url:
                         description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
                           URL needs to be relative to the base URL of the frontend
                           class.'
@@ -269,7 +269,7 @@ spec:
                     - display
                     - icons
                     - name
-                    - startUrl
+                    - start_url
                     type: object
                 required:
                 - webAppManifest

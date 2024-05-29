@@ -137,7 +137,7 @@ type WebAppManifest struct {
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
 	// URL needs to be relative to the base URL of the frontend class.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	StartUrl *string `json:"startUrl"`
+	StartUrl *string `json:"start_url"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -145,7 +145,7 @@ type WebAppManifest struct {
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	DisplayOverride []string `json:"displayOverride,omitempty"`
+	DisplayOverride []string `json:"display_override,omitempty"`
 }
 
 // Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons

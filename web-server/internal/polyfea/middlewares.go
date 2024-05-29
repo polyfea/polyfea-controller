@@ -36,6 +36,8 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 			basePath = originalPath[:polyfeaIndex]
 			// Adjust r.URL.Path to include everything after /polyfea
 			r.URL.Path = "/polyfea" + originalPath[polyfeaIndex+len("/polyfea"):]
+		} else {
+			basePath = originalPath
 		}
 
 		// Retrieve the micro frontend class based on the adjusted path
