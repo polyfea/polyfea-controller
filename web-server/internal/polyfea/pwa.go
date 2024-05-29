@@ -79,15 +79,14 @@ func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter,
 		w.Header().Set(header.Name, header.Value)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	err := json.NewEncoder(w).Encode(pwa.serveAppWebManifest(microFrontendClass))
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to encode JSON")
 		w.WriteHeader(http.StatusInternalServerError)
 		span.SetStatus(codes.Error, "json_encode_failed")
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 }
 
 func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1alpha1.MicroFrontendClass) *v1alpha1.WebAppManifest {
@@ -218,15 +217,14 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	err = json.NewEncoder(w).Encode(config)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to encode JSON")
 		w.WriteHeader(http.StatusInternalServerError)
 		span.SetStatus(codes.Error, "json_encode_failed")
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 }
 
 func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha1.MicroFrontendClass) (*ProxyConfigResponse, error) {
