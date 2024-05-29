@@ -215,6 +215,14 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 	}
 
 	// Assert
+	// sort actual and expected to make sure the order is the same
+	sort.Slice(actual.PreCache, func(i, j int) bool {
+		return *actual.PreCache[i].URL < *actual.PreCache[j].URL
+	})
+	sort.Slice(expected.PreCache, func(i, j int) bool {
+		return *expected.PreCache[i].URL < *expected.PreCache[j].URL
+	})
+
 	sort.Slice(actual.Routes, func(i, j int) bool {
 		if actual.Routes[i].Pattern == nil {
 			return true
