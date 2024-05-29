@@ -61,6 +61,12 @@ type MicroFrontendClassSpec struct {
 	// You need to have a service for the operator with label 'app' set to 'polyfea-webserver' and a port with name webserver for the routing to work.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Routing *Routing `json:"routing,omitempty"`
+
+	// ProgressiveWebApp defines the configuration settings for a Progressive Web Application (PWA).
+	// It includes specifications for the web app manifest and cache options, which are crucial for the PWA's functionality and performance.
+	// This field is optional and can be omitted if not needed.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ProgressiveWebApp *ProgressiveWebApp `json:"progressiveWebApp,omitempty"`
 }
 
 // Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
@@ -98,6 +104,136 @@ type Header struct {
 	// Value of the header
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Value string `json:"value"`
+}
+
+// ProgressiveWebApp defines the configuration settings for a Progressive Web Application (PWA).
+// This struct includes specifications for the web app manifest, caching options, and reconciliation interval,
+// which are critical for the PWA's functionality, performance, and synchronization with frontend updates.
+type ProgressiveWebApp struct {
+	// WebAppManifest represents the web app manifest file for the PWA.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	WebAppManifest *WebAppManifest `json:"webAppManifest"`
+
+	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
+
+	// Time for reconciliation of the strategies from the frontend side.
+	// +kubebuilder:default=1800000
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
+}
+
+// WebAppManifest represents the web app manifest file for the PWA.
+type WebAppManifest struct {
+	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name *string `json:"name"`
+
+	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Icons []PWAIcon `json:"icons"`
+
+	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
+	// URL needs to be relative to the base URL of the frontend class.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	StartUrl *string `json:"start_url"`
+
+	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Display *string `json:"display"`
+
+	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	DisplayOverride []string `json:"display_override,omitempty"`
+}
+
+// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
+type PWAIcon struct {
+	// A string containing space-separated image dimensions using the same syntax as the sizes attribute.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Sizes *string `json:"sizes"`
+
+	// The path to the image file. If src is a relative URL, the base URL will be the URL of the manifest.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Src *string `json:"src"`
+
+	// A hint as to the media type of the image. The purpose of this member is to allow a user agent to quickly ignore images with media types it does not support.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Type *string `json:"type"`
+
+	// Defines the purpose of the image, for example if the image is intended to serve some special purpose in the context of the host OS (i.e., for better integration).
+	// purpose can have one or more of the following values, separated by spaces:
+	// 	monochrome: A user agent can present this icon where a monochrome icon with a solid fill is needed. The color information in the icon is discarded and only the alpha data is used. The icon can then be used by the user agent like a mask over any solid fill.
+	// 	maskable: The image is designed with icon masks and safe zone in mind, such that any part of the image outside the safe zone can safely be ignored and masked away by the user agent.
+	// 	any: The user agent is free to display the icon in any context (this is the default value).
+	// +kubebuilder:validation:Enum=monochrome;maskable;any;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Purpose *string `json:"purpose,omitempty"`
+}
+
+// PWACache defines the caching options for a Progressive Web Application (PWA).
+// This struct includes configurations for both pre-caching and runtime caching strategies, which are essential for improving the performance and offline capabilities of the PWA.
+type PWACache struct {
+	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	PreCache []PreCacheEntry `json:"preCache,omitempty"`
+
+	// CacheRoutes specifies the caching strategies for different URL patterns.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
+}
+
+// PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
+// Each entry specifies a URL to be cached and an optional revision identifier to manage cache updates and invalidation.
+type PreCacheEntry struct {
+	// URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
+	// URL needs to be relative to the base URL of the frontend class.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	URL *string `json:"url"`
+
+	// Revision is an optional field that specifies a revision identifier for the resource.
+	// The revision helps in cache management by allowing the service worker to recognize and update cached assets when their content changes. This ensures users always have access to the most up-to-date resources.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Revision *string `json:"revision,omitempty"`
+}
+
+// CacheRoute defines the caching strategy for a specific URL pattern within a Progressive Web Application (PWA).
+// This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
+type CacheRoute struct {
+	// Pattern is the URL pattern to which this caching strategy applies.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Pattern *string `json:"pattern"`
+
+	// Destination is the optional destination URL for this caching strategy.
+	// You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Destination *string `json:"destination,omitempty"`
+
+	// Strategy defines the caching strategy to be used for this URL pattern. It defaults to "cache-first".
+	// +kubebuilder:default=cache-first
+	// +kubebuilder:validation:Enum=cache-first;network-first;cache-only;network-only;stale-while-revalidate;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Strategy *string `json:"strategy,omitempty"`
+
+	// MaxAgeSeconds specifies the maximum age (in seconds) for cached content.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	MaxAgeSeconds *int32 `json:"maxAgeSeconds,omitempty"`
+
+	// SyncRetentionMinutes specifies the duration (in minutes) to retain synced content in the cache.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	SyncRetentionMinutes *int32 `json:"syncRetentionMinutes,omitempty"`
+
+	// Method specifies the HTTP method to be used with this caching strategy. It defaults to "GET".
+	// +kubebuilder:default=GET
+	// +kubebuilder:validation:Enum=DELETE;GET;HEAD;PATCH;POST;PUT;
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Method *string `json:"method,omitempty"`
+
+	// Statuses lists the HTTP status codes to be cached. It defaults to [0, 200, 201, 202, 204].
+	// +kubebuilder:default={0,200,201,202,204}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Statuses []int32 `json:"statuses,omitempty"`
 }
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass

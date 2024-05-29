@@ -118,12 +118,16 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	}
 	bodyString := string(bodyBytes)
 
-	if strings.Contains(bodyString, "{") != false {
+	if strings.Contains(bodyString, "{") {
 		t.Fatalf("expected body to not contain %s", "{")
 	}
 
-	if strings.Contains(bodyString, "}") != false {
+	if strings.Contains(bodyString, "}") {
 		t.Fatalf("expected body to not contain %s", "}")
+	}
+
+	if !strings.Contains(bodyString, "webmanifest") {
+		t.Fatalf("expected body to  contain %s", "webmanifest")
 	}
 }
 
@@ -179,6 +183,21 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
 	router := generated.NewRouter()
+
+	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
+		WebAppManifest: &v1alpha1.WebAppManifest{
+			Name: &[]string{"Test"}[0],
+			Icons: []v1alpha1.PWAIcon{
+				{
+					Type:  &[]string{"image/png"}[0],
+					Sizes: &[]string{"192x192"}[0],
+					Src:   &[]string{"icon.png"}[0],
+				},
+			},
+			StartUrl: &[]string{"/"}[0],
+			Display:  &[]string{"standalone"}[0],
+		},
+	}
 
 	spa := NewSinglePageApplication(&zerolog.Logger{})
 

@@ -255,6 +255,190 @@ var _ = Describe("Microfrontend controller", func() {
 				return result
 			}, timeout, interval).Should(HaveLen(0))
 		})
+
+		It("Should not create pwa without mandatory fields in pre cache", func() {
+			By("By creating a new MicroFrontend")
+			ctx := context.Background()
+
+			proxy := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+					Proxy:         &proxy,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+					CacheOptions: &polyfeav1alpha1.PWACache{
+						PreCache: []polyfeav1alpha1.PreCacheEntry{
+							{
+								Revision: &[]string{"1"}[0],
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
+		})
+
+		It("Should create pwa without optional fields in pre cache", func() {
+			By("By creating a new MicroFrontend")
+			ctx := context.Background()
+
+			proxy := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+					Proxy:         &proxy,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+					CacheOptions: &polyfeav1alpha1.PWACache{
+						PreCache: []polyfeav1alpha1.PreCacheEntry{
+							{
+								URL: &[]string{"1"}[0],
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
+
+			microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+			createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
+			Expect(createdMicroFrontend.Spec.CacheOptions.PreCache[0].Revision).Should(BeNil())
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontend)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should create pwa without optional fields in runtime cache", func() {
+			By("By creating a new MicroFrontend")
+			ctx := context.Background()
+
+			proxy := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+					Proxy:         &proxy,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+					CacheOptions: &polyfeav1alpha1.PWACache{
+						CacheRoutes: []polyfeav1alpha1.CacheRoute{
+							{
+								Pattern: &[]string{"1"}[0],
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Succeed())
+
+			microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+			createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(createdMicroFrontend.Spec.Service).Should(Equal(&[]string{"http://test-service.test-namespace.svc.cluster.local"}[0]))
+			Expect(createdMicroFrontend.Spec.CacheOptions.CacheRoutes[0].Strategy).Should(Equal(&[]string{"cache-first"}[0]))
+			Expect(createdMicroFrontend.Spec.CacheOptions.CacheRoutes[0].Method).Should(Equal(&[]string{"GET"}[0]))
+			Expect(createdMicroFrontend.Spec.CacheOptions.CacheRoutes[0].Statuses).Should(Equal([]int32{0, 200, 201, 202, 204}))
+
+			By("By deleting the MicroFrontend")
+			Expect(k8sClient.Delete(ctx, createdMicroFrontend)).Should(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, microFrontendLookupKey, createdMicroFrontend)
+				return errors.IsNotFound(err)
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Should not create pwa without mandatory fields in runtime cache", func() {
+			By("By creating a new MicroFrontend")
+			ctx := context.Background()
+
+			proxy := true
+
+			microFrontend := &polyfeav1alpha1.MicroFrontend{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "MicroFrontend",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      MicroFrontendName,
+					Namespace: MicroFrontendNamespace,
+				},
+				Spec: polyfeav1alpha1.MicroFrontendSpec{
+					Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+					Proxy:         &proxy,
+					CacheStrategy: "none",
+					ModulePath:    &[]string{"module.jsm"}[0],
+					StaticResources: []polyfeav1alpha1.StaticResources{{
+						Path: "static",
+						Kind: "script",
+					}},
+					FrontendClass: &[]string{"test-microfrontendclass"}[0],
+					CacheOptions: &polyfeav1alpha1.PWACache{
+						CacheRoutes: []polyfeav1alpha1.CacheRoute{
+							{
+								Strategy: &[]string{"network-first"}[0],
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, microFrontend)).Should(Not(Succeed()))
+		})
 	})
 
 })

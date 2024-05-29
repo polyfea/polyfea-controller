@@ -32,12 +32,14 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Proxy *bool `json:"proxy,omitempty"`
 
+	// TODO: Make this work
 	// CachingStrategy defines the caching strategy for the micro frontend.
 	// +kubebuilder:default=none
 	// +kubebuilder:validation:Enum=none;cache;
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheStrategy string `json:"cacheStrategy,omitempty"`
 
+	// TODO: Make this work
 	// CacheControl defines the cache control header for the micro frontend. This is only used if the caching strategy is set to 'cache'.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheControl *string `json:"cacheControl,omitempty"`
@@ -58,6 +60,10 @@ type MicroFrontendSpec struct {
 	// List of dependencies that should be loaded before this micro frontend.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DependsOn []string `json:"dependsOn,omitempty"`
+
+	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
 }
 
 // StaticResources defines the static resources that should be loaded before this micro frontend.

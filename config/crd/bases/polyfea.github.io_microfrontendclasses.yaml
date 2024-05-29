@@ -81,6 +81,199 @@ spec:
                   - name
                   type: object
                 type: array
+              progressiveWebApp:
+                description: ProgressiveWebApp defines the configuration settings
+                  for a Progressive Web Application (PWA). It includes specifications
+                  for the web app manifest and cache options, which are crucial for
+                  the PWA's functionality and performance. This field is optional
+                  and can be omitted if not needed.
+                properties:
+                  cacheOptions:
+                    description: CacheOptions specifies the cache settings for the
+                      PWA, including pre-caching and runtime caching.
+                    properties:
+                      cacheRoutes:
+                        description: CacheRoutes specifies the caching strategies
+                          for different URL patterns.
+                        items:
+                          description: CacheRoute defines the caching strategy for
+                            a specific URL pattern within a Progressive Web Application
+                            (PWA). This struct allows for fine-tuned control over
+                            how different network requests are handled, enhancing
+                            performance, reliability, and offline capabilities based
+                            on the application's requirements.
+                          properties:
+                            destination:
+                              description: 'Destination is the optional destination
+                                URL for this caching strategy. You can find the list
+                                of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination'
+                              type: string
+                            maxAgeSeconds:
+                              description: MaxAgeSeconds specifies the maximum age
+                                (in seconds) for cached content.
+                              format: int32
+                              type: integer
+                            method:
+                              default: GET
+                              description: Method specifies the HTTP method to be
+                                used with this caching strategy. It defaults to "GET".
+                              enum:
+                              - DELETE
+                              - GET
+                              - HEAD
+                              - PATCH
+                              - POST
+                              - PUT
+                              type: string
+                            pattern:
+                              description: Pattern is the URL pattern to which this
+                                caching strategy applies.
+                              type: string
+                            statuses:
+                              default:
+                              - 0
+                              - 200
+                              - 201
+                              - 202
+                              - 204
+                              description: Statuses lists the HTTP status codes to
+                                be cached. It defaults to [0, 200, 201, 202, 204].
+                              items:
+                                format: int32
+                                type: integer
+                              type: array
+                            strategy:
+                              default: cache-first
+                              description: Strategy defines the caching strategy to
+                                be used for this URL pattern. It defaults to "cache-first".
+                              enum:
+                              - cache-first
+                              - network-first
+                              - cache-only
+                              - network-only
+                              - stale-while-revalidate
+                              type: string
+                            syncRetentionMinutes:
+                              description: SyncRetentionMinutes specifies the duration
+                                (in minutes) to retain synced content in the cache.
+                              format: int32
+                              type: integer
+                          required:
+                          - pattern
+                          type: object
+                        type: array
+                      preCache:
+                        description: PreCache lists the URLs or resources to be pre-cached
+                          when the PWA is installed.
+                        items:
+                          description: PreCacheEntry represents an individual entry
+                            in the pre-cache list for a Progressive Web Application
+                            (PWA). Each entry specifies a URL to be cached and an
+                            optional revision identifier to manage cache updates and
+                            invalidation.
+                          properties:
+                            revision:
+                              description: Revision is an optional field that specifies
+                                a revision identifier for the resource. The revision
+                                helps in cache management by allowing the service
+                                worker to recognize and update cached assets when
+                                their content changes. This ensures users always have
+                                access to the most up-to-date resources.
+                              type: string
+                            url:
+                              description: URL specifies the resource URL that should
+                                be pre-cached. This URL points to the asset that needs
+                                to be available offline, ensuring it is cached during
+                                the installation of the PWA. URL needs to be relative
+                                to the base URL of the frontend class.
+                              type: string
+                          required:
+                          - url
+                          type: object
+                        type: array
+                    type: object
+                  polyfeaSWReconcileInterval:
+                    default: 1800000
+                    description: Time for reconciliation of the strategies from the
+                      frontend side.
+                    format: int32
+                    type: integer
+                  webAppManifest:
+                    description: WebAppManifest represents the web app manifest file
+                      for the PWA.
+                    properties:
+                      display:
+                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display'
+                        type: string
+                      display_override:
+                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override'
+                        items:
+                          type: string
+                        type: array
+                      icons:
+                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons'
+                        items:
+                          description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons'
+                          properties:
+                            purpose:
+                              description: 'Defines the purpose of the image, for
+                                example if the image is intended to serve some special
+                                purpose in the context of the host OS (i.e., for better
+                                integration). purpose can have one or more of the
+                                following values, separated by spaces: monochrome:
+                                A user agent can present this icon where a monochrome
+                                icon with a solid fill is needed. The color information
+                                in the icon is discarded and only the alpha data is
+                                used. The icon can then be used by the user agent
+                                like a mask over any solid fill. maskable: The image
+                                is designed with icon masks and safe zone in mind,
+                                such that any part of the image outside the safe zone
+                                can safely be ignored and masked away by the user
+                                agent. any: The user agent is free to display the
+                                icon in any context (this is the default value).'
+                              enum:
+                              - monochrome
+                              - maskable
+                              - any
+                              type: string
+                            sizes:
+                              description: A string containing space-separated image
+                                dimensions using the same syntax as the sizes attribute.
+                              type: string
+                            src:
+                              description: The path to the image file. If src is a
+                                relative URL, the base URL will be the URL of the
+                                manifest.
+                              type: string
+                            type:
+                              description: A hint as to the media type of the image.
+                                The purpose of this member is to allow a user agent
+                                to quickly ignore images with media types it does
+                                not support.
+                              type: string
+                          required:
+                          - sizes
+                          - src
+                          - type
+                          type: object
+                        type: array
+                      name:
+                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name'
+                        type: string
+                      start_url:
+                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
+                          URL needs to be relative to the base URL of the frontend
+                          class.'
+                        type: string
+                    required:
+                    - display
+                    - icons
+                    - name
+                    - start_url
+                    type: object
+                required:
+                - webAppManifest
+                type: object
               rolesHeader:
                 default: x-auth-request-roles
                 description: UserRolesHeader is the name of the header that contains

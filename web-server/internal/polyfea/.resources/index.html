@@ -6,6 +6,11 @@
   <meta name="csp-nonce" content="{{.Nonce}}">
   {{.ExtraMeta}}
   <script type="module" nonce="{{.Nonce}}" src="./polyfea/boot.mjs"></script>
+  {{if .EnablePWA}}
+  <link rel="manifest" nonce="{{.Nonce}}" href="./polyfea/app.webmanifest">
+  <script type="module" nonce="{{.Nonce}}" src="./polyfea/register.mjs"></script>
+  <meta name="polyfea-sw-reconcile-interval" content="{{.ReconcileInterval}}">
+  {{end}}
 </head>
 <body></body>
 </html>

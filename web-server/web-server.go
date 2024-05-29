@@ -35,13 +35,19 @@ func SetupRouter(
 	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+":.*}", proxy.HandleProxy)
 
 	spa := polyfea.NewSinglePageApplication(logger)
+	pwa := polyfea.NewProgressiveWebApplication(logger, microFrontendRepository)
 
 	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
+
+	router.HandleFunc("/polyfea/app.webmanifest", pwa.ServeAppWebManifest)
+	router.HandleFunc("/polyfea/register.mjs", pwa.ServeRegister)
 
 	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
 
+	router.HandleFunc("/sw.mjs", pwa.ServeServiceWorker)
+	router.HandleFunc("/polyfea-caching.json", pwa.ServeCaching)
 	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
 
 	return polyfea.BasePathStrippingMiddleware(router, microFrontendClassRepository)

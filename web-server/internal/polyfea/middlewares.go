@@ -36,6 +36,8 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 			basePath = originalPath[:polyfeaIndex]
 			// Adjust r.URL.Path to include everything after /polyfea
 			r.URL.Path = "/polyfea" + originalPath[polyfeaIndex+len("/polyfea"):]
+		} else {
+			basePath = originalPath
 		}
 
 		// Retrieve the micro frontend class based on the adjusted path
@@ -44,6 +46,16 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 			span.SetStatus(codes.Error, err.Error())
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		// Check if the route contains /sw.mjs
+		if polyfeaIndex := strings.Index(originalPath, "/sw.mjs"); polyfeaIndex != -1 {
+			r.URL.Path = "/sw.mjs"
+		}
+
+		// Check if the route contains /polyfea-caching.json
+		if polyfeaIndex := strings.Index(originalPath, "/polyfea-caching.json"); polyfeaIndex != -1 {
+			r.URL.Path = "/polyfea-caching.json"
 		}
 
 		// Update the context with the basePath and microFrontendClass

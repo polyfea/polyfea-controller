@@ -108,13 +108,13 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate openapi boot-package fmt vet envtest ## Run tests.
+test: manifests generate openapi boot-package register-package sw-package fmt vet envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: manifests generate openapi boot-package fmt vet ## Build manager binary.
+build: manifests generate openapi boot-package register-package sw-package fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
 
 .PHONY: run
@@ -306,3 +306,17 @@ BOOT_MJS_FILEPATH := "web-server/internal/polyfea/.resources/boot.mjs"
 boot-package: 
 	rm  $(BOOT_MJS_FILEPATH)
 	wget $(BOOT_MJS_URL) -O $(BOOT_MJS_FILEPATH)
+
+REGISTER_MJS_URL := "https://github.com/polyfea/service-worker/releases/latest/download/register.mjs"
+REGISTER_MJS_FILEPATH := "web-server/internal/polyfea/.resources/register.mjs"
+.PHONY: register-package
+register-package: 
+	rm  $(REGISTER_MJS_FILEPATH)
+	wget $(REGISTER_MJS_URL) -O $(REGISTER_MJS_FILEPATH)
+
+SW_MJS_URL := "https://github.com/polyfea/service-worker/releases/latest/download/sw.mjs"
+SW_MJS_FILEPATH := "web-server/internal/polyfea/.resources/sw.mjs"
+.PHONY: sw-package
+sw-package: 
+	rm  $(SW_MJS_FILEPATH)
+	wget $(SW_MJS_URL) -O $(SW_MJS_FILEPATH)

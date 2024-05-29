@@ -22,10 +22,12 @@ type SingePageApplication struct {
 }
 
 type TemplateData struct {
-	BaseUri   string
-	Title     string
-	Nonce     string
-	ExtraMeta template.HTML
+	BaseUri           string
+	Title             string
+	Nonce             string
+	ExtraMeta         template.HTML
+	EnablePWA         bool
+	ReconcileInterval int32
 }
 
 //go:embed .resources/index.html
@@ -93,6 +95,11 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		Title:     *microFrontendClass.Spec.Title,
 		Nonce:     nonce,
 		ExtraMeta: template.HTML(extraMeta),
+		EnablePWA: microFrontendClass.Spec.ProgressiveWebApp != nil,
+	}
+
+	if microFrontendClass.Spec.ProgressiveWebApp != nil && microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval != nil {
+		templateVars.ReconcileInterval = *microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval
 	}
 
 	templatedHtml, err := templateHtml(html, &templateVars)

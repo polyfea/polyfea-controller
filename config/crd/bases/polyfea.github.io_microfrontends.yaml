@@ -36,14 +36,116 @@ spec:
             description: MicroFrontendSpec defines the desired state of MicroFrontend
             properties:
               cacheControl:
-                description: CacheControl defines the cache control header for the
-                  micro frontend. This is only used if the caching strategy is set
-                  to 'cache'.
+                description: 'TODO: Make this work CacheControl defines the cache
+                  control header for the micro frontend. This is only used if the
+                  caching strategy is set to ''cache''.'
                 type: string
+              cacheOptions:
+                description: CacheOptions specifies the cache settings for the PWA,
+                  including pre-caching and runtime caching.
+                properties:
+                  cacheRoutes:
+                    description: CacheRoutes specifies the caching strategies for
+                      different URL patterns.
+                    items:
+                      description: CacheRoute defines the caching strategy for a specific
+                        URL pattern within a Progressive Web Application (PWA). This
+                        struct allows for fine-tuned control over how different network
+                        requests are handled, enhancing performance, reliability,
+                        and offline capabilities based on the application's requirements.
+                      properties:
+                        destination:
+                          description: 'Destination is the optional destination URL
+                            for this caching strategy. You can find the list of possible
+                            values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination'
+                          type: string
+                        maxAgeSeconds:
+                          description: MaxAgeSeconds specifies the maximum age (in
+                            seconds) for cached content.
+                          format: int32
+                          type: integer
+                        method:
+                          default: GET
+                          description: Method specifies the HTTP method to be used
+                            with this caching strategy. It defaults to "GET".
+                          enum:
+                          - DELETE
+                          - GET
+                          - HEAD
+                          - PATCH
+                          - POST
+                          - PUT
+                          type: string
+                        pattern:
+                          description: Pattern is the URL pattern to which this caching
+                            strategy applies.
+                          type: string
+                        statuses:
+                          default:
+                          - 0
+                          - 200
+                          - 201
+                          - 202
+                          - 204
+                          description: Statuses lists the HTTP status codes to be
+                            cached. It defaults to [0, 200, 201, 202, 204].
+                          items:
+                            format: int32
+                            type: integer
+                          type: array
+                        strategy:
+                          default: cache-first
+                          description: Strategy defines the caching strategy to be
+                            used for this URL pattern. It defaults to "cache-first".
+                          enum:
+                          - cache-first
+                          - network-first
+                          - cache-only
+                          - network-only
+                          - stale-while-revalidate
+                          type: string
+                        syncRetentionMinutes:
+                          description: SyncRetentionMinutes specifies the duration
+                            (in minutes) to retain synced content in the cache.
+                          format: int32
+                          type: integer
+                      required:
+                      - pattern
+                      type: object
+                    type: array
+                  preCache:
+                    description: PreCache lists the URLs or resources to be pre-cached
+                      when the PWA is installed.
+                    items:
+                      description: PreCacheEntry represents an individual entry in
+                        the pre-cache list for a Progressive Web Application (PWA).
+                        Each entry specifies a URL to be cached and an optional revision
+                        identifier to manage cache updates and invalidation.
+                      properties:
+                        revision:
+                          description: Revision is an optional field that specifies
+                            a revision identifier for the resource. The revision helps
+                            in cache management by allowing the service worker to
+                            recognize and update cached assets when their content
+                            changes. This ensures users always have access to the
+                            most up-to-date resources.
+                          type: string
+                        url:
+                          description: URL specifies the resource URL that should
+                            be pre-cached. This URL points to the asset that needs
+                            to be available offline, ensuring it is cached during
+                            the installation of the PWA. URL needs to be relative
+                            to the base URL of the frontend class.
+                          type: string
+                      required:
+                      - url
+                      type: object
+                    type: array
+                type: object
               cacheStrategy:
                 default: none
-                description: CachingStrategy defines the caching strategy for the
-                  micro frontend.
+                description: 'TODO: Make this work CachingStrategy defines the caching
+                  strategy for the micro frontend.'
                 enum:
                 - none
                 - cache
