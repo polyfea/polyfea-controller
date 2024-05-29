@@ -134,7 +134,8 @@ spec:
                           description: URL specifies the resource URL that should
                             be pre-cached. This URL points to the asset that needs
                             to be available offline, ensuring it is cached during
-                            the installation of the PWA.
+                            the installation of the PWA. URL needs to be relative
+                            to the base URL of the frontend class.
                           type: string
                       required:
                       - url

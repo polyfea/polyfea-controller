@@ -91,7 +91,7 @@ func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter,
 }
 
 func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1alpha1.MicroFrontendClass) *v1alpha1.WebAppManifest {
-	return microFrontendClass.Spec.ProgressiveWebApp.WebAppManifest // TODO: Should we set the url to basepath?
+	return microFrontendClass.Spec.ProgressiveWebApp.WebAppManifest
 }
 
 func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, r *http.Request) {
@@ -283,7 +283,7 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 			for _, route := range mf.Spec.CacheOptions.CacheRoutes {
 				routes = append(routes, CacheRouteResponse{
 					CacheRoute: route,
-					Prefix:     buildPreCachePath(mf, ""), // TODO: Should there be a leading / here?
+					Prefix:     buildPreCachePath(mf, ""),
 				})
 			}
 		}
@@ -296,6 +296,6 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 }
 
 func buildPreCachePath(mf *v1alpha1.MicroFrontend, url string) *string {
-	path := strings.ReplaceAll("./polyfea/proxy/"+mf.Namespace+"/"+mf.Name+"/"+url, "//", "/")
+	path := strings.ReplaceAll("polyfea/proxy/"+mf.Namespace+"/"+mf.Name+"/"+url, "//", "/")
 	return &path
 }

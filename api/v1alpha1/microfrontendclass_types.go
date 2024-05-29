@@ -135,6 +135,7 @@ type WebAppManifest struct {
 	Icons []PWAIcon `json:"icons"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
+	// URL needs to be relative to the base URL of the frontend class.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	StartUrl *string `json:"startUrl"`
 
@@ -187,6 +188,7 @@ type PWACache struct {
 // Each entry specifies a URL to be cached and an optional revision identifier to manage cache updates and invalidation.
 type PreCacheEntry struct {
 	// URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
+	// URL needs to be relative to the base URL of the frontend class.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	URL *string `json:"url"`
 

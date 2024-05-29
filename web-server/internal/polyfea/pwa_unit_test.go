@@ -201,7 +201,7 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 			},
 			{
 				CacheRoute: mf2.Spec.CacheOptions.CacheRoutes[0],
-				Prefix:     buildPreCachePath(mf2, ""), // TODO: Should there be a leading / here?
+				Prefix:     buildPreCachePath(mf2, ""),
 			},
 		},
 	}
