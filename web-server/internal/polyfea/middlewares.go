@@ -48,6 +48,16 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 			return
 		}
 
+		// Check if the route contains /sw.mjs
+		if polyfeaIndex := strings.Index(originalPath, "/sw.mjs"); polyfeaIndex != -1 {
+			r.URL.Path = "/sw.mjs"
+		}
+
+		// Check if the route contains /polyfea-caching.json
+		if polyfeaIndex := strings.Index(originalPath, "/polyfea-caching.json"); polyfeaIndex != -1 {
+			r.URL.Path = "/polyfea-caching.json"
+		}
+
 		// Update the context with the basePath and microFrontendClass
 		ctx = context.WithValue(ctx, PolyfeaContextKeyBasePath, basePath)
 		ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, microFrontendClass)
