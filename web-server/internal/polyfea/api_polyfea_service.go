@@ -104,7 +104,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 
 	// Get webcomponents for given query and frontend class
 	webComponents, err := s.webComponentRepository.GetItems(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, userRoles) && (len(microFrontendsNamesForClass) == 0 || mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend))
+		return selectMatchingWebComponents(mf, name, path, userRoles) && (mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend))
 	})
 
 	if err != nil {
