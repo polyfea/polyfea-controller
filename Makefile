@@ -139,18 +139,18 @@ docker-push: ## Push docker image with the manager.
 # - be able to push the image for your registry (i.e. if you do not inform a valid value via IMG=<myregistry/image:<tag>> then the export will fail)
 # To properly provided solutions that supports more than one platform you should use this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
+ifneq ($(strip $(LABELS)),)
+	$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
+	$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
+	$(eval PARSED_LABELS := $(foreach label,$(LABELS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
+endif
+ifneq (,$(strip $(ANNOTATIONS)))
+	$(eval ANNOTATIONS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(ANNOTATIONS)))
+	$(eval ANNOTATIONS_SEPARATED := $(subst $(comma),$() $(),$(ANNOTATIONS_WITHOUT_SPACES)))
+	$(eval PARSED_ANNOTATIONS := $(foreach label,$(ANNOTATIONS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
+endif
 .PHONY: docker-buildx
 docker-buildx: test ## Build and push docker image for the manager for cross-platform support in pipeline I want the build CI fail if the docker image is not built
-	ifneq (,$(strip $(LABELS)))
-		$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
-		$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
-		$(eval PARSED_LABELS := $(foreach label,$(LABELS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
-	endif
-	ifneq (,$(strip $(ANNOTATIONS)))
-		$(eval ANNOTATIONS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(ANNOTATIONS)))
-		$(eval ANNOTATIONS_SEPARATED := $(subst $(comma),$() $(),$(ANNOTATIONS_WITHOUT_SPACES)))
-		$(eval PARSED_ANNOTATIONS := $(foreach label,$(ANNOTATIONS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
-	endif
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	docker buildx create --name project-v3-builder
@@ -160,16 +160,6 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	rm Dockerfile.cross
 
 docker-buildx-local: test ## Build and push docker image for the manager for cross-platform support local version so the cross file is not forgotten
-	ifneq (,$(strip $(LABELS)))
-		$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
-		$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
-		$(eval PARSED_LABELS := $(foreach label,$(LABELS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
-	endif
-	ifneq (,$(strip $(ANNOTATIONS)))
-		$(eval ANNOTATIONS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(ANNOTATIONS)))
-		$(eval ANNOTATIONS_SEPARATED := $(subst $(comma),$() $(),$(ANNOTATIONS_WITHOUT_SPACES)))
-		$(eval PARSED_ANNOTATIONS := $(foreach label,$(ANNOTATIONS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
-	endif
 	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- docker buildx create --name project-v3-builder
