@@ -145,7 +145,7 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	docker buildx create --name project-v3-builder
 	docker buildx use project-v3-builder
-	docker buildx build --push --platform=$(PLATFORMS) $(if $(TAGS),$(foreach tag,$(TAGS),--tag $(tag)),--tag $(IMG)) $(if $(LABELS),$(foreach label,$(LABELS),--label $(label))) $(if $(ANNOTATIONS),$(foreach annotation,$(ANNOTATIONS),--annotation $(annotation))) -f Dockerfile.cross .
+	docker buildx build --push --platform=$(PLATFORMS) $(if $(TAGS),$(foreach tag,$(TAGS),--tag $(tag)),--tag $(IMG)) $(if $(LABELS),$(foreach label,$(subst ,, ,$(subst  ,|SPACE|,$(LABELS))),--label $(subst |SPACE|, ,$(label)))) -f Dockerfile.cross .
 	docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
@@ -154,7 +154,7 @@ docker-buildx-local: test ## Build and push docker image for the manager for cro
 	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
 	- docker buildx create --name project-v3-builder
 	docker buildx use project-v3-builder
-	- docker buildx build --push --platform=$(PLATFORMS) $(if $(TAGS),$(foreach tag,$(TAGS),--tag $(tag)),--tag $(IMG)) $(if $(LABELS),$(foreach label,$(LABELS),--label $(label))) $(if $(ANNOTATIONS),$(foreach annotation,$(ANNOTATIONS),--annotation $(annotation))) -f Dockerfile.cross .
+	- docker buildx build --push --platform=$(PLATFORMS) $(if $(TAGS),$(foreach tag,$(TAGS),--tag $(tag)),--tag $(IMG)) $(if $(LABELS),$(foreach label,$(subst ,, ,$(subst  ,|SPACE|,$(LABELS))),--label $(subst |SPACE|, ,$(label)))) -f Dockerfile.cross .
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
