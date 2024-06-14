@@ -140,11 +140,15 @@ docker-push: ## Push docker image with the manager.
 # To properly provided solutions that supports more than one platform you should use this option.
 PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
-docker-buildx: test ## Build and push docker image for the manager for cross-platform support in pipeline I want the build CI fail if the docker image is not built
+docker-buildx: ## Build and push docker image for the manager for cross-platform support in pipeline I want the build CI fail if the docker image is not built
 ifneq ($(strip $(LABELS)),)
+	@echo $(LABELS)
 	$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
+	@echo $(LABELS_WITHOUT_SPACES)
 	$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
+	@echo $(LABELS_SEPARATED)
 	$(eval PARSED_LABELS := $(foreach label,$(LABELS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
+	@echo $(PARSED_LABELS)
 endif
 ifneq ($(strip $(ANNOTATIONS)),)
 	$(eval ANNOTATIONS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(ANNOTATIONS)))
@@ -159,7 +163,7 @@ endif
 	docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
-docker-buildx-local: test ## Build and push docker image for the manager for cross-platform support local version so the cross file is not forgotten
+docker-buildx-local: ## Build and push docker image for the manager for cross-platform support local version so the cross file is not forgotten
 ifneq ($(strip $(LABELS)),)
 	@echo $(LABELS)
 	$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
