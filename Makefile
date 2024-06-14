@@ -142,7 +142,7 @@ PLATFORMS ?= linux/arm64,linux/amd64,linux/s390x,linux/ppc64le
 .PHONY: docker-buildx
 docker-buildx: ## Build and push docker image for the manager for cross-platform support in pipeline I want the build CI fail if the docker image is not built
 ifneq ($(strip $(LABELS)),)
-	@echo $(LABELS)
+	@echo "$(LABELS)"
 	$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
 	@echo $(LABELS_WITHOUT_SPACES)
 	$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
