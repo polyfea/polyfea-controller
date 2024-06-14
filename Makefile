@@ -161,9 +161,13 @@ endif
 
 docker-buildx-local: test ## Build and push docker image for the manager for cross-platform support local version so the cross file is not forgotten
 ifneq ($(strip $(LABELS)),)
+	@echo $(LABELS)
 	$(eval LABELS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(LABELS)))
+	@echo $(LABELS_WITHOUT_SPACES)
 	$(eval LABELS_SEPARATED := $(subst $(comma),$() $(),$(LABELS_WITHOUT_SPACES)))
+	@echo $(LABELS_SEPARATED)
 	$(eval PARSED_LABELS := $(foreach label,$(LABELS_SEPARATED),--label $(subst |SPACE|,$() $(),$(label))))
+	@echo $(PARSED_LABELS)
 endif
 ifneq ($(strip $(ANNOTATIONS)),)
 	$(eval ANNOTATIONS_WITHOUT_SPACES := $(subst $() $(),|SPACE|,$(ANNOTATIONS)))
