@@ -39,5 +39,36 @@ jobs:
     - name: Log in to registry
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
     
+    - name: Docker Metadata action
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/polyfea/polyfea-controller
+        tags: |
+          type=schedule
+          type=ref,event=branch
+          type=ref,event=branch,suffix={{date '.YYYYMMDD.HHmm'}}
+          type=ref,event=tag
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}     
+        labels: |
+          maintainer=Polyfea-Owners
+          org.opencontainers.image.title=polyfea/polyfea-controller
+          org.opencontainers.image.description=Polyfea Kubernetes Controller
+          org.opencontainers.image.vendor=Polyfea Team
+          org.opencontainers.image.source=${{github.repositoryUrl}}
+          org.opencontainers.image.revision=${{github.run_id}}
+          org.opencontainers.image.documentation=https://github.com/polyfea/polyfea-controller/blob/main/README.md
+        annotations: |
+          maintainer=Polyfea-Owners
+          org.opencontainers.image.title=polyfea/polyfea-controller
+          org.opencontainers.image.description=Polyfea Kubernetes Controller
+          org.opencontainers.image.vendor=Polyfea Team
+          org.opencontainers.image.source=${{github.repositoryUrl}}
+          org.opencontainers.image.revision=${{github.run_id}}
+          org.opencontainers.image.documentation=https://github.com/polyfea/polyfea-controller/blob/main/README.md
+
     - name: Build and push docker
-      run: make docker-buildx VERSION=${DOCKER_VERSION:-"dev-latest"} CONTAINER_REGISTRY=ghcr.io/${{ github.repository_owner }}
+      run: make docker-buildx VERSION=${DOCKER_VERSION:-"dev-latest"} CONTAINER_REGISTRY=ghcr.io/${{ github.repository_owner }} TAGS="${{ steps.meta.outputs.tags || '' }}" LABELS="${{ steps.meta.outputs.labels || '' }}" ANNOTATIONS="${{ steps.meta.outputs.annotations || '' }}"
