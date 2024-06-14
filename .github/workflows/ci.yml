@@ -46,6 +46,7 @@ jobs:
         images: ghcr.io/polyfea/polyfea-controller
         sep-labels: ','
         sep-annotations: ','
+        sep-tags: ','
         tags: |
           type=schedule
           type=ref,event=branch
