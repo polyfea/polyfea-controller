@@ -2,7 +2,6 @@ kind: Service
 apiVersion: v1
 metadata:
   name: manager
-  namespace: system
   labels:
     app: polyfea-webserver
 spec:  
