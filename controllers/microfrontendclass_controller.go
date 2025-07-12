@@ -45,7 +45,7 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 )
 
-// MicroFrontendClassReconciler reconciles a MicroFrontendClass object
+// MicroFrontendClassReconciler reconciles a MicroFrontendClass object.
 type MicroFrontendClassReconciler struct {
 	client.Client
 	Scheme            *runtime.Scheme
@@ -56,12 +56,6 @@ type MicroFrontendClassReconciler struct {
 	isAlreadyWatching bool
 }
 
-const (
-	PortName                     = "webserver"
-	OperatorServiceSelectorName  = "app"
-	OperatorServiceSelectorValue = "polyfea-webserver"
-)
-
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontendclasses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontendclasses/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontendclasses/finalizers,verbs=update
@@ -70,93 +64,69 @@ const (
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
-func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	const microFrontendClassFinalizer = "polyfea.github.io/finalizer"
+const (
+	OperatorServiceSelectorName  = "app"
+	OperatorServiceSelectorValue = "polyfea-webserver"
+)
 
+// Reconcile moves the current state of the cluster closer to the desired state.
+func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	const finalizerName = "polyfea.github.io/finalizer"
 	log := log.FromContext(ctx)
 
-	// Fetch the microFrontendClass instance
-	// The purpose is check if the Custom Resource for the Kind MicroFrontendClass
-	// is applied on the cluster if not we return nil to stop the reconciliation
-	microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-	err := r.Get(ctx, req.NamespacedName, microFrontendClass)
-	if err != nil {
+	mfc := &polyfeav1alpha1.MicroFrontendClass{}
+	if err := r.Get(ctx, req.NamespacedName, mfc); err != nil {
 		if apierrors.IsNotFound(err) {
-			// If the custom resource is not found then, it usually means that it was deleted or not created
-			// In this way, we will stop the reconciliation
-			log.Info("MicroFrontendClass resource not found. Ignoring since object must be deleted!")
+			log.Info("MicroFrontendClass resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
-
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get MicroFrontendClass!")
+		log.Error(err, "Failed to get MicroFrontendClass")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Reconciling MicroFrontendClass.", "MicroFrontendClass", microFrontendClass)
+	log.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
 
-	// Let's add a finalizer. Then, we can define some operations which should
-	// occurs before the custom resource to be deleted.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
-	if !controllerutil.ContainsFinalizer(microFrontendClass, microFrontendClassFinalizer) {
-		log.Info("Adding Finalizer for MicroFrontendClass.")
-		if ok := controllerutil.AddFinalizer(microFrontendClass, microFrontendClassFinalizer); !ok {
-			log.Error(err, "Failed to add finalizer into the custom resource!")
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		if err = r.Update(ctx, microFrontendClass); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer!")
+	// Add finalizer if not present
+	if !controllerutil.ContainsFinalizer(mfc, finalizerName) {
+		log.Info("Adding Finalizer for MicroFrontendClass")
+		controllerutil.AddFinalizer(mfc, finalizerName)
+		if err := r.Update(ctx, mfc); err != nil {
+			log.Error(err, "Failed to update custom resource to add finalizer")
 			return ctrl.Result{}, err
 		}
-
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// Check if the MicroFrontendClass instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isMicroFrontendClassMarkedToBeDeleted := microFrontendClass.GetDeletionTimestamp() != nil
-	if isMicroFrontendClassMarkedToBeDeleted {
-		if controllerutil.ContainsFinalizer(microFrontendClass, microFrontendClassFinalizer) {
-			log.Info("Performing finalizer operations for the MicroFrontendClass before deleting the custom resource.")
-
-			if err := r.finalizeOperationsForMicroFrontendClass(microFrontendClass); err != nil {
-				log.Error(err, "Failed to perform finalizer operations for the MicroFrontendClass!")
+	// Handle deletion
+	if mfc.GetDeletionTimestamp() != nil {
+		if controllerutil.ContainsFinalizer(mfc, finalizerName) {
+			log.Info("Performing finalizer operations before deletion")
+			if err := r.finalizeOperationsForMicroFrontendClass(mfc); err != nil {
+				log.Error(err, "Failed to perform finalizer operations")
 				return ctrl.Result{Requeue: true}, nil
 			}
-
-			if err := r.Get(ctx, req.NamespacedName, microFrontendClass); err != nil {
-				log.Error(err, "Failed to re-fetch MicroFrontendClass!")
+			if err := r.Get(ctx, req.NamespacedName, mfc); err != nil {
+				log.Error(err, "Failed to re-fetch MicroFrontendClass")
 				return ctrl.Result{}, err
 			}
-
-			log.Info("Removing Finalizer for MicroFrontendClass after successfully performing the operations.")
-			if ok := controllerutil.RemoveFinalizer(microFrontendClass, microFrontendClassFinalizer); !ok {
-				log.Error(err, "Failed to remove finalizer for MicroFrontendClass!")
-				return ctrl.Result{Requeue: true}, nil
-			}
-
-			if err := r.Update(ctx, microFrontendClass); err != nil {
-				log.Error(err, "Failed to remove finalizer for MicroFrontendClass!")
+			log.Info("Removing Finalizer for MicroFrontendClass after successful operations")
+			controllerutil.RemoveFinalizer(mfc, finalizerName)
+			if err := r.Update(ctx, mfc); err != nil {
+				log.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{}, nil
 		}
-
 		return ctrl.Result{}, nil
 	}
 
+	// Resource existence checks
 	httpRoute := &gatewayv1.HTTPRoute{}
 	httpRoutePresent := true
 	ingress := &networkingv1.Ingress{}
 
-	log.Info("Checking if HttpRoute and Ingress resources exist for MicroFrontendClass.")
-	err = r.Get(ctx, client.ObjectKey{Namespace: microFrontendClass.Namespace, Name: microFrontendClass.Name}, httpRoute)
+	log.Info("Checking if HttpRoute and Ingress resources exist for MicroFrontendClass")
+	err := r.Get(ctx, client.ObjectKey{Namespace: mfc.Namespace, Name: mfc.Name}, httpRoute)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if !r.isAlreadyWatching {
@@ -170,198 +140,153 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			httpRoutePresent = false
 			httpRoute = nil
 		} else {
-			log.Error(err, "Failed to get HttpRoute!")
+			log.Error(err, "Failed to get HttpRoute")
 			return ctrl.Result{}, err
 		}
-	} else {
-		if !r.isAlreadyWatching {
-			r.selfRef.Watch(source.Kind(r.cacheRef, &gatewayv1.HTTPRoute{}), &handler.EnqueueRequestForObject{})
-			r.isAlreadyWatching = true
-		}
+	} else if !r.isAlreadyWatching {
+		r.selfRef.Watch(source.Kind(r.cacheRef, &gatewayv1.HTTPRoute{}), &handler.EnqueueRequestForObject{})
+		r.isAlreadyWatching = true
 	}
 
-	err = r.Get(ctx, client.ObjectKey{Namespace: microFrontendClass.Namespace, Name: microFrontendClass.Name}, ingress)
+	err = r.Get(ctx, client.ObjectKey{Namespace: mfc.Namespace, Name: mfc.Name}, ingress)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			log.Info("Ingress resource not found. Setting to nil")
 			ingress = nil
 		} else {
-			log.Error(err, "Failed to get Ingress!")
+			log.Error(err, "Failed to get Ingress")
 			return ctrl.Result{}, err
 		}
 	}
 
-	log.Info("Checking if HttpRoute and Ingress resources should be created for MicroFrontendClass.")
-	if microFrontendClass.Spec.Routing != nil && httpRoute == nil && ingress == nil {
-		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
-
+	// Resource creation logic
+	log.Info("Checking if HttpRoute and Ingress resources should be created")
+	if mfc.Spec.Routing != nil && httpRoute == nil && ingress == nil {
+		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
-			log.Error(err, "Failed to get OperatorService!")
+			log.Error(err, "Failed to get OperatorService")
 			return ctrl.Result{}, err
 		}
-
-		if microFrontendClass.Spec.Routing.ParentRefs != nil && httpRoutePresent {
-			err = r.createHttpRoute(ctx, log, microFrontendClass, operatorService)
-
-			if err != nil {
+		if mfc.Spec.Routing.ParentRefs != nil && httpRoutePresent {
+			if err := r.createHttpRoute(ctx, log, mfc, operatorService); err != nil {
 				if apierrors.IsNotFound(err) {
 					log.Info("HttpRoute CRD not installed. It will not be created")
 					httpRoutePresent = false
 				} else {
-					log.Error(err, "Failed to create HttpRoute!")
+					log.Error(err, "Failed to create HttpRoute")
 					return ctrl.Result{}, err
 				}
 			}
-
-			err := r.recreateRefGrant(ctx, log, microFrontendClass, operatorService)
-
-			if err != nil {
-				log.Error(err, "Failed to recreate ReferenceGrant!")
+			if err := r.recreateRefGrant(ctx, log, mfc, operatorService); err != nil {
+				log.Error(err, "Failed to recreate ReferenceGrant")
 				return ctrl.Result{}, err
 			}
 		}
-
-		if microFrontendClass.Spec.Routing.IngressClassName != nil {
-			err = r.createIngress(ctx, log, microFrontendClass, operatorService)
-
-			if err != nil {
-				log.Error(err, "Failed to create HttpRoute!")
+		if mfc.Spec.Routing.IngressClassName != nil {
+			if err := r.createIngress(ctx, log, mfc, operatorService); err != nil {
+				log.Error(err, "Failed to create Ingress")
 				return ctrl.Result{}, err
 			}
 		}
-
 	}
 
-	log.Info("Checking if HttpRoute and Ingress resources should be updated for MicroFrontendClass.")
-	if microFrontendClass.Spec.Routing != nil && httpRoute != nil {
-		if microFrontendClass.Spec.Routing.ParentRefs == nil && microFrontendClass.Spec.Routing.IngressClassName != nil {
-			err = r.Delete(ctx, httpRoute)
-
-			if err != nil {
-				log.Error(err, "Failed to delete HttpRoute!")
+	// Resource update logic
+	log.Info("Checking if HttpRoute and Ingress resources should be updated")
+	if mfc.Spec.Routing != nil && httpRoute != nil {
+		if mfc.Spec.Routing.ParentRefs == nil && mfc.Spec.Routing.IngressClassName != nil {
+			if err := r.Delete(ctx, httpRoute); err != nil {
+				log.Error(err, "Failed to delete HttpRoute")
 				return ctrl.Result{}, err
 			}
-
-			err = r.createIngress(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
-
-			if err != nil {
-				log.Error(err, "Failed to create Ingress!")
+			if err := r.createIngress(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
+				log.Error(err, "Failed to create Ingress")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{Requeue: true}, nil
 		}
-
-		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
-
+		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
-			log.Error(err, "Failed to get OperatorService!")
+			log.Error(err, "Failed to get OperatorService")
 			return ctrl.Result{}, err
 		}
-		update := createRouteForMicroFrontendClass(microFrontendClass, operatorService)
-		err := controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
-
-		if err != nil {
-			log.Error(err, "Failed to set controller reference for HttpRoute!")
+		update := createRouteForMicroFrontendClass(mfc, operatorService)
+		if err := controllerutil.SetControllerReference(mfc, update, r.Scheme); err != nil {
+			log.Error(err, "Failed to set controller reference for HttpRoute")
 			return ctrl.Result{}, err
 		}
-
 		if areNotSameHttpRoute(httpRoute, update) {
-			log.Info("Updating HttpRoute for MicroFrontendClass.")
+			log.Info("Updating HttpRoute for MicroFrontendClass")
 			update.ResourceVersion = httpRoute.ResourceVersion
-			err = r.Update(ctx, update)
-
-			if err != nil {
-				log.Error(err, "Failed to update HttpRoute!")
+			if err := r.Update(ctx, update); err != nil {
+				log.Error(err, "Failed to update HttpRoute")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
-	if microFrontendClass.Spec.Routing != nil && ingress != nil {
-		if microFrontendClass.Spec.Routing.IngressClassName == nil && microFrontendClass.Spec.Routing.ParentRefs != nil {
-			err = r.Delete(ctx, ingress)
-
-			if err != nil {
-				log.Error(err, "Failed to delete Ingress!")
+	if mfc.Spec.Routing != nil && ingress != nil {
+		if mfc.Spec.Routing.IngressClassName == nil && mfc.Spec.Routing.ParentRefs != nil {
+			if err := r.Delete(ctx, ingress); err != nil {
+				log.Error(err, "Failed to delete Ingress")
 				return ctrl.Result{}, err
 			}
-
-			err = r.createHttpRoute(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
-
-			if err != nil {
-				log.Error(err, "Failed to create HttpRoute!")
+			if err := r.createHttpRoute(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
+				log.Error(err, "Failed to create HttpRoute")
 				return ctrl.Result{}, err
 			}
-
-			err := r.recreateRefGrant(ctx, log, microFrontendClass, r.getOperatorService(ctx, log, microFrontendClass))
-
-			if err != nil {
-				log.Error(err, "Failed to recreate ReferenceGrant!")
+			if err := r.recreateRefGrant(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
+				log.Error(err, "Failed to recreate ReferenceGrant")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{Requeue: true}, nil
 		}
-
-		operatorService := r.getOperatorService(ctx, log, microFrontendClass)
-
+		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
-			log.Error(err, "Failed to get OperatorService!")
+			log.Error(err, "Failed to get OperatorService")
 			return ctrl.Result{}, err
 		}
-
-		update := createIngressForMicroFrontendClass(microFrontendClass, operatorService)
-		controllerutil.SetControllerReference(microFrontendClass, update, r.Scheme)
+		update := createIngressForMicroFrontendClass(mfc, operatorService)
+		controllerutil.SetControllerReference(mfc, update, r.Scheme)
 		if areNotSameIngress(ingress, update) {
-			log.Info("Updating Ingress for MicroFrontendClass.")
+			log.Info("Updating Ingress for MicroFrontendClass")
 			update.ResourceVersion = ingress.ResourceVersion
-			err = r.Update(ctx, update)
-
-			if err != nil {
-				log.Error(err, "Failed to update HttpRoute!")
+			if err := r.Update(ctx, update); err != nil {
+				log.Error(err, "Failed to update Ingress")
 				return ctrl.Result{}, err
 			}
-
 			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
-	log.Info("Checking if HttpRoute and Ingress resources should be deleted for MicroFrontendClass.")
-	if microFrontendClass.Spec.Routing == nil && httpRoute != nil {
-		err = r.Delete(ctx, httpRoute)
-
-		if err != nil {
-			log.Error(err, "Failed to delete HttpRoute!")
+	// Resource deletion logic
+	log.Info("Checking if HttpRoute and Ingress resources should be deleted")
+	if mfc.Spec.Routing == nil && httpRoute != nil {
+		if err := r.Delete(ctx, httpRoute); err != nil {
+			log.Error(err, "Failed to delete HttpRoute")
+			return ctrl.Result{}, err
+		}
+	}
+	if mfc.Spec.Routing == nil && ingress != nil {
+		if err := r.Delete(ctx, ingress); err != nil {
+			log.Error(err, "Failed to delete Ingress")
 			return ctrl.Result{}, err
 		}
 	}
 
-	if microFrontendClass.Spec.Routing == nil && ingress != nil {
-		err = r.Delete(ctx, ingress)
-
-		if err != nil {
-			log.Error(err, "Failed to delete Ingress!")
-			return ctrl.Result{}, err
-		}
-	}
-
-	err = r.Repository.StoreItem(microFrontendClass)
-
-	if err != nil {
-		log.Error(err, "Failed to store MicroFrontendClass into repository!")
+	// Store the MicroFrontendClass in the repository
+	if err := r.Repository.Store(mfc); err != nil {
+		log.Error(err, "Failed to store MicroFrontendClass in repository")
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *MicroFrontendClassReconciler) finalizeOperationsForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroFrontendClass) error {
+func (r *MicroFrontendClassReconciler) finalizeOperationsForMicroFrontendClass(mfc *polyfeav1alpha1.MicroFrontendClass) error {
 	log := log.FromContext(context.Background())
-	r.Repository.DeleteItem(microFrontendClass)
-	log.Info("Removing finalizer from MicroFrontendClass.", "MicroFrontendClass", microFrontendClass)
+	r.Repository.Delete(mfc)
+	log.Info("Removing finalizer from MicroFrontendClass", "MicroFrontendClass", mfc)
 	return nil
 }
 
@@ -372,25 +297,22 @@ func (r *MicroFrontendClassReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Owns(&networkingv1.Ingress{}).
 		Watches(&corev1.Service{}, handler.EnqueueRequestsFromMapFunc(r.findObjectsForService)).
 		Build(r)
-
 	if err != nil {
 		return err
 	}
-
 	r.selfRef = selfRef
 	r.cacheRef = mgr.GetCache()
-
 	return nil
 }
 
-func (r *MicroFrontendClassReconciler) recreateRefGrant(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
+func (r *MicroFrontendClassReconciler) recreateRefGrant(ctx context.Context, log logr.Logger, mfc *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
 	refGrant := &gatewayv1alpha2.ReferenceGrant{}
-	err := r.Get(ctx, client.ObjectKey{Namespace: operatorService.Namespace, Name: microFrontendClass.Name}, refGrant)
+	err := r.Get(ctx, client.ObjectKey{Namespace: operatorService.Namespace, Name: mfc.Name}, refGrant)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			refGrant = &gatewayv1alpha2.ReferenceGrant{
 				ObjectMeta: ctrl.ObjectMeta{
-					Name:      microFrontendClass.Name,
+					Name:      mfc.Name,
 					Namespace: operatorService.Namespace,
 				},
 				Spec: gatewayv1alpha2.ReferenceGrantSpec{
@@ -398,7 +320,7 @@ func (r *MicroFrontendClassReconciler) recreateRefGrant(ctx context.Context, log
 						{
 							Group:     "gateway.networking.k8s.io",
 							Kind:      "HTTPRoute",
-							Namespace: gatewayv1.Namespace(microFrontendClass.Namespace),
+							Namespace: gatewayv1.Namespace(mfc.Namespace),
 						},
 					},
 					To: []gatewayv1alpha2.ReferenceGrantTo{
@@ -409,25 +331,19 @@ func (r *MicroFrontendClassReconciler) recreateRefGrant(ctx context.Context, log
 				},
 			}
 		} else {
-			log.Error(err, "Failed to get ReferenceGrant!")
+			log.Error(err, "Failed to get ReferenceGrant")
 			return err
 		}
 	} else {
-		err = r.Delete(ctx, refGrant)
-
-		if err != nil {
-			log.Error(err, "Failed to delete ReferenceGrant!")
+		if err := r.Delete(ctx, refGrant); err != nil {
+			log.Error(err, "Failed to delete ReferenceGrant")
 			return err
 		}
 	}
-
-	err = r.Create(ctx, refGrant)
-
-	if err != nil {
-		log.Error(err, "Failed to create ReferenceGrant!")
+	if err := r.Create(ctx, refGrant); err != nil {
+		log.Error(err, "Failed to create ReferenceGrant")
 		return err
 	}
-
 	return nil
 }
 
@@ -436,25 +352,21 @@ func (r *MicroFrontendClassReconciler) findObjectsForService(ctx context.Context
 	log := log.FromContext(ctx)
 
 	microFrontendClasses := &polyfeav1alpha1.MicroFrontendClassList{}
-	err := r.List(ctx, microFrontendClasses)
-
-	if err != nil {
-		log.Error(err, "Failed to list MicroFrontendClasses!")
+	if err := r.List(ctx, microFrontendClasses); err != nil {
+		log.Error(err, "Failed to list MicroFrontendClasses")
 		return nil
 	}
 
-	for _, microFrontendClass := range microFrontendClasses.Items {
-
-		if string(microFrontendClass.UID) == service.GetAnnotations()["Owner"] {
+	for _, mfc := range microFrontendClasses.Items {
+		if string(mfc.UID) == service.GetAnnotations()["Owner"] {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKey{
-					Namespace: microFrontendClass.Namespace,
-					Name:      microFrontendClass.Name,
+					Namespace: mfc.Namespace,
+					Name:      mfc.Name,
 				},
 			})
 		}
 	}
-
 	return requests
 }
 
@@ -476,64 +388,40 @@ func areNotSameIngress(ingress *networkingv1.Ingress, update *networkingv1.Ingre
 		ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Name != update.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Name
 }
 
-func (r *MicroFrontendClassReconciler) createHttpRoute(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
-	httpRoute := createRouteForMicroFrontendClass(microFrontendClass, operatorService)
-	err := controllerutil.SetControllerReference(microFrontendClass, httpRoute, r.Scheme)
-
-	if err != nil {
+func (r *MicroFrontendClassReconciler) createHttpRoute(ctx context.Context, log logr.Logger, mfc *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
+	httpRoute := createRouteForMicroFrontendClass(mfc, operatorService)
+	if err := controllerutil.SetControllerReference(mfc, httpRoute, r.Scheme); err != nil {
 		return err
 	}
-
-	err = r.Create(ctx, httpRoute)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return r.Create(ctx, httpRoute)
 }
 
-func (r *MicroFrontendClassReconciler) createIngress(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
-	ingress := createIngressForMicroFrontendClass(microFrontendClass, operatorService)
-	err := controllerutil.SetControllerReference(microFrontendClass, ingress, r.Scheme)
-
-	if err != nil {
+func (r *MicroFrontendClassReconciler) createIngress(ctx context.Context, log logr.Logger, mfc *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) error {
+	ingress := createIngressForMicroFrontendClass(mfc, operatorService)
+	if err := controllerutil.SetControllerReference(mfc, ingress, r.Scheme); err != nil {
 		return err
 	}
-
-	err = r.Create(ctx, ingress)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return r.Create(ctx, ingress)
 }
 
-func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, log logr.Logger, microFrontendClass *polyfeav1alpha1.MicroFrontendClass) *corev1.Service {
+func (r *MicroFrontendClassReconciler) getOperatorService(ctx context.Context, log logr.Logger, mfc *polyfeav1alpha1.MicroFrontendClass) *corev1.Service {
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{OperatorServiceSelectorName: OperatorServiceSelectorValue}),
 	}
-
 	var services corev1.ServiceList
-
 	if err := r.List(ctx, &services, listOptions); err != nil || len(services.Items) == 0 {
-		log.Error(err, "Failed to list services or no services found!")
+		log.Error(err, "Failed to list services or no services found")
 		return nil
 	}
-
 	if services.Items[0].Annotations == nil {
 		services.Items[0].Annotations = make(map[string]string)
 	}
-
-	services.Items[0].Annotations["Owner"] = string(microFrontendClass.UID)
-
+	services.Items[0].Annotations["Owner"] = string(mfc.UID)
 	r.Update(ctx, &services.Items[0])
-
 	return &services.Items[0]
 }
 
-func createRouteForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) *gatewayv1.HTTPRoute {
+func createRouteForMicroFrontendClass(mfc *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) *gatewayv1.HTTPRoute {
 	kind := gatewayv1.Kind("Service")
 	name := gatewayv1.ObjectName(operatorService.Name)
 	namespace := gatewayv1.Namespace(operatorService.Namespace)
@@ -544,19 +432,19 @@ func createRouteForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroF
 
 	return &gatewayv1.HTTPRoute{
 		ObjectMeta: ctrl.ObjectMeta{
-			Name:      microFrontendClass.Name,
-			Namespace: microFrontendClass.Namespace,
+			Name:      mfc.Name,
+			Namespace: mfc.Namespace,
 		},
 		Spec: gatewayv1.HTTPRouteSpec{
 			CommonRouteSpec: gatewayv1.CommonRouteSpec{
-				ParentRefs: microFrontendClass.Spec.Routing.ParentRefs,
+				ParentRefs: mfc.Spec.Routing.ParentRefs,
 			},
 			Rules: []gatewayv1.HTTPRouteRule{
 				{
 					Matches: []gatewayv1.HTTPRouteMatch{
 						{
 							Path: &gatewayv1.HTTPPathMatch{
-								Value: microFrontendClass.Spec.BaseUri,
+								Value: mfc.Spec.BaseUri,
 							},
 						},
 					},
@@ -578,23 +466,22 @@ func createRouteForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroF
 	}
 }
 
-func createIngressForMicroFrontendClass(microFrontendClass *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) *networkingv1.Ingress {
+func createIngressForMicroFrontendClass(mfc *polyfeav1alpha1.MicroFrontendClass, operatorService *corev1.Service) *networkingv1.Ingress {
 	pathType := networkingv1.PathTypePrefix
-
 	return &networkingv1.Ingress{
 		ObjectMeta: ctrl.ObjectMeta{
-			Name:      microFrontendClass.Name,
-			Namespace: microFrontendClass.Namespace,
+			Name:      mfc.Name,
+			Namespace: mfc.Namespace,
 		},
 		Spec: networkingv1.IngressSpec{
-			IngressClassName: microFrontendClass.Spec.Routing.IngressClassName,
+			IngressClassName: mfc.Spec.Routing.IngressClassName,
 			Rules: []networkingv1.IngressRule{
 				{
 					IngressRuleValue: networkingv1.IngressRuleValue{
 						HTTP: &networkingv1.HTTPIngressRuleValue{
 							Paths: []networkingv1.HTTPIngressPath{
 								{
-									Path:     *microFrontendClass.Spec.BaseUri,
+									Path:     *mfc.Spec.BaseUri,
 									PathType: &pathType,
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{

@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,12 +31,7 @@ const (
 	MicroFrontendName      = "test-microfrontend"
 	MicroFrontendNamespace = "default"
 	MicroFrontendFinalizer = "polyfea.github.io/finalizer"
-
-	timeout  = time.Second * 10
-	interval = time.Millisecond * 250
 )
-
-func ptr[T any](v T) *T { return &v }
 
 func createMicroFrontend(name string, service, modulePath *string, proxy *bool, frontendClass *string, staticResources []polyfeav1alpha1.StaticResources, cacheOptions *polyfeav1alpha1.PWACache) *polyfeav1alpha1.MicroFrontend {
 	return &polyfeav1alpha1.MicroFrontend{
