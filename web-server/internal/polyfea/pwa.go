@@ -33,10 +33,10 @@ type ProxyConfigResponse struct {
 
 type ProgressiveWebApplication struct {
 	logger                  *zerolog.Logger
-	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]
 }
 
-func NewProgressiveWebApplication(logger *zerolog.Logger, microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend]) *ProgressiveWebApplication {
+func NewProgressiveWebApplication(logger *zerolog.Logger, microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]) *ProgressiveWebApplication {
 	return &ProgressiveWebApplication{
 		logger:                  logger,
 		microFrontendRepository: microFrontendRepository,

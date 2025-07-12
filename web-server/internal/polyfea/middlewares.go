@@ -17,7 +17,7 @@ type PolyfeaContextKey string
 const PolyfeaContextKeyBasePath PolyfeaContextKey = "basePath"
 const PolyfeaContextKeyMicroFrontendClass PolyfeaContextKey = "microFrontendClass"
 
-func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) http.Handler {
+func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := telemetry().tracer.Start(r.Context(), "spa_d.basepath_stripping_middleware",
 			trace.WithAttributes(
@@ -68,7 +68,7 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 	})
 }
 
-func getMicrofrontendClassAndBase(requestPath string, microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]) (string, *v1alpha1.MicroFrontendClass, error) {
+func getMicrofrontendClassAndBase(requestPath string, microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]) (string, *v1alpha1.MicroFrontendClass, error) {
 	slash := func(in string) string {
 		if len(in) == 0 || in[len(in)-1] != '/' {
 			in += "/"

@@ -201,7 +201,7 @@ func PolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
 }
 
 func polyfeaApiSetupRouter() http.Handler {
-	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 
 	testWebComponentRepository.StoreItem(createTestWebComponent(
 		"test-name",
@@ -255,7 +255,7 @@ func polyfeaApiSetupRouter() http.Handler {
 		},
 		&[]int32{10}[0]))
 
-	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))

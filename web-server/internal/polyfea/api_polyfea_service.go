@@ -20,14 +20,14 @@ import (
 )
 
 type PolyfeaApiService struct {
-	webComponentRepository  repository.PolyfeaRepository[*v1alpha1.WebComponent]
-	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
+	webComponentRepository  repository.Repository[*v1alpha1.WebComponent]
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]
 	logger                  *zerolog.Logger
 }
 
 func NewPolyfeaAPIService(
-	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
-	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
+	webComponentRepository repository.Repository[*v1alpha1.WebComponent],
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
 	logger *zerolog.Logger,
 ) *PolyfeaApiService {
 
@@ -292,7 +292,7 @@ func convertMicrofrontendResources(microFrontendNamespace string, microFrontendN
 	return result
 }
 
-func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
+func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
 	logger := s.logger.With().Str("function", "loadAllMicroFrontends").Logger()
 
 	result := []*v1alpha1.MicroFrontend{}

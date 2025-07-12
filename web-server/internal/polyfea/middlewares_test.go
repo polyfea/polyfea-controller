@@ -161,8 +161,8 @@ func basePathStrippingMiddlewareRouter() http.Handler {
 	return BasePathStrippingMiddleware(router, setupMfcRepository())
 }
 
-func setupMfcRepository() repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass] {
-	mfcRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
+	mfcRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
 	defaultBase := "/"
 	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{

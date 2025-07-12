@@ -116,9 +116,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	microFrontendRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontend]()
-	microFrontendClassRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
-	webComponentRepository := repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.WebComponent]()
+	microFrontendRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontend]()
+	microFrontendClassRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	webComponentRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
 
 	if err = (&controllers.MicroFrontendReconciler{
 		Client:     mgr.GetClient(),
@@ -196,9 +196,9 @@ func startManager(ctx context.Context, cancel context.CancelFunc, mgr manager.Ma
 func startHTTPServer(
 	ctx context.Context,
 	cancel context.CancelFunc,
-	microFrontendClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass],
-	microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend],
-	webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent],
+	microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass],
+	microFrontendRepository repository.Repository[*polyfeav1alpha1.MicroFrontend],
+	webComponentRepository repository.Repository[*polyfeav1alpha1.WebComponent],
 	logger *zerolog.Logger) {
 
 	defer wg.Done()

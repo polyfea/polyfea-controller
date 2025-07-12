@@ -36,7 +36,7 @@ type MicroFrontendReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
-	Repository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
+	Repository repository.Repository[*polyfeav1alpha1.MicroFrontend]
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete

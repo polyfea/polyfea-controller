@@ -324,7 +324,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 
 	router := generated.NewRouter()
 
-	microFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
 	mf.Spec.CacheOptions = &v1alpha1.PWACache{

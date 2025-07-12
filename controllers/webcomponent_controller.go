@@ -36,7 +36,7 @@ type WebComponentReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
 	Recorder   record.EventRecorder
-	Repository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
+	Repository repository.Repository[*polyfeav1alpha1.WebComponent]
 }
 
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents,verbs=get;list;watch;create;update;patch;delete

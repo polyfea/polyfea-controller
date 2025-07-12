@@ -12,9 +12,9 @@ import (
 )
 
 func SetupRouter(
-	microFrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
-	microFrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
-	webComponentRepository repository.PolyfeaRepository[*v1alpha1.WebComponent],
+	microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass],
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
+	webComponentRepository repository.Repository[*v1alpha1.WebComponent],
 	logger *zerolog.Logger,
 ) http.Handler {
 

@@ -20,15 +20,15 @@ const (
 )
 
 type PolyfeaProxy struct {
-	microfrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
-	microfrontendRepository      repository.PolyfeaRepository[*v1alpha1.MicroFrontend]
+	microfrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]
+	microfrontendRepository      repository.Repository[*v1alpha1.MicroFrontend]
 	client                       *http.Client
 	logger                       *zerolog.Logger
 }
 
 func NewPolyfeaProxy(
-	microfrontendClassRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass],
-	microfrontendRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontend],
+	microfrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass],
+	microfrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
 	httpClient *http.Client,
 	logger *zerolog.Logger,
 ) *PolyfeaProxy {

@@ -50,7 +50,7 @@ type MicroFrontendClassReconciler struct {
 	client.Client
 	Scheme            *runtime.Scheme
 	Recorder          record.EventRecorder
-	Repository        repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
+	Repository        repository.Repository[*polyfeav1alpha1.MicroFrontendClass]
 	selfRef           controller.Controller
 	cacheRef          cache.Cache
 	isAlreadyWatching bool

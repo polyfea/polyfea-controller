@@ -12,7 +12,7 @@ import (
 
 func TestServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 	// Arrange
-	pwa := NewProgressiveWebApplication(&zerolog.Logger{}, repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]())
+	pwa := NewProgressiveWebApplication(&zerolog.Logger{}, repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]())
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: v1.ObjectMeta{
@@ -87,7 +87,7 @@ func TestServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 
 func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *testing.T) {
 	// Arrange
-	microFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: v1.ObjectMeta{

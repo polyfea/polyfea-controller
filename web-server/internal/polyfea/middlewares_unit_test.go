@@ -12,7 +12,7 @@ import (
 
 type MiddlewaresTestSuite struct {
 	suite.Suite
-	mfcRepository repository.PolyfeaRepository[*v1alpha1.MicroFrontendClass]
+	mfcRepository repository.Repository[*v1alpha1.MicroFrontendClass]
 }
 
 func TestMiddlewaresTestSuite(t *testing.T) {
@@ -23,7 +23,7 @@ func (suite *MiddlewaresTestSuite) SetupTest() {
 	suite.SetupMfcRepository()
 }
 func (suite *MiddlewaresTestSuite) SetupMfcRepository() {
-	suite.mfcRepository = repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontendClass]()
+	suite.mfcRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
 	defaultBase := "/"
 	suite.mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
