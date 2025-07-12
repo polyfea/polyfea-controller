@@ -31,7 +31,7 @@ import (
 	"github.com/polyfea/polyfea-controller/repository"
 )
 
-// MicroFrontendReconciler reconciles a MicroFrontend object
+// MicroFrontendReconciler reconciles a MicroFrontend object.
 type MicroFrontendReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
@@ -44,96 +44,73 @@ type MicroFrontendReconciler struct {
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
+// Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	const microFrontendFinalizer = "polyfea.github.io/finalizer"
-
+	const finalizerName = "polyfea.github.io/finalizer"
 	log := log.FromContext(ctx)
 
-	// Fetch the microFrontend instance
-	// The purpose is check if the Custom Resource for the Kind MicroFrontend
-	// is applied on the cluster if not we return nil to stop the reconciliation
-	microFrontend := &polyfeav1alpha1.MicroFrontend{}
-	err := r.Get(ctx, req.NamespacedName, microFrontend)
-	if err != nil {
+	mf := &polyfeav1alpha1.MicroFrontend{}
+	if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
 		if apierrors.IsNotFound(err) {
-			// If the custom resource is not found then, it usually means that it was deleted or not created
-			// In this way, we will stop the reconciliation
-			log.Info("MicroFrontend resource not found. Ignoring since object must be deleted!")
+			log.Info("MicroFrontend resource not found; assuming it was deleted.")
 			return ctrl.Result{}, nil
 		}
-
-		// Error reading the object - requeue the request.
-		log.Error(err, "Failed to get MicroFrontend!")
+		log.Error(err, "Failed to get MicroFrontend")
 		return ctrl.Result{}, err
 	}
 
-	log.Info("Reconciling MicroFrontend.", "MicroFrontend", microFrontend)
+	log.Info("Reconciling MicroFrontend", "MicroFrontend", mf)
 
-	// Let's add a finalizer. Then, we can define some operations which should
-	// occurs before the custom resource to be deleted.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/finalizers
-	if !controllerutil.ContainsFinalizer(microFrontend, microFrontendFinalizer) {
-		log.Info("Adding Finalizer for MicroFrontend.")
-		if ok := controllerutil.AddFinalizer(microFrontend, microFrontendFinalizer); !ok {
-			log.Error(err, "Failed to add finalizer into the custom resource!")
-			return ctrl.Result{Requeue: true}, nil
-		}
-
-		if err = r.Update(ctx, microFrontend); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer!")
+	// Add finalizer if not present
+	if !controllerutil.ContainsFinalizer(mf, finalizerName) {
+		log.Info("Adding finalizer")
+		controllerutil.AddFinalizer(mf, finalizerName)
+		if err := r.Update(ctx, mf); err != nil {
+			log.Error(err, "Failed to update MicroFrontend with finalizer")
 			return ctrl.Result{}, err
 		}
-
 		return ctrl.Result{}, nil
 	}
 
-	// Check if the MicroFrontend instance is marked to be deleted, which is
-	// indicated by the deletion timestamp being set.
-	isMicroFrontendMarkedToBeDeleted := microFrontend.GetDeletionTimestamp() != nil
-	if isMicroFrontendMarkedToBeDeleted {
-		if controllerutil.ContainsFinalizer(microFrontend, microFrontendFinalizer) {
-			log.Info("Performing finalizer operations for the MicroFrontend before deleting the custom resource.")
-
-			if err := r.finalizeOperationsForMicroFrontend(microFrontend); err != nil {
-				log.Error(err, "Failed to perform finalizer operations for the MicroFrontend!")
+	// Handle deletion
+	if mf.GetDeletionTimestamp() != nil {
+		if controllerutil.ContainsFinalizer(mf, finalizerName) {
+			log.Info("Running finalizer operations before deletion")
+			if err := r.finalizeMicroFrontend(mf); err != nil {
+				log.Error(err, "Finalizer operations failed")
 				return ctrl.Result{Requeue: true}, nil
 			}
-
-			if err := r.Get(ctx, req.NamespacedName, microFrontend); err != nil {
-				log.Error(err, "Failed to re-fetch MicroFrontend!")
+			// Re-fetch in case of update
+			if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
+				log.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
 				return ctrl.Result{}, err
 			}
-
-			log.Info("Removing Finalizer for MicroFrontend after successfully performing the operations.")
-			if ok := controllerutil.RemoveFinalizer(microFrontend, microFrontendFinalizer); !ok {
-				log.Error(err, "Failed to remove finalizer for MicroFrontend!")
-				return ctrl.Result{Requeue: true}, nil
-			}
-
-			if err := r.Update(ctx, microFrontend); err != nil {
-				log.Error(err, "Failed to remove finalizer for MicroFrontend!")
+			controllerutil.RemoveFinalizer(mf, finalizerName)
+			if err := r.Update(ctx, mf); err != nil {
+				log.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{}, err
 			}
-
-			return ctrl.Result{}, nil
 		}
-
 		return ctrl.Result{}, nil
 	}
 
-	r.Repository.StoreItem(microFrontend)
+	// Store the MicroFrontend in the repository
+	if err := r.Repository.Store(mf); err != nil {
+		log.Error(err, "Failed to store MicroFrontend in repository")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *MicroFrontendReconciler) finalizeOperationsForMicroFrontend(microFrontend *polyfeav1alpha1.MicroFrontend) error {
+// finalizeMicroFrontend performs cleanup before deletion.
+func (r *MicroFrontendReconciler) finalizeMicroFrontend(mf *polyfeav1alpha1.MicroFrontend) error {
 	log := log.FromContext(context.Background())
-	r.Repository.DeleteItem(microFrontend)
-	log.Info("Removing finalizer from MicroFrontend.", "MicroFrontend", microFrontend)
+	if err := r.Repository.Delete(mf); err != nil {
+		log.Error(err, "Failed to delete MicroFrontend from repository")
+		return err
+	}
+	log.Info("Finalizer cleanup complete", "MicroFrontend", mf)
 	return nil
 }
 
