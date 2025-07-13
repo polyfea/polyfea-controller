@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -56,6 +57,10 @@ func createMicroFrontend(name string, service, modulePath *string, proxy *bool, 
 }
 
 var _ = Describe("Microfrontend controller", func() {
+	const (
+		timeout  = time.Second * 10
+		interval = time.Millisecond * 250
+	)
 
 	Context("When creating a MicroFrontend", func() {
 		It("Should add and remove finalizer", func() {

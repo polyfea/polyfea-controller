@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -54,6 +55,11 @@ func createMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.R
 }
 
 var _ = Describe("MicroFrontendClass controller", func() {
+	const (
+		timeout  = time.Second * 10
+		interval = time.Millisecond * 250
+	)
+
 	Context("Validation and defaults", func() {
 		DescribeTable("Should validate required fields",
 			func(title, baseUri *string, shouldSucceed bool) {
