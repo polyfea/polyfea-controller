@@ -44,49 +44,10 @@ func NewProgressiveWebApplication(logger *zerolog.Logger, microFrontendRepositor
 }
 
 func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter, r *http.Request) {
-	logger := pwa.logger.With().
-		Str("function", "ServeAppWebManifest").
-		Str("method", r.Method).
-		Str("path", r.URL.Path).Logger()
-
-	_, span := telemetry().tracer.Start(
-		r.Context(), "pwa_d.serve_web_manifest",
-		trace.WithAttributes(
-			attribute.String("path", r.URL.Path),
-			attribute.String("method", r.Method),
-		))
-	defer span.End()
-
-	basePath := r.Context().Value(PolyfeaContextKeyBasePath).(string)
-	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
-
-	if microFrontendClass == nil {
-		logger.Warn().Msg("Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
-		w.WriteHeader(http.StatusNotFound)
-		telemetry().not_found.Add(r.Context(), 1)
-		span.SetStatus(codes.Error, "microfrontend_class_not_found")
-		return
-	}
-
-	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
-	span.SetAttributes(
-		attribute.String("base", basePath),
-		attribute.String("frontendClass", microFrontendClass.Name),
-	)
-
-	for _, header := range microFrontendClass.Spec.ExtraHeaders {
-		w.Header().Set(header.Name, header.Value)
-	}
-
-	w.Header().Set("Content-Type", "application/manifest+json")
-
-	err := json.NewEncoder(w).Encode(pwa.serveAppWebManifest(microFrontendClass))
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to encode JSON")
-		w.WriteHeader(http.StatusInternalServerError)
-		span.SetStatus(codes.Error, "json_encode_failed")
-	}
+	pwa.serveResource(w, r, "ServeAppWebManifest", "application/manifest+json", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+		manifest := pwa.serveAppWebManifest(microFrontendClass)
+		return json.Marshal(manifest)
+	})
 }
 
 func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1alpha1.MicroFrontendClass) *v1alpha1.WebAppManifest {
@@ -94,93 +55,36 @@ func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1
 }
 
 func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, r *http.Request) {
-	logger := pwa.logger.With().
-		Str("function", "ServeServiceWorker").
-		Str("method", r.Method).
-		Str("path", r.URL.Path).Logger()
-
-	_, span := telemetry().tracer.Start(
-		r.Context(), "pwa_d.serve_service_worker",
-		trace.WithAttributes(
-			attribute.String("path", r.URL.Path),
-			attribute.String("method", r.Method),
-		))
-	defer span.End()
-
-	basePath := r.Context().Value(PolyfeaContextKeyBasePath).(string)
-	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
-
-	if microFrontendClass == nil {
-		logger.Warn().Msg("Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
-		w.WriteHeader(http.StatusNotFound)
-		telemetry().not_found.Add(r.Context(), 1)
-		span.SetStatus(codes.Error, "microfrontend_class_not_found")
-		return
-	}
-
-	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
-	span.SetAttributes(
-		attribute.String("base", basePath),
-		attribute.String("frontendClass", microFrontendClass.Name),
-	)
-
-	for _, header := range microFrontendClass.Spec.ExtraHeaders {
-		w.Header().Set(header.Name, header.Value)
-	}
-	w.Header().Set("Content-Type", "application/javascript")
-
-	w.Write(serviceWorker)
+	pwa.serveResource(w, r, "ServeServiceWorker", "application/javascript", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+		return serviceWorker, nil
+	})
 }
 
 func (pwa *ProgressiveWebApplication) ServeRegister(w http.ResponseWriter, r *http.Request) {
-	logger := pwa.logger.With().
-		Str("function", "ServeRegister").
-		Str("method", r.Method).
-		Str("path", r.URL.Path).Logger()
-
-	_, span := telemetry().tracer.Start(
-		r.Context(), "pwa_d.serve_register",
-		trace.WithAttributes(
-			attribute.String("path", r.URL.Path),
-			attribute.String("method", r.Method),
-		))
-	defer span.End()
-
-	basePath := r.Context().Value(PolyfeaContextKeyBasePath).(string)
-	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
-
-	if microFrontendClass == nil {
-		logger.Warn().Msg("Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
-		w.WriteHeader(http.StatusNotFound)
-		telemetry().not_found.Add(r.Context(), 1)
-		span.SetStatus(codes.Error, "microfrontend_class_not_found")
-		return
-	}
-
-	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
-	span.SetAttributes(
-		attribute.String("base", basePath),
-		attribute.String("frontendClass", microFrontendClass.Name),
-	)
-
-	for _, header := range microFrontendClass.Spec.ExtraHeaders {
-		w.Header().Set(header.Name, header.Value)
-	}
-	w.Header().Set("Content-Type", "application/javascript")
-
-	w.Write(register)
+	pwa.serveResource(w, r, "ServeRegister", "application/javascript", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+		return register, nil
+	})
 }
 
 func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *http.Request) {
+	pwa.serveResource(w, r, "ServeCaching", "application/json", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+		config, err := pwa.getProxyConfig(microFrontendClass)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(config)
+	})
+}
+
+// Consolidated resource serving logic
+func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *http.Request, functionName, contentType string, resourceProvider func(*v1alpha1.MicroFrontendClass) ([]byte, error)) {
 	logger := pwa.logger.With().
-		Str("function", "ServeCaching").
+		Str("function", functionName).
 		Str("method", r.Method).
 		Str("path", r.URL.Path).Logger()
 
 	_, span := telemetry().tracer.Start(
-		r.Context(), "pwa_d.serve_caching",
+		r.Context(), "pwa_d."+functionName,
 		trace.WithAttributes(
 			attribute.String("path", r.URL.Path),
 			attribute.String("method", r.Method),
@@ -192,8 +96,8 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 
 	if microFrontendClass == nil {
 		logger.Warn().Msg("Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
 		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Microfrontend class not found"))
 		telemetry().not_found.Add(r.Context(), 1)
 		span.SetStatus(codes.Error, "microfrontend_class_not_found")
 		return
@@ -208,23 +112,17 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 	for _, header := range microFrontendClass.Spec.ExtraHeaders {
 		w.Header().Set(header.Name, header.Value)
 	}
+	w.Header().Set("Content-Type", contentType)
 
-	config, err := pwa.getProxyConfig(microFrontendClass)
+	resource, err := resourceProvider(microFrontendClass)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to get proxy config")
+		logger.Error().Err(err).Msg("Failed to provide resource")
 		w.WriteHeader(http.StatusInternalServerError)
-		span.SetStatus(codes.Error, "proxy_config_failed")
+		span.SetStatus(codes.Error, "resource_provider_failed")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	err = json.NewEncoder(w).Encode(config)
-	if err != nil {
-		logger.Error().Err(err).Msg("Failed to encode JSON")
-		w.WriteHeader(http.StatusInternalServerError)
-		span.SetStatus(codes.Error, "json_encode_failed")
-	}
+	w.Write(resource)
 }
 
 func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha1.MicroFrontendClass) (*ProxyConfigResponse, error) {
@@ -256,7 +154,7 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 		}
 	}
 
-	relevantMicroFrontends, err := pwa.microFrontendRepository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
+	relevantMicroFrontends, err := pwa.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		return *mf.Spec.FrontendClass == microFrontendClass.Name && *mf.Spec.Proxy
 	})
 

@@ -3,7 +3,6 @@ package polyfea
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -38,42 +37,104 @@ var pwaTestSuite = IntegrationTestSuite{
 }
 
 func ServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
-	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
+	expected := createExpectedWebAppManifest()
 
-	expected := &v1alpha1.WebAppManifest{
-		Name: &[]string{"Test"}[0],
-		Icons: []v1alpha1.PWAIcon{
-			{
-				Type:  &[]string{"image/png"}[0],
-				Sizes: &[]string{"192x192"}[0],
-				Src:   &[]string{"icon.png"}[0],
-			},
-		},
-		StartUrl: &[]string{"/"}[0],
-		Display:  &[]string{"standalone"}[0],
-	}
-
-	// Act
 	response, err := http.Get(testServerUrl + "/polyfea/app.webmanifest")
+	handleHTTPError(t, err)
+	defer response.Body.Close()
 
+	actual := parseResponseBodyToManifest(t, response.Body)
+	assertWebAppManifestEquality(t, expected, actual)
+}
+
+func ServeRegisterReturnsExpectedFile(t *testing.T) {
+	testServerUrl := os.Getenv(TestServerUrlName)
+	expected := readFileContent(t, ".resources/register.mjs")
+
+	response, err := http.Get(testServerUrl + "/polyfea/register.mjs")
+	handleHTTPError(t, err)
+	defer response.Body.Close()
+
+	body := readResponseBody(t, response.Body)
+	assertStringEquality(t, expected, string(body))
+}
+
+func ServeServiceWorkerReturnsExpectedFile(t *testing.T) {
+	testServerUrl := os.Getenv(TestServerUrlName)
+	expected := readFileContent(t, ".resources/sw.mjs")
+
+	response, err := http.Get(testServerUrl + "/sw.mjs")
+	handleHTTPError(t, err)
+	defer response.Body.Close()
+
+	body := readResponseBody(t, response.Body)
+	assertStringEquality(t, expected, string(body))
+}
+
+func ServeCachingReturnsExpectedConfig(t *testing.T) {
+	testServerUrl := os.Getenv(TestServerUrlName)
+	expected := createExpectedProxyConfigResponse()
+
+	response, err := http.Get(testServerUrl + "/polyfea-caching.json")
+	handleHTTPError(t, err)
+	defer response.Body.Close()
+
+	actual := parseResponseBodyToProxyConfig(t, response.Body)
+	sortProxyConfigEntries(actual, expected)
+	assertProxyConfigEquality(t, expected, actual)
+}
+
+// Helper functions
+func handleHTTPError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+}
 
-	body, err := io.ReadAll(response.Body)
+func readFileContent(t *testing.T, path string) string {
+	file, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+	return string(file)
+}
 
-	actual := &v1alpha1.WebAppManifest{}
-	err = json.Unmarshal(body, &actual)
+func readResponseBody(t *testing.T, body io.ReadCloser) []byte {
+	content, err := io.ReadAll(body)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+	return content
+}
 
-	// Assert
+func parseResponseBodyToManifest(t *testing.T, body io.ReadCloser) *v1alpha1.WebAppManifest {
+	content := readResponseBody(t, body)
+	manifest := &v1alpha1.WebAppManifest{}
+	err := json.Unmarshal(content, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return manifest
+}
+
+func parseResponseBodyToProxyConfig(t *testing.T, body io.ReadCloser) *ProxyConfigResponse {
+	content := readResponseBody(t, body)
+	config := &ProxyConfigResponse{}
+	err := json.Unmarshal(content, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return config
+}
+
+func assertStringEquality(t *testing.T, expected, actual string) {
+	if expected != actual {
+		t.Errorf("Expected %s, got %s", expected, actual)
+	}
+}
+
+func assertWebAppManifestEquality(t *testing.T, expected, actual *v1alpha1.WebAppManifest) {
 	if *actual.Name != *expected.Name {
 		t.Errorf("Expected %s, got %s", *expected.Name, *actual.Name)
 	}
@@ -94,66 +155,77 @@ func ServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 	}
 }
 
-func ServeRegisterReturnsExpectedFile(t *testing.T) {
-	// Arrange
-	testServerUrl := os.Getenv(TestServerUrlName)
-	file, err := os.ReadFile(".resources/register.mjs")
-	if err != nil {
-		t.Fatal(err)
+func assertProxyConfigEquality(t *testing.T, expected, actual *ProxyConfigResponse) {
+	if len(actual.PreCache) != len(expected.PreCache) {
+		t.Errorf("Expected %d, got %d", len(expected.PreCache), len(actual.PreCache))
 	}
-	expected := string(file)
-
-	// Act
-	response, err := http.Get(testServerUrl + "/polyfea/register.mjs")
-
-	if err != nil {
-		t.Fatal(err)
+	for i, entry := range actual.PreCache {
+		if *entry.URL != *expected.PreCache[i].URL {
+			t.Errorf("Expected %s, got %s", *expected.PreCache[i].URL, *entry.URL)
+		}
 	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
+	if len(actual.Routes) != len(expected.Routes) {
+		t.Errorf("Expected %d, got %d", len(expected.Routes), len(actual.Routes))
 	}
-
-	// Assert
-	if string(body) != expected {
-		t.Errorf("Expected %s, got %s", expected, string(body))
-	}
-}
-
-func ServeServiceWorkerReturnsExpectedFile(t *testing.T) {
-	// Arrange
-	testServerUrl := os.Getenv(TestServerUrlName)
-	file, err := os.ReadFile(".resources/sw.mjs")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected := string(file)
-
-	// Act
-	response, err := http.Get(testServerUrl + "/sw.mjs")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Assert
-	if string(body) != expected {
-		t.Errorf("Expected %s, got %s", expected, string(body))
+	for i, route := range actual.Routes {
+		if (route.Prefix == nil && expected.Routes[i].Prefix != nil) ||
+			(route.Prefix != nil && expected.Routes[i].Prefix == nil) ||
+			(route.Prefix != nil && expected.Routes[i].Prefix != nil && *route.Prefix != *expected.Routes[i].Prefix) {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Prefix, *route.Prefix)
+		}
+		if *route.Pattern != *expected.Routes[i].Pattern {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Pattern, *route.Pattern)
+		}
+		if *route.Strategy != *expected.Routes[i].Strategy {
+			t.Errorf("Expected %s, got %s", *expected.Routes[i].Strategy, *route.Strategy)
+		}
 	}
 }
 
-func ServeCachingReturnsExpectedConfig(t *testing.T) {
-	// Arrange
-	testServerUrl := os.Getenv(TestServerUrlName)
+func sortProxyConfigEntries(actual, expected *ProxyConfigResponse) {
+	sort.Slice(actual.PreCache, func(i, j int) bool {
+		return *actual.PreCache[i].URL < *actual.PreCache[j].URL
+	})
+	sort.Slice(expected.PreCache, func(i, j int) bool {
+		return *expected.PreCache[i].URL < *expected.PreCache[j].URL
+	})
 
+	sort.Slice(actual.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *actual.Routes[i].Pattern < *actual.Routes[j].Pattern
+	})
+	sort.Slice(expected.Routes, func(i, j int) bool {
+		if actual.Routes[i].Pattern == nil {
+			return true
+		}
+		if actual.Routes[j].Pattern == nil {
+			return false
+		}
+		return *expected.Routes[i].Pattern < *expected.Routes[j].Pattern
+	})
+}
+
+func createExpectedWebAppManifest() *v1alpha1.WebAppManifest {
+	return &v1alpha1.WebAppManifest{
+		Name: &[]string{"Test"}[0],
+		Icons: []v1alpha1.PWAIcon{
+			{
+				Type:  &[]string{"image/png"}[0],
+				Sizes: &[]string{"192x192"}[0],
+				Src:   &[]string{"icon.png"}[0],
+			},
+		},
+		StartUrl: &[]string{"/"}[0],
+		Display:  &[]string{"standalone"}[0],
+	}
+}
+
+func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 	mfc := createTestMicroFrontendClass("polyfea", "/some")
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
 		CacheOptions: &v1alpha1.PWACache{
@@ -195,7 +267,7 @@ func ServeCachingReturnsExpectedConfig(t *testing.T) {
 		},
 	}
 
-	expected := &ProxyConfigResponse{
+	return &ProxyConfigResponse{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test-class"}[0],
@@ -217,83 +289,10 @@ func ServeCachingReturnsExpectedConfig(t *testing.T) {
 			},
 		},
 	}
-
-	// Act
-	response, err := http.Get(testServerUrl + "/polyfea-caching.json")
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	actual := &ProxyConfigResponse{}
-	err = json.Unmarshal(body, &actual)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// sort actual and expected to make sure the order is the same
-	sort.Slice(actual.PreCache, func(i, j int) bool {
-		return *actual.PreCache[i].URL < *actual.PreCache[j].URL
-	})
-	sort.Slice(expected.PreCache, func(i, j int) bool {
-		return *expected.PreCache[i].URL < *expected.PreCache[j].URL
-	})
-
-	sort.Slice(actual.Routes, func(i, j int) bool {
-		if actual.Routes[i].Pattern == nil {
-			return true
-		}
-		if actual.Routes[j].Pattern == nil {
-			return false
-		}
-		return *actual.Routes[i].Pattern < *actual.Routes[j].Pattern
-	})
-	sort.Slice(expected.Routes, func(i, j int) bool {
-		if actual.Routes[i].Pattern == nil {
-			return true
-		}
-		if actual.Routes[j].Pattern == nil {
-			return false
-		}
-		return *expected.Routes[i].Pattern < *expected.Routes[j].Pattern
-	})
-
-	// Assert
-	if len(actual.PreCache) != len(expected.PreCache) {
-		t.Errorf("Expected %d, got %d", len(expected.PreCache), len(actual.PreCache))
-	}
-	for i, entry := range actual.PreCache {
-		if *entry.URL != *expected.PreCache[i].URL {
-			t.Errorf("Expected %s, got %s", *expected.PreCache[i].URL, *entry.URL)
-		}
-	}
-	if len(actual.Routes) != len(expected.Routes) {
-		t.Errorf("Expected %d, got %d", len(expected.Routes), len(actual.Routes))
-	}
-	for i, route := range actual.Routes {
-		if (route.Prefix == nil && expected.Routes[i].Prefix != nil) ||
-			(route.Prefix != nil && expected.Routes[i].Prefix == nil) ||
-			(route.Prefix != nil && expected.Routes[i].Prefix != nil && *route.Prefix != *expected.Routes[i].Prefix) {
-			t.Errorf("Expected %s, got %s", *expected.Routes[i].Prefix, *route.Prefix)
-		}
-		if *route.Pattern != *expected.Routes[i].Pattern {
-			t.Errorf("Expected %s, got %s", *expected.Routes[i].Pattern, *route.Pattern)
-		}
-		if *route.Strategy != *expected.Routes[i].Strategy {
-			t.Errorf("Expected %s, got %s", *expected.Routes[i].Strategy, *route.Strategy)
-		}
-	}
 }
 
 func polyfeaPWAApiSetupRouter() http.Handler {
 	mfc := createTestMicroFrontendClass("polyfea", "/some")
-
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
 		WebAppManifest: &v1alpha1.WebAppManifest{
 			Name: &[]string{"Test"}[0],
@@ -334,7 +333,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.StoreItem(mf)
+	microFrontendRepository.Store(mf)
 
 	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
 	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
@@ -350,7 +349,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.StoreItem(mf2)
+	microFrontendRepository.Store(mf2)
 
 	mf3 := createTestMicroFrontend("polyfea3", []string{}, "test-module", "polyfea", false)
 	mf3.Spec.CacheOptions = &v1alpha1.PWACache{
@@ -360,7 +359,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.StoreItem(mf3)
+	microFrontendRepository.Store(mf3)
 
 	mf4 := createTestMicroFrontend("polyfea4", []string{}, "test-module", "someother", false)
 	mf4.Spec.CacheOptions = &v1alpha1.PWACache{
@@ -370,7 +369,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.StoreItem(mf4)
+	microFrontendRepository.Store(mf4)
 
 	spa := NewProgressiveWebApplication(&zerolog.Logger{}, microFrontendRepository)
 
