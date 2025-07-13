@@ -13,20 +13,11 @@ func TestInMemoryRepository(t *testing.T) {
 		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 		expected := createTestMicrofrontend()
 
-		if err := repo.Store(expected); err != nil {
-			t.Fatalf("Store failed: %v", err)
-		}
-
-		result, err := repo.List(func(mf *v1alpha1.MicroFrontend) bool {
+		storeItem(t, repo, expected)
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
 			return mf.Name == expected.Name
 		})
-		if err != nil {
-			t.Fatalf("List failed: %v", err)
-		}
-		if len(result) != 1 {
-			t.Fatalf("Expected 1 item, got %d", len(result))
-		}
-
+		assertListLength(t, result, 1)
 		assertEqualMicrofrontend(t, expected, result[0])
 	})
 
@@ -34,52 +25,64 @@ func TestInMemoryRepository(t *testing.T) {
 		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 		expected := createTestMicrofrontend()
 
-		if err := repo.Store(expected); err != nil {
-			t.Fatalf("Store failed: %v", err)
-		}
-
-		result, err := repo.Get(expected)
-		if err != nil {
-			t.Fatalf("Get failed: %v", err)
-		}
-
+		storeItem(t, repo, expected)
+		result := getItem(t, repo, expected)
 		assertEqualMicrofrontend(t, expected, result)
 	})
 
 	t.Run("List returns empty slice when not found", func(t *testing.T) {
 		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-		result, err := repo.List(func(mf *v1alpha1.MicroFrontend) bool {
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
 			return mf.Name == "notfound"
 		})
-		if err != nil {
-			t.Fatalf("List failed: %v", err)
-		}
-		if len(result) != 0 {
-			t.Errorf("Expected empty slice, got %v", result)
-		}
+		assertListLength(t, result, 0)
 	})
 
 	t.Run("Delete removes item", func(t *testing.T) {
 		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 		expected := createTestMicrofrontend()
 
-		if err := repo.Store(expected); err != nil {
-			t.Fatalf("Store failed: %v", err)
-		}
-		if err := repo.Delete(expected); err != nil {
-			t.Fatalf("Delete failed: %v", err)
-		}
-
-		result, err := repo.List(func(mf *v1alpha1.MicroFrontend) bool {
+		storeItem(t, repo, expected)
+		deleteItem(t, repo, expected)
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
 			return mf.Name == expected.Name
 		})
-		if err != nil {
-			t.Fatalf("List failed: %v", err)
-		}
-		if len(result) != 0 {
-			t.Errorf("Expected empty slice after delete, got %v", result)
-		}
+		assertListLength(t, result, 0)
 	})
+}
+
+func storeItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) {
+	if err := repo.Store(item); err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+}
+
+func getItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) *v1alpha1.MicroFrontend {
+	result, err := repo.Get(item)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	return result
+}
+
+func listItems(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], filter func(*v1alpha1.MicroFrontend) bool) []*v1alpha1.MicroFrontend {
+	result, err := repo.List(filter)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	return result
+}
+
+func deleteItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) {
+	if err := repo.Delete(item); err != nil {
+		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+func assertListLength(t *testing.T, list []*v1alpha1.MicroFrontend, expectedLength int) {
+	if len(list) != expectedLength {
+		t.Fatalf("Expected %d items, got %d", expectedLength, len(list))
+	}
 }
 
 // assertEqualMicrofrontend compares two MicroFrontend objects using JSON marshaling.
