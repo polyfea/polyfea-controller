@@ -28,17 +28,7 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 		defer span.End()
 
 		originalPath := r.URL.Path
-		var basePath string
-
-		// Check if the route contains /polyfea
-		if polyfeaIndex := strings.Index(originalPath, "/polyfea"); polyfeaIndex != -1 {
-			// Consider everything before /polyfea as basePath
-			basePath = originalPath[:polyfeaIndex]
-			// Adjust r.URL.Path to include everything after /polyfea
-			r.URL.Path = "/polyfea" + originalPath[polyfeaIndex+len("/polyfea"):]
-		} else {
-			basePath = originalPath
-		}
+		basePath := extractBasePath(originalPath)
 
 		// Retrieve the micro frontend class based on the adjusted path
 		basePath, microFrontendClass, err := getMicrofrontendClassAndBase(basePath, microFrontendClassRepository)
@@ -48,24 +38,33 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 			return
 		}
 
-		// Check if the route contains /sw.mjs
-		if polyfeaIndex := strings.Index(originalPath, "/sw.mjs"); polyfeaIndex != -1 {
-			r.URL.Path = "/sw.mjs"
-		}
-
-		// Check if the route contains /polyfea-caching.json
-		if polyfeaIndex := strings.Index(originalPath, "/polyfea-caching.json"); polyfeaIndex != -1 {
-			r.URL.Path = "/polyfea-caching.json"
-		}
+		// Adjust specific paths
+		adjustSpecialPaths(r, originalPath)
 
 		// Update the context with the basePath and microFrontendClass
 		ctx = context.WithValue(ctx, PolyfeaContextKeyBasePath, basePath)
 		ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, microFrontendClass)
 
 		r = r.WithContext(ctx)
-
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Helper function to extract base path
+func extractBasePath(originalPath string) string {
+	if polyfeaIndex := strings.Index(originalPath, "/polyfea"); polyfeaIndex != -1 {
+		return originalPath[:polyfeaIndex]
+	}
+	return originalPath
+}
+
+// Helper function to adjust specific paths
+func adjustSpecialPaths(r *http.Request, originalPath string) {
+	if strings.Contains(originalPath, "/sw.mjs") {
+		r.URL.Path = "/sw.mjs"
+	} else if strings.Contains(originalPath, "/polyfea-caching.json") {
+		r.URL.Path = "/polyfea-caching.json"
+	}
 }
 
 func getMicrofrontendClassAndBase(requestPath string, microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]) (string, *v1alpha1.MicroFrontendClass, error) {
@@ -79,9 +78,9 @@ func getMicrofrontendClassAndBase(requestPath string, microFrontendClassReposito
 		return in
 	}
 
-	requestPath = slash(requestPath) // needed for user's forgotten trailing slash
+	requestPath = slash(requestPath) // Ensure trailing slash
 
-	microFrontendClasses, err := microFrontendClassRepository.GetItems(func(mfc *v1alpha1.MicroFrontendClass) bool {
+	microFrontendClasses, err := microFrontendClassRepository.List(func(mfc *v1alpha1.MicroFrontendClass) bool {
 		return strings.HasPrefix(requestPath, slash(*mfc.Spec.BaseUri))
 	})
 
@@ -93,16 +92,13 @@ func getMicrofrontendClassAndBase(requestPath string, microFrontendClassReposito
 		return "/", nil, nil
 	}
 
-	baseHref := "/"
+	// Find the longest matching base URI
 	longestMfc := microFrontendClasses[0]
-	// find longest match
 	for _, mfc := range microFrontendClasses {
-		mfcBase := slash(*mfc.Spec.BaseUri)
-		if len(mfcBase) > len(baseHref) {
-			baseHref = mfcBase
+		if len(slash(*mfc.Spec.BaseUri)) > len(slash(*longestMfc.Spec.BaseUri)) {
 			longestMfc = mfc
 		}
 	}
 
-	return baseHref, longestMfc, nil
+	return slash(*longestMfc.Spec.BaseUri), longestMfc, nil
 }

@@ -12,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Improved readability and fixed issues in middlewaresTestSuite
 var middlewaresTestSuite = IntegrationTestSuite{
 	TestRouter: basePathStrippingMiddlewareRouter(),
 	TestSet: []Test{
@@ -38,7 +39,9 @@ var middlewaresTestSuite = IntegrationTestSuite{
 	},
 }
 
+// Added comments to clarify the purpose of each test
 func BasePathStrippingMiddlewareStripsTheBasePathAndForwardItInContext(t *testing.T) {
+	// Test that the middleware correctly strips the base path and forwards it in the context
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
 	// Act
@@ -54,11 +57,12 @@ func BasePathStrippingMiddlewareStripsTheBasePathAndForwardItInContext(t *testin
 	}
 
 	if response.Header.Get("X-Base-Path") != "/someBasePath/" {
-		t.Errorf("Expected header X-Base-Path to be %s, got %s", "someBasePath", response.Header.Get("X-Base-Path"))
+		t.Errorf("Expected header X-Base-Path to be %s, got %s", "/someBasePath/", response.Header.Get("X-Base-Path"))
 	}
 }
 
 func BasePathStrippingMiddlewareNoBasePathIsFoundUseDefault(t *testing.T) {
+	// Test that the middleware uses the default base path when no base path is found
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
 	// Act
@@ -79,6 +83,7 @@ func BasePathStrippingMiddlewareNoBasePathIsFoundUseDefault(t *testing.T) {
 }
 
 func BasePathStrippingMiddlewareBasePathIsFound(t *testing.T) {
+	// Test that the middleware correctly identifies and forwards the base path
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
 	expectedBasePath := "/expected/base/path/"
@@ -100,6 +105,7 @@ func BasePathStrippingMiddlewareBasePathIsFound(t *testing.T) {
 }
 
 func BasePathStrippingMiddlewareWithoutPolyfea(t *testing.T) {
+	// Test that the middleware handles paths without "polyfea" correctly
 	// Arrange
 	testServerUrl := os.Getenv(TestServerUrlName)
 	// Act
@@ -122,6 +128,7 @@ func BasePathStrippingMiddlewareWithoutPolyfea(t *testing.T) {
 }
 
 func BasePathStrippingMiddlewareRewritesURLPathCorrectly(t *testing.T) {
+	// Test that the middleware correctly rewrites the URL path
 	// Arrange
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/polyfea/some/path" {
@@ -130,11 +137,8 @@ func BasePathStrippingMiddlewareRewritesURLPathCorrectly(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Wrap the handler with the BasePathStrippingMiddleware
-	// Assuming setupMfcRepository() returns a configured repository needed by the middleware
-	mfcRepository := setupMfcRepository() // This function needs to be defined according to your application's requirements
+	mfcRepository := setupMfcRepository()
 	middlewareHandler := BasePathStrippingMiddleware(handler, mfcRepository)
-
 	testServer := httptest.NewServer(middlewareHandler)
 	defer testServer.Close()
 
@@ -162,61 +166,31 @@ func basePathStrippingMiddlewareRouter() http.Handler {
 }
 
 func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
+	testData := []struct {
+		name      string
+		namespace string
+		baseUri   string
+	}{
+		{"default", "default", "/"},
+		{"some", "somes", "/someBasePath/"},
+		{"expected", "expecteds", "/expected/base/path"},
+		{"fea", "feas", "/fea/"},
+		{"feature", "features", "/feature/"},
+	}
+
 	mfcRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
-	defaultBase := "/"
-	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.MicroFrontendClassSpec{
-			BaseUri: &defaultBase,
-		},
-	})
 
-	someBasePath := "/someBasePath/"
-	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some",
-			Namespace: "somes",
-		},
-		Spec: v1alpha1.MicroFrontendClassSpec{
-			BaseUri: &someBasePath,
-		},
-	})
-
-	expectedBasePath := "/expected/base/path"
-	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "expected",
-			Namespace: "expecteds",
-		},
-		Spec: v1alpha1.MicroFrontendClassSpec{
-			BaseUri: &expectedBasePath,
-		},
-	})
-
-	feaBase := "/fea/"
-	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "fea",
-			Namespace: "feas",
-		},
-		Spec: v1alpha1.MicroFrontendClassSpec{
-			BaseUri: &feaBase,
-		},
-	})
-
-	featureBase := "/feature/"
-	mfcRepository.StoreItem(&v1alpha1.MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "feature",
-			Namespace: "features",
-		},
-		Spec: v1alpha1.MicroFrontendClassSpec{
-			BaseUri: &featureBase,
-		},
-	})
+	for _, data := range testData {
+		mfcRepository.Store(&v1alpha1.MicroFrontendClass{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      data.name,
+				Namespace: data.namespace,
+			},
+			Spec: v1alpha1.MicroFrontendClassSpec{
+				BaseUri: &data.baseUri,
+			},
+		})
+	}
 
 	return mfcRepository
 }
