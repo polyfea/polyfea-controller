@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors" // Correct import for `errors.IsNotFound`
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -36,7 +38,7 @@ const (
 	MicroFrontendClassFinalizer = "polyfea.github.io/finalizer"
 )
 
-func createMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Routing) *polyfeav1alpha1.MicroFrontendClass {
+func setupMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Routing) *polyfeav1alpha1.MicroFrontendClass {
 	return &polyfeav1alpha1.MicroFrontendClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
@@ -61,10 +63,10 @@ var _ = Describe("MicroFrontendClass controller", func() {
 	)
 
 	Context("Validation and defaults", func() {
-		DescribeTable("Should validate required fields",
+		DescribeTable("Validation scenarios",
 			func(title, baseUri *string, shouldSucceed bool) {
 				ctx := context.Background()
-				mfc := createMicroFrontendClass(title, baseUri, nil)
+				mfc := setupMicroFrontendClass(title, baseUri, nil)
 				if shouldSucceed {
 					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 				} else {
@@ -73,12 +75,12 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			},
 			Entry("missing baseUri", ptr("Test"), nil, false),
 			Entry("missing title", nil, ptr("/base"), false),
-			Entry("valid", ptr("Test"), ptr("/base"), true),
+			Entry("valid MicroFrontendClass", ptr("Test"), ptr("/base"), true),
 		)
 
 		It("Should fill defaults when only required fields are set", func() {
 			ctx := context.Background()
-			mfc := createMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
 			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
@@ -92,15 +94,15 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 			Expect(k8sClient.Delete(ctx, created)).Should(Succeed())
 			Eventually(func() bool {
-				return k8sClient.Get(ctx, lookupKey, created) != nil
+				return errors.IsNotFound(k8sClient.Get(ctx, lookupKey, created))
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
 
 	Context("Repository add/remove", func() {
-		It("Should add and remove microfrontendclass from repository", func() {
+		It("Should add and remove MicroFrontendClass from repository", func() {
 			ctx := context.Background()
-			mfc := createMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
 			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
@@ -133,7 +135,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 			expectRoute   bool
 		}
 
-		DescribeTable("Should create correct resources for routing",
+		DescribeTable("Routing scenarios",
 			func(rc routingCase) {
 				ctx := context.Background()
 				operatorService := &corev1.Service{
@@ -148,7 +150,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 				}
 				Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
 
-				mfc := createMicroFrontendClass(ptr("Test"), ptr("/base"), rc.routing)
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), rc.routing)
 				Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
 				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
@@ -181,26 +183,11 @@ var _ = Describe("MicroFrontendClass controller", func() {
 	})
 
 	Context("Manifest validation", func() {
-		DescribeTable("Should validate manifest fields",
+		DescribeTable("Manifest scenarios",
 			func(manifest *polyfeav1alpha1.WebAppManifest, shouldSucceed bool) {
 				ctx := context.Background()
-				mfc := &polyfeav1alpha1.MicroFrontendClass{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "polyfea.github.io/v1alpha1",
-						Kind:       "MicroFrontendClass",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      MicroFrontendClassName,
-						Namespace: MicroFrontendClassNamespace,
-					},
-					Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-						Title:   ptr("Test"),
-						BaseUri: ptr("/base"),
-						ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-							WebAppManifest: manifest,
-						},
-					},
-				}
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+				mfc.Spec.ProgressiveWebApp = &polyfeav1alpha1.ProgressiveWebApp{WebAppManifest: manifest}
 				if shouldSucceed {
 					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 				} else {
