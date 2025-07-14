@@ -25,11 +25,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 const (
@@ -38,7 +35,7 @@ const (
 	MicroFrontendClassFinalizer = "polyfea.github.io/finalizer"
 )
 
-func setupMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Routing) *polyfeav1alpha1.MicroFrontendClass {
+func setupMicroFrontendClass(title, baseUri *string) *polyfeav1alpha1.MicroFrontendClass {
 	return &polyfeav1alpha1.MicroFrontendClass{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
@@ -51,7 +48,6 @@ func setupMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Ro
 		Spec: polyfeav1alpha1.MicroFrontendClassSpec{
 			Title:   title,
 			BaseUri: baseUri,
-			Routing: routing,
 		},
 	}
 }
@@ -82,7 +78,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-				mfc := setupMicroFrontendClass(title, baseUri, nil)
+				mfc := setupMicroFrontendClass(title, baseUri)
 				if shouldSucceed {
 					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 				} else {
@@ -99,7 +95,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
 			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
@@ -124,7 +120,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
 			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
@@ -150,63 +146,6 @@ var _ = Describe("MicroFrontendClass controller", func() {
 		})
 	})
 
-	Context("Routing resource creation and switching", func() {
-		type routingCase struct {
-			routing       *polyfeav1alpha1.Routing
-			expectIngress bool
-			expectRoute   bool
-		}
-
-		DescribeTable("Routing scenarios",
-			func(rc routingCase) {
-				ctx := context.Background()
-
-				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
-
-				operatorService := &corev1.Service{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "polyfea-webserver",
-						Namespace: MicroFrontendClassNamespace,
-						Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-					},
-					Spec: corev1.ServiceSpec{
-						Ports: []corev1.ServicePort{{Name: PortName, Port: 80}},
-					},
-				}
-				Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), rc.routing)
-				Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
-
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-				created := &polyfeav1alpha1.MicroFrontendClass{}
-				Eventually(func() bool {
-					return k8sClient.Get(ctx, lookupKey, created) == nil
-				}, timeout, interval).Should(BeTrue())
-
-				if rc.expectRoute {
-					httpRoute := &gatewayv1.HTTPRoute{}
-					Eventually(func() bool {
-						return k8sClient.Get(ctx, lookupKey, httpRoute) == nil
-					}, timeout, interval).Should(BeTrue())
-					Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-				}
-				if rc.expectIngress {
-					ingress := &networkingv1.Ingress{}
-					Eventually(func() bool {
-						return k8sClient.Get(ctx, lookupKey, ingress) == nil
-					}, timeout, interval).Should(BeTrue())
-					Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-				}
-
-				Expect(k8sClient.Delete(ctx, created)).Should(Succeed())
-				Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-			},
-			Entry("parentRefs only", routingCase{routing: &polyfeav1alpha1.Routing{ParentRefs: []gatewayv1.ParentReference{{Name: "abcd"}}}, expectRoute: true, expectIngress: false}),
-			Entry("ingressClassName only", routingCase{routing: &polyfeav1alpha1.Routing{IngressClassName: ptr("nginx")}, expectRoute: false, expectIngress: true}),
-		)
-	})
-
 	Context("Manifest validation", func() {
 		DescribeTable("Manifest scenarios",
 			func(manifest *polyfeav1alpha1.WebAppManifest, shouldSucceed bool) {
@@ -214,7 +153,7 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 				mfc.Spec.ProgressiveWebApp = &polyfeav1alpha1.ProgressiveWebApp{WebAppManifest: manifest}
 				if shouldSucceed {
 					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())

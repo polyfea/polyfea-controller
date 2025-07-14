@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
 // MicroFrontendClassSpec defines the desired state of MicroFrontendClass
@@ -54,34 +53,11 @@ type MicroFrontendClassSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserHeader string `json:"userHeader,omitempty"`
 
-	// Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
-	// You can also define your own routing by not specifying any of the fields.
-	// You can either use a Gateway API or an Ingress.
-	// We currently support only basic path prefix routing any customization requires creation of HTTPRoute or Ingress manually.
-	// You need to have a service for the operator with label 'app' set to 'polyfea-webserver' and a port with name webserver for the routing to work.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Routing *Routing `json:"routing,omitempty"`
-
 	// ProgressiveWebApp defines the configuration settings for a Progressive Web Application (PWA).
 	// It includes specifications for the web app manifest and cache options, which are crucial for the PWA's functionality and performance.
 	// This field is optional and can be omitted if not needed.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ProgressiveWebApp *ProgressiveWebApp `json:"progressiveWebApp,omitempty"`
-}
-
-// Routing defines the routing for the frontend class from outside of the cluster you can either use a Gateway API or an Ingress.
-// +kubebuilder:validation:MaxProperties=1
-// +kubebuilder:validation:MinProperties=1
-type Routing struct {
-	// ParentRefs is the name of the parent refs that the created HTTPRoute will be attached to.
-	// If specified an HttpRoute will be created for the frontend class automatically.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	ParentRefs []gatewayv1.ParentReference `json:"parentRefs,omitempty"`
-
-	// IngressClassName is the name of the ingress class that will be used for the frontend class.
-	// If specified an Ingress will be created for the frontend class automatically.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	IngressClassName *string `json:"ingressClassName,omitempty"`
 }
 
 // MetaTag defines the meta tag of the frontend class
