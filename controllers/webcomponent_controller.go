@@ -44,10 +44,6 @@ type WebComponentReconciler struct {
 //+kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	const webComponentFinalizer = "polyfea.github.io/finalizer"
 	log := log.FromContext(ctx)
@@ -59,7 +55,7 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get WebComponent!")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	log.Info("Reconciling WebComponent.", "WebComponent", webComponent)
@@ -69,7 +65,7 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		controllerutil.AddFinalizer(webComponent, webComponentFinalizer)
 		if err := r.Update(ctx, webComponent); err != nil {
 			log.Error(err, "Failed to update custom resource to add finalizer!")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{}, nil
 	}
@@ -84,7 +80,7 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			controllerutil.RemoveFinalizer(webComponent, webComponentFinalizer)
 			if err := r.Update(ctx, webComponent); err != nil {
 				log.Error(err, "Failed to remove finalizer for WebComponent!")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 		}
 		return ctrl.Result{}, nil

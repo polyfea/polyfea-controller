@@ -56,7 +56,7 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get MicroFrontend")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	log.Info("Reconciling MicroFrontend", "MicroFrontend", mf)
@@ -67,7 +67,7 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		controllerutil.AddFinalizer(mf, finalizerName)
 		if err := r.Update(ctx, mf); err != nil {
 			log.Error(err, "Failed to update MicroFrontend with finalizer")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{}, nil
 	}
@@ -83,12 +83,12 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			// Re-fetch in case of update
 			if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
 				log.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			controllerutil.RemoveFinalizer(mf, finalizerName)
 			if err := r.Update(ctx, mf); err != nil {
 				log.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 		}
 		return ctrl.Result{}, nil
@@ -97,7 +97,7 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Store the MicroFrontend in the repository
 	if err := r.Repository.Store(mf); err != nil {
 		log.Error(err, "Failed to store MicroFrontend in repository")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	return ctrl.Result{}, nil

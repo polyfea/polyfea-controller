@@ -81,7 +81,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, nil
 		}
 		log.Error(err, "Failed to get MicroFrontendClass")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	log.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
@@ -92,9 +92,9 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		controllerutil.AddFinalizer(mfc, finalizerName)
 		if err := r.Update(ctx, mfc); err != nil {
 			log.Error(err, "Failed to update custom resource to add finalizer")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{}, nil
 	}
 
 	// Handle deletion
@@ -107,13 +107,13 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			}
 			if err := r.Get(ctx, req.NamespacedName, mfc); err != nil {
 				log.Error(err, "Failed to re-fetch MicroFrontendClass")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			log.Info("Removing Finalizer for MicroFrontendClass after successful operations")
 			controllerutil.RemoveFinalizer(mfc, finalizerName)
 			if err := r.Update(ctx, mfc); err != nil {
 				log.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{}, nil
 		}
@@ -141,7 +141,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			httpRoute = nil
 		} else {
 			log.Error(err, "Failed to get HttpRoute")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 	} else if !r.isAlreadyWatching {
 		r.selfRef.Watch(source.Kind(r.cacheRef, &gatewayv1.HTTPRoute{}), &handler.EnqueueRequestForObject{})
@@ -155,7 +155,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			ingress = nil
 		} else {
 			log.Error(err, "Failed to get Ingress")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 
@@ -165,7 +165,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		if mfc.Spec.Routing.ParentRefs != nil && httpRoutePresent {
 			if err := r.createHttpRoute(ctx, log, mfc, operatorService); err != nil {
@@ -174,18 +174,18 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 					httpRoutePresent = false
 				} else {
 					log.Error(err, "Failed to create HttpRoute")
-					return ctrl.Result{}, err
+					return ctrl.Result{Requeue: true}, err
 				}
 			}
 			if err := r.recreateRefGrant(ctx, log, mfc, operatorService); err != nil {
 				log.Error(err, "Failed to recreate ReferenceGrant")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 		}
 		if mfc.Spec.Routing.IngressClassName != nil {
 			if err := r.createIngress(ctx, log, mfc, operatorService); err != nil {
 				log.Error(err, "Failed to create Ingress")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 		}
 	}
@@ -196,30 +196,30 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if mfc.Spec.Routing.ParentRefs == nil && mfc.Spec.Routing.IngressClassName != nil {
 			if err := r.Delete(ctx, httpRoute); err != nil {
 				log.Error(err, "Failed to delete HttpRoute")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			if err := r.createIngress(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
 				log.Error(err, "Failed to create Ingress")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
 		}
 		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		update := createRouteForMicroFrontendClass(mfc, operatorService)
 		if err := controllerutil.SetControllerReference(mfc, update, r.Scheme); err != nil {
 			log.Error(err, "Failed to set controller reference for HttpRoute")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		if areNotSameHttpRoute(httpRoute, update) {
 			log.Info("Updating HttpRoute for MicroFrontendClass")
 			update.ResourceVersion = httpRoute.ResourceVersion
 			if err := r.Update(ctx, update); err != nil {
 				log.Error(err, "Failed to update HttpRoute")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -229,22 +229,22 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		if mfc.Spec.Routing.IngressClassName == nil && mfc.Spec.Routing.ParentRefs != nil {
 			if err := r.Delete(ctx, ingress); err != nil {
 				log.Error(err, "Failed to delete Ingress")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			if err := r.createHttpRoute(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
 				log.Error(err, "Failed to create HttpRoute")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			if err := r.recreateRefGrant(ctx, log, mfc, r.getOperatorService(ctx, log, mfc)); err != nil {
 				log.Error(err, "Failed to recreate ReferenceGrant")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
 		}
 		operatorService := r.getOperatorService(ctx, log, mfc)
 		if operatorService == nil {
 			log.Error(err, "Failed to get OperatorService")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 		update := createIngressForMicroFrontendClass(mfc, operatorService)
 		controllerutil.SetControllerReference(mfc, update, r.Scheme)
@@ -253,7 +253,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 			update.ResourceVersion = ingress.ResourceVersion
 			if err := r.Update(ctx, update); err != nil {
 				log.Error(err, "Failed to update Ingress")
-				return ctrl.Result{}, err
+				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -264,20 +264,20 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if mfc.Spec.Routing == nil && httpRoute != nil {
 		if err := r.Delete(ctx, httpRoute); err != nil {
 			log.Error(err, "Failed to delete HttpRoute")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 	if mfc.Spec.Routing == nil && ingress != nil {
 		if err := r.Delete(ctx, ingress); err != nil {
 			log.Error(err, "Failed to delete Ingress")
-			return ctrl.Result{}, err
+			return ctrl.Result{Requeue: true}, err
 		}
 	}
 
 	// Store the MicroFrontendClass in the repository
 	if err := r.Repository.Store(mfc); err != nil {
 		log.Error(err, "Failed to store MicroFrontendClass in repository")
-		return ctrl.Result{}, err
+		return ctrl.Result{Requeue: true}, err
 	}
 
 	return ctrl.Result{}, nil
