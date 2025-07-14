@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Refactored tests for improved readability and maintainability
 func TestServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 	// Test that the `serveAppWebManifest` method returns the expected manifest
 	// Arrange

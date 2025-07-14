@@ -20,7 +20,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Improved readability and fixed issues in proxyTestSuite
 var proxyTestSuite = IntegrationTestSuite{
 	TestRouter: polyfeaProxyApiSetupRouter(),
 	TestSet: []Test{
@@ -35,7 +34,6 @@ var proxyTestSuite = IntegrationTestSuite{
 	},
 }
 
-// Added comments to clarify the purpose of each test
 func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 	// Test that the proxy correctly forwards the call and returns the result
 	// Arrange
@@ -271,7 +269,6 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	}
 }
 
-// Fixed method name from `StoreItem` to `Store` in test setup
 func polyfeaProxyApiSetupRouter() http.Handler {
 	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 

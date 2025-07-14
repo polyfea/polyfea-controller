@@ -76,7 +76,6 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 	})
 }
 
-// Consolidated resource serving logic
 func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *http.Request, functionName, contentType string, resourceProvider func(*v1alpha1.MicroFrontendClass) ([]byte, error)) {
 	logger := pwa.logger.With().
 		Str("function", functionName).

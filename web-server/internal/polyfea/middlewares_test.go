@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Improved readability and fixed issues in middlewaresTestSuite
 var middlewaresTestSuite = IntegrationTestSuite{
 	TestRouter: basePathStrippingMiddlewareRouter(),
 	TestSet: []Test{
@@ -39,7 +38,6 @@ var middlewaresTestSuite = IntegrationTestSuite{
 	},
 }
 
-// Added comments to clarify the purpose of each test
 func BasePathStrippingMiddlewareStripsTheBasePathAndForwardItInContext(t *testing.T) {
 	// Test that the middleware correctly strips the base path and forwards it in the context
 	// Arrange
