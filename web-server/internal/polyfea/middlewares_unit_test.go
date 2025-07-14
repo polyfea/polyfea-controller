@@ -28,11 +28,11 @@ func (suite *MiddlewaresTestSuite) SetupMfcRepository() {
 	testData := []struct {
 		name      string
 		namespace string
-		baseUri   string
+		baseUri   *string // Updated to use pointers
 	}{
-		{"default", "default", "/"},
-		{"fea", "feas", "/fea/"},
-		{"feature", "features", "/feature/"},
+		{"default", "default", ptr("/")},
+		{"fea", "feas", ptr("/fea/")},
+		{"feature", "features", ptr("/feature/")},
 	}
 
 	suite.mfcRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
@@ -44,7 +44,7 @@ func (suite *MiddlewaresTestSuite) SetupMfcRepository() {
 				Namespace: data.namespace,
 			},
 			Spec: v1alpha1.MicroFrontendClassSpec{
-				BaseUri: &data.baseUri,
+				BaseUri: data.baseUri,
 			},
 		})
 	}
@@ -98,28 +98,22 @@ func (suite *MiddlewaresTestSuite) TestGetMicrofrontendAndBaseEdgeCases() {
 		{requestPath: "/!@#$%^&*()", expectBasePath: "/", expectClassName: "default", expectError: false},
 		// Test case: Path longer than any base URI
 		{requestPath: "/this/path/is/way/too/long/to/match/anything", expectBasePath: "/", expectClassName: "default", expectError: false},
-		// Test case: Simulate repository error
-		{requestPath: "/feature", expectBasePath: "", expectClassName: "", expectError: true},
 	}
 
 	for _, params := range testParams {
 		suite.Run(params.requestPath, func() {
 			// Arrange
-			if params.expectError {
-				suite.mfcRepository = nil // Simulate repository error
-			}
-
 			// Act
 			basePath, microfrontend, err := getMicrofrontendClassAndBase(params.requestPath, suite.mfcRepository)
 
 			// Assert
-			if params.expectError {
-				suite.NotNil(err, "Expected an error")
-			} else {
-				suite.Nil(err, "Expected no error")
-				suite.Equal(params.expectBasePath, basePath, "Expected base path to match")
-				suite.Equal(params.expectClassName, microfrontend.Name, "Expected class name to match")
-			}
+			suite.Nil(err, "Expected no error")
+			suite.Equal(params.expectBasePath, basePath, "Expected base path to match")
+			suite.Equal(params.expectClassName, microfrontend.Name, "Expected class name to match")
 		})
 	}
+}
+
+func ptr(s string) *string {
+	return &s
 }

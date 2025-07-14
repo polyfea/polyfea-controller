@@ -169,13 +169,13 @@ func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 	testData := []struct {
 		name      string
 		namespace string
-		baseUri   string
+		baseUri   *string
 	}{
-		{"default", "default", "/"},
-		{"some", "somes", "/someBasePath/"},
-		{"expected", "expecteds", "/expected/base/path"},
-		{"fea", "feas", "/fea/"},
-		{"feature", "features", "/feature/"},
+		{"default", "default", ptr("/")},
+		{"some", "somes", ptr("/someBasePath/")},
+		{"expected", "expecteds", ptr("/expected/base/path")},
+		{"fea", "feas", ptr("/fea/")},
+		{"feature", "features", ptr("/feature/")},
 	}
 
 	mfcRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
@@ -187,7 +187,7 @@ func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 				Namespace: data.namespace,
 			},
 			Spec: v1alpha1.MicroFrontendClassSpec{
-				BaseUri: &data.baseUri,
+				BaseUri: data.baseUri,
 			},
 		})
 	}

@@ -28,7 +28,7 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 		defer span.End()
 
 		originalPath := r.URL.Path
-		basePath := extractBasePath(originalPath)
+		basePath := extractBasePath(originalPath, r)
 
 		// Retrieve the micro frontend class based on the adjusted path
 		basePath, microFrontendClass, err := getMicrofrontendClassAndBase(basePath, microFrontendClassRepository)
@@ -51,9 +51,13 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 }
 
 // Helper function to extract base path
-func extractBasePath(originalPath string) string {
+func extractBasePath(originalPath string, r *http.Request) string {
 	if polyfeaIndex := strings.Index(originalPath, "/polyfea"); polyfeaIndex != -1 {
-		return originalPath[:polyfeaIndex]
+		// Consider everything before /polyfea as basePath
+		basePath := originalPath[:polyfeaIndex]
+		// Adjust r.URL.Path to include everything after /polyfea
+		r.URL.Path = "/polyfea" + originalPath[polyfeaIndex+len("/polyfea"):]
+		return basePath
 	}
 	return originalPath
 }

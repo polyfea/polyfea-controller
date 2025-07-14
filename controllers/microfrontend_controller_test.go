@@ -56,6 +56,19 @@ func setupMicroFrontend(name string, service, modulePath *string, proxy *bool, f
 	}
 }
 
+func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+	existingMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
+	if err == nil {
+		// Delete the existing resource
+		Expect(k8sClient.Delete(ctx, existingMicroFrontend)).Should(Succeed())
+		// Wait for the resource to be fully deleted
+		Eventually(func() bool {
+			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
+		}, timeout, interval).Should(BeTrue())
+	}
+}
+
 var _ = Describe("Microfrontend controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -67,6 +80,9 @@ var _ = Describe("Microfrontend controller", func() {
 			By("Creating a new MicroFrontend")
 			ctx := context.Background()
 			proxy := true
+
+			ensureMicroFrontendDeleted(ctx, timeout, interval)
+
 			microFrontend := setupMicroFrontend(
 				MicroFrontendName,
 				ptr("http://test-service.test-namespace.svc.cluster.local"),
@@ -87,8 +103,14 @@ var _ = Describe("Microfrontend controller", func() {
 			Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
 
 			By("Checking the MicroFrontend has finalizer")
-			Eventually(func() ([]string, error) {
-				return createdMicroFrontend.ObjectMeta.GetFinalizers(), nil
+			// Wait for the finalizer to be added
+			Eventually(func() []string {
+				updatedMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, updatedMicroFrontend)
+				if err != nil {
+					return nil
+				}
+				return updatedMicroFrontend.ObjectMeta.Finalizers
 			}, timeout, interval).Should(ContainElement(MicroFrontendFinalizer))
 
 			By("Deleting the MicroFrontend")
@@ -102,6 +124,9 @@ var _ = Describe("Microfrontend controller", func() {
 			func(service, modulePath *string, shouldSucceed bool) {
 				ctx := context.Background()
 				proxy := true
+
+				ensureMicroFrontendDeleted(ctx, timeout, interval)
+
 				microFrontend := setupMicroFrontend(
 					MicroFrontendName,
 					service,
@@ -125,6 +150,9 @@ var _ = Describe("Microfrontend controller", func() {
 		It("Should create with defaults if optional fields are not specified", func() {
 			By("Creating a new MicroFrontend with only required fields")
 			ctx := context.Background()
+
+			ensureMicroFrontendDeleted(ctx, timeout, interval)
+
 			microFrontend := setupMicroFrontend(
 				MicroFrontendName,
 				ptr("http://test-service.test-namespace.svc.cluster.local"),

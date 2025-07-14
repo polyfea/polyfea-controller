@@ -56,6 +56,19 @@ func setupMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Ro
 	}
 }
 
+func ensureMicroFrontendClassDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+	existingMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass)
+	if err == nil {
+		// Delete the existing resource
+		Expect(k8sClient.Delete(ctx, existingMicroFrontendClass)).Should(Succeed())
+		// Wait for the resource to be fully deleted
+		Eventually(func() bool {
+			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass))
+		}, timeout, interval).Should(BeTrue())
+	}
+}
+
 var _ = Describe("MicroFrontendClass controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -66,6 +79,9 @@ var _ = Describe("MicroFrontendClass controller", func() {
 		DescribeTable("Validation scenarios",
 			func(title, baseUri *string, shouldSucceed bool) {
 				ctx := context.Background()
+
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
 				mfc := setupMicroFrontendClass(title, baseUri, nil)
 				if shouldSucceed {
 					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
@@ -80,6 +96,9 @@ var _ = Describe("MicroFrontendClass controller", func() {
 
 		It("Should fill defaults when only required fields are set", func() {
 			ctx := context.Background()
+
+			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
 			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
@@ -102,6 +121,9 @@ var _ = Describe("MicroFrontendClass controller", func() {
 	Context("Repository add/remove", func() {
 		It("Should add and remove MicroFrontendClass from repository", func() {
 			ctx := context.Background()
+
+			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
 			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
 			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
@@ -138,6 +160,9 @@ var _ = Describe("MicroFrontendClass controller", func() {
 		DescribeTable("Routing scenarios",
 			func(rc routingCase) {
 				ctx := context.Background()
+
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
 				operatorService := &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "polyfea-webserver",
@@ -186,6 +211,9 @@ var _ = Describe("MicroFrontendClass controller", func() {
 		DescribeTable("Manifest scenarios",
 			func(manifest *polyfeav1alpha1.WebAppManifest, shouldSucceed bool) {
 				ctx := context.Background()
+
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
 				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
 				mfc.Spec.ProgressiveWebApp = &polyfeav1alpha1.ProgressiveWebApp{WebAppManifest: manifest}
 				if shouldSucceed {

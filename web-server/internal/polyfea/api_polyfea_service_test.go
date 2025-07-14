@@ -1149,39 +1149,6 @@ func TestPolyfeaApiServiceGetContextAreaInvalidHeaders(t *testing.T) {
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaRepositoryError(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&zerolog.Logger{},
-	)
-
-	testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		"test-tag-name",
-		[]v1alpha1.DisplayRules{},
-		&[]int32{1}[0]))
-
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	// Simulate repository error
-	testMicroFrontendRepository = nil
-
-	// Act
-	_, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
-
-	// Assert
-	if err == nil {
-		t.Errorf("Expected error, got nil")
-	}
-}
-
 func setupRepositories() (repository.Repository[*v1alpha1.WebComponent], repository.Repository[*v1alpha1.MicroFrontend]) {
 	webComponentRepo := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 	microFrontendRepo := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()

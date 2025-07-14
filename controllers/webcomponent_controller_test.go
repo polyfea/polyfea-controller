@@ -29,20 +29,35 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const (
+	WebComponentName      = "test-webcomponent"
+	WebComponentNamespace = "default"
+	WebComponentFinalizer = "polyfea.github.io/finalizer"
+
+	timeout  = time.Second * 10
+	interval = time.Millisecond * 250
+)
+
+// Ensure the WebComponent resource does not already exist
+func ensureWebComponentDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+	existingWebComponent := &polyfeav1alpha1.WebComponent{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent)
+	if err == nil {
+		// Delete the existing resource
+		Expect(k8sClient.Delete(ctx, existingWebComponent)).Should(Succeed())
+		// Wait for the resource to be fully deleted
+		Eventually(func() bool {
+			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent))
+		}, timeout, interval).Should(BeTrue())
+	}
+}
+
 var _ = Describe("WebComponent controller", func() {
-
-	const (
-		WebComponentName      = "test-webcomponent"
-		WebComponentNamespace = "default"
-		WebComponentFinalizer = "polyfea.github.io/finalizer"
-
-		timeout  = time.Second * 10
-		interval = time.Millisecond * 250
-	)
 
 	DescribeTable("Validation scenarios",
 		func(spec polyfeav1alpha1.WebComponentSpec, shouldSucceed bool) {
 			ctx := context.Background()
+			ensureWebComponentDeleted(ctx, timeout, interval)
 			webComponent := &polyfeav1alpha1.WebComponent{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "polyfea.github.io/v1alpha1",
@@ -90,6 +105,8 @@ var _ = Describe("WebComponent controller", func() {
 
 	It("Should create with defaults when optional fields are missing", func() {
 		ctx := context.Background()
+		ensureWebComponentDeleted(ctx, timeout, interval)
+
 		webComponent := &polyfeav1alpha1.WebComponent{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "polyfea.github.io/v1alpha1",
@@ -128,6 +145,7 @@ var _ = Describe("WebComponent controller", func() {
 
 	It("Should add and remove finalizer", func() {
 		ctx := context.Background()
+		ensureWebComponentDeleted(ctx, timeout, interval)
 		webComponent := &polyfeav1alpha1.WebComponent{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "polyfea.github.io/v1alpha1",

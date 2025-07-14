@@ -66,6 +66,9 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	proxyUrl := p.buildProxyUrl(microfrontend.Spec.Service, path)
 	resp, err := p.proxyRequest(ctx, proxyUrl, r, logger, span, w)
 	if err != nil {
+		logger.Err(err).Msg("Error while proxying request.")
+		span.SetStatus(codes.Error, "proxying_request: "+err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
