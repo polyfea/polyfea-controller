@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -161,6 +162,9 @@ func (s *PolyfeaApiService) handleNoWebComponentsFound(logger zerolog.Logger, sp
 }
 
 func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComponent, take int32) []*v1alpha1.WebComponent {
+	sort.Slice(webComponents, func(i, j int) bool {
+		return *webComponents[i].Spec.Priority > *webComponents[j].Spec.Priority
+	})
 	if take > 0 && int(take) < len(webComponents) {
 		return webComponents[:take]
 	}
