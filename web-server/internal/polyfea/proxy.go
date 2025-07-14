@@ -53,7 +53,7 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	nameMicroFrontend := params[MicrofrontendPathParamName]
 	path := params[PathPathParamName]
 
-	microfrontend, err := p.getMicrofrontend(nameSpace, nameMicroFrontend, logger, span, w)
+	microfrontend, err := p.getMicrofrontend(nameSpace, nameMicroFrontend, logger, span, w, ctx)
 	if err != nil {
 		return
 	}
@@ -88,7 +88,7 @@ func (p *PolyfeaProxy) startSpan(ctx context.Context, spanName, method, path str
 	))
 }
 
-func (p *PolyfeaProxy) getMicrofrontend(nameSpace, nameMicroFrontend string, logger zerolog.Logger, span trace.Span, w http.ResponseWriter) (*v1alpha1.MicroFrontend, error) {
+func (p *PolyfeaProxy) getMicrofrontend(nameSpace, nameMicroFrontend string, logger zerolog.Logger, span trace.Span, w http.ResponseWriter, ctx context.Context) (*v1alpha1.MicroFrontend, error) {
 	microfrontends, err := p.microfrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		return mf.Namespace == nameSpace && mf.Name == nameMicroFrontend
 	})
@@ -103,7 +103,7 @@ func (p *PolyfeaProxy) getMicrofrontend(nameSpace, nameMicroFrontend string, log
 		logger.Warn().Msg("No microfrontend found for the given namespace and name.")
 		span.SetStatus(codes.Error, "microfrontend_not_found")
 		http.Error(w, "No microfrontend found for the given namespace and name.", http.StatusNotFound)
-		telemetry().not_found.Add(context.Background(), 1)
+		telemetry().not_found.Add(ctx, 1)
 		return nil, nil
 	}
 

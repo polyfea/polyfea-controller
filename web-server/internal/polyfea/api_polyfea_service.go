@@ -62,7 +62,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	if len(webComponents) == 0 {
-		return s.handleNoWebComponentsFound(logger, span, frontendClass, result)
+		return s.handleNoWebComponentsFound(logger, span, frontendClass, result, ctx)
 	}
 
 	webComponents = s.limitWebComponents(webComponents, take)
@@ -77,7 +77,7 @@ func (s *PolyfeaApiService) GetContextArea(ctx context.Context, name string, pat
 	}
 
 	result.Microfrontends = s.convertMicroFrontendsToResponse(allMicroFrontends)
-	return s.finalizeResponse(logger, span, frontendClass, result)
+	return s.finalizeResponse(logger, span, frontendClass, result, ctx)
 }
 
 // Helper methods for GetContextArea
@@ -154,9 +154,9 @@ func (s *PolyfeaApiService) handleRepositoryError(logger zerolog.Logger, span tr
 	return addExtraHeaders(generated.Response(http.StatusInternalServerError, "Internal Server Error"), frontendClass.Spec.ExtraHeaders), err
 }
 
-func (s *PolyfeaApiService) handleNoWebComponentsFound(logger zerolog.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea) (generated.ImplResponse, error) {
+func (s *PolyfeaApiService) handleNoWebComponentsFound(logger zerolog.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea, ctx context.Context) (generated.ImplResponse, error) {
 	logger.Info().Msg("No webcomponents found for query")
-	telemetry().not_found.Add(context.Background(), 1)
+	telemetry().not_found.Add(ctx, 1)
 	span.SetStatus(codes.Ok, "webcomponent_not_found")
 	return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 }
@@ -201,10 +201,10 @@ func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []
 	return result
 }
 
-func (s *PolyfeaApiService) finalizeResponse(logger zerolog.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea) (generated.ImplResponse, error) {
+func (s *PolyfeaApiService) finalizeResponse(logger zerolog.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea, ctx context.Context) (generated.ImplResponse, error) {
 	logger.Info().Msg("Context area successfully generated")
 	span.SetStatus(codes.Ok, "ok")
-	telemetry().context_areas.Add(context.Background(), 1)
+	telemetry().context_areas.Add(ctx, 1)
 	return addExtraHeaders(generated.Response(http.StatusOK, result), frontendClass.Spec.ExtraHeaders), nil
 }
 
