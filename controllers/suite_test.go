@@ -47,9 +47,9 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
-var microFrontendClassRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]
-var microFrontendRepository repository.PolyfeaRepository[*polyfeav1alpha1.MicroFrontend]
-var webComponentRepository repository.PolyfeaRepository[*polyfeav1alpha1.WebComponent]
+var microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass]
+var microFrontendRepository repository.Repository[*polyfeav1alpha1.MicroFrontend]
+var webComponentRepository repository.Repository[*polyfeav1alpha1.WebComponent]
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -95,9 +95,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	microFrontendClassRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontendClass]()
-	microFrontendRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.MicroFrontend]()
-	webComponentRepository = repository.NewInMemoryPolyfeaRepository[*polyfeav1alpha1.WebComponent]()
+	microFrontendClassRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	microFrontendRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontend]()
+	webComponentRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
 
 	err = (&MicroFrontendReconciler{
 		Client:     mgr.GetClient(),

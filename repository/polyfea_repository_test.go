@@ -8,78 +8,96 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestInMemoryPolyfeaRepositoryItemStoredCanBeRetrieved(t *testing.T) {
+func TestInMemoryRepository(t *testing.T) {
+	t.Run("Store and retrieve item with List", func(t *testing.T) {
+		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+		expected := createTestMicrofrontend()
 
-	// Arrange
-	repository := NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	expectedMicrofrontend := createTestMicrofrontend()
-
-	// Act
-	repository.StoreItem(expectedMicrofrontend)
-	result, _ := repository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
-		return mf.Name == expectedMicrofrontend.Name
+		storeItem(t, repo, expected)
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
+			return mf.Name == expected.Name
+		})
+		assertListLength(t, result, 1)
+		assertEqualMicrofrontend(t, expected, result[0])
 	})
 
-	// Assert
-	expectedMicrofrontendBytes, _ := json.Marshal(expectedMicrofrontend)
-	resultMicrofrontendBytes, _ := json.Marshal(result[0])
+	t.Run("Store and retrieve single item with Get", func(t *testing.T) {
+		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+		expected := createTestMicrofrontend()
 
-	if string(expectedMicrofrontendBytes) != string(resultMicrofrontendBytes) {
-		t.Errorf("Expected microfrontend %v, but got %v", string(expectedMicrofrontendBytes), string(resultMicrofrontendBytes))
+		storeItem(t, repo, expected)
+		result := getItem(t, repo, expected)
+		assertEqualMicrofrontend(t, expected, result)
+	})
+
+	t.Run("List returns empty slice when not found", func(t *testing.T) {
+		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
+			return mf.Name == "notfound"
+		})
+		assertListLength(t, result, 0)
+	})
+
+	t.Run("Delete removes item", func(t *testing.T) {
+		repo := NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+		expected := createTestMicrofrontend()
+
+		storeItem(t, repo, expected)
+		deleteItem(t, repo, expected)
+		result := listItems(t, repo, func(mf *v1alpha1.MicroFrontend) bool {
+			return mf.Name == expected.Name
+		})
+		assertListLength(t, result, 0)
+	})
+}
+
+func storeItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) {
+	if err := repo.Store(item); err != nil {
+		t.Fatalf("Store failed: %v", err)
 	}
 }
 
-func TestInMemoryPolyfeaRepositoryItemStoredCanBeRetrievedAsSingleItem(t *testing.T) {
+func getItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) *v1alpha1.MicroFrontend {
+	result, err := repo.Get(item)
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	return result
+}
 
-	// Arrange
-	repository := NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	expectedMicrofrontend := createTestMicrofrontend()
+func listItems(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], filter func(*v1alpha1.MicroFrontend) bool) []*v1alpha1.MicroFrontend {
+	result, err := repo.List(filter)
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	return result
+}
 
-	// Act
-	repository.StoreItem(expectedMicrofrontend)
-	result, _ := repository.GetItem(expectedMicrofrontend)
-
-	// Assert
-	expectedMicrofrontendBytes, _ := json.Marshal(expectedMicrofrontend)
-	resultMicrofrontendBytes, _ := json.Marshal(result)
-
-	if string(expectedMicrofrontendBytes) != string(resultMicrofrontendBytes) {
-		t.Errorf("Expected microfrontend %v, but got %v", string(expectedMicrofrontendBytes), string(resultMicrofrontendBytes))
+func deleteItem(t *testing.T, repo *InMemoryRepository[*v1alpha1.MicroFrontend], item *v1alpha1.MicroFrontend) {
+	if err := repo.Delete(item); err != nil {
+		t.Fatalf("Delete failed: %v", err)
 	}
 }
 
-func TestInMemoryPolyfeaRepositoryItemsNotFoundReturnsEmptySlice(t *testing.T) {
-
-	// Arrange
-	repository := NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-
-	// Act
-	result, _ := repository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
-		return mf.Name == "test"
-	})
-
-	// Assert
-	if len(result) != 0 {
-		t.Errorf("Expected empty slice, but got %v", result)
+func assertListLength(t *testing.T, list []*v1alpha1.MicroFrontend, expectedLength int) {
+	if len(list) != expectedLength {
+		t.Fatalf("Expected %d items, got %d", expectedLength, len(list))
 	}
 }
 
-func TestInMemoryPolyfeaRepositoryItemDeletedCannotBeRetrieved(t *testing.T) {
-
-	// Arrange
-	repository := NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-	expectedMicrofrontend := createTestMicrofrontend()
-
-	// Act
-	repository.StoreItem(expectedMicrofrontend)
-	repository.DeleteItem(expectedMicrofrontend)
-	result, _ := repository.GetItems(func(mf *v1alpha1.MicroFrontend) bool {
-		return mf.Name == expectedMicrofrontend.Name
-	})
-
-	// Assert
-	if len(result) != 0 {
-		t.Errorf("Expected empty slice, but got %v", result)
+// assertEqualMicrofrontend compares two MicroFrontend objects using JSON marshaling.
+func assertEqualMicrofrontend(t *testing.T, expected, actual *v1alpha1.MicroFrontend) {
+	t.Helper()
+	expBytes, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatalf("Failed to marshal expected: %v", err)
+	}
+	actBytes, err := json.Marshal(actual)
+	if err != nil {
+		t.Fatalf("Failed to marshal actual: %v", err)
+	}
+	if string(expBytes) != string(actBytes) {
+		t.Errorf("Expected %v, got %v", string(expBytes), string(actBytes))
 	}
 }
 
@@ -89,16 +107,20 @@ func createTestMicrofrontend() *v1alpha1.MicroFrontend {
 			Name: "test",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+			Service:       ptr("http://test-service.test-namespace.svc.cluster.local"),
 			CacheStrategy: "none",
-			CacheControl:  &[]string{"no-cache"}[0],
-			ModulePath:    &[]string{"test"}[0],
+			CacheControl:  ptr("no-cache"),
+			ModulePath:    ptr("test"),
 			StaticResources: []v1alpha1.StaticResources{{
 				Kind: "test",
 				Path: "test",
 			}},
-			FrontendClass: &[]string{"test"}[0],
+			FrontendClass: ptr("test"),
 			DependsOn:     []string{"test"},
 		},
 	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

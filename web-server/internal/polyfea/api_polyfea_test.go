@@ -201,9 +201,39 @@ func PolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
 }
 
 func polyfeaApiSetupRouter() http.Handler {
-	testWebComponentRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.WebComponent]()
+	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 
-	testWebComponentRepository.StoreItem(createTestWebComponent(
+	storeTestWebComponents(testWebComponentRepository)
+
+	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	storeTestMicroFrontends(testMicroFrontendRepository)
+
+	polyfeaAPIService := NewPolyfeaAPIService(
+		testWebComponentRepository,
+		testMicroFrontendRepository,
+		&zerolog.Logger{},
+	)
+
+	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
+
+	router := generated.NewRouter(polyfeaAPIController)
+
+	router.HandleFunc("/openapi", api.HandleOpenApi)
+
+	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
+	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
+		{
+			Name:  "test-header",
+			Value: "test-value",
+		},
+	}
+
+	return addDummyMiddleware(router, "/", mfc)
+}
+
+func storeTestWebComponents(repo *repository.InMemoryRepository[*v1alpha1.WebComponent]) {
+	repo.Store(createTestWebComponent(
 		"test-name",
 		"test-microfrontend",
 		"test-tag-name",
@@ -219,9 +249,10 @@ func polyfeaApiSetupRouter() http.Handler {
 				},
 			},
 		},
-		&[]int32{1}[0]))
+		&[]int32{1}[0],
+	))
 
-	testWebComponentRepository.StoreItem(createTestWebComponent(
+	repo.Store(createTestWebComponent(
 		"test-other-name",
 		"other-microfrontend",
 		"test-tag-name",
@@ -253,34 +284,13 @@ func polyfeaApiSetupRouter() http.Handler {
 				},
 			},
 		},
-		&[]int32{10}[0]))
+		&[]int32{10}[0],
+	))
+}
 
-	testMicroFrontendRepository := repository.NewInMemoryPolyfeaRepository[*v1alpha1.MicroFrontend]()
-
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
-	testMicroFrontendRepository.StoreItem(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
-
-	polyfeaAPIService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&zerolog.Logger{},
-	)
-
-	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
-
-	router := generated.NewRouter(polyfeaAPIController)
-
-	router.HandleFunc("/openapi", api.HandleOpenApi)
-
-	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
-	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
-		{
-			Name:  "test-header",
-			Value: "test-value",
-		},
-	}
-
-	return addDummyMiddleware(router, "/", mfc)
+func storeTestMicroFrontends(repo *repository.InMemoryRepository[*v1alpha1.MicroFrontend]) {
+	repo.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	repo.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
 }
 
 func addDummyMiddleware(next http.Handler, basePath string, microFrontendClass *v1alpha1.MicroFrontendClass) http.Handler {

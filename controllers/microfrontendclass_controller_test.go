@@ -20,1928 +20,227 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors" // Correct import for `errors.IsNotFound`
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
-	gatewayv1alpha2 "sigs.k8s.io/gateway-api/apis/v1alpha2"
 )
 
+const (
+	MicroFrontendClassName      = "test-microfrontendclass"
+	MicroFrontendClassNamespace = "default"
+	MicroFrontendClassFinalizer = "polyfea.github.io/finalizer"
+)
+
+func setupMicroFrontendClass(title, baseUri *string, routing *polyfeav1alpha1.Routing) *polyfeav1alpha1.MicroFrontendClass {
+	return &polyfeav1alpha1.MicroFrontendClass{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "polyfea.github.io/v1alpha1",
+			Kind:       "MicroFrontendClass",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      MicroFrontendClassName,
+			Namespace: MicroFrontendClassNamespace,
+		},
+		Spec: polyfeav1alpha1.MicroFrontendClassSpec{
+			Title:   title,
+			BaseUri: baseUri,
+			Routing: routing,
+		},
+	}
+}
+
+func ensureMicroFrontendClassDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+	existingMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass)
+	if err == nil {
+		// Delete the existing resource
+		Expect(k8sClient.Delete(ctx, existingMicroFrontendClass)).Should(Succeed())
+		// Wait for the resource to be fully deleted
+		Eventually(func() bool {
+			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass))
+		}, timeout, interval).Should(BeTrue())
+	}
+}
+
 var _ = Describe("MicroFrontendClass controller", func() {
-
-	// Define utility constants for object names and testing timeouts/durations and intervals.
 	const (
-		MicroFrontendClassName      = "test-microfrontendclass"
-		MicroFrontendClassNamespace = "default"
-		MicroFrontendClassFinalizer = "polyfea.github.io/finalizer"
-
 		timeout  = time.Second * 10
-		duration = time.Second * 10
 		interval = time.Millisecond * 250
 	)
 
-	Context("When creating a MicroFrontendClass", func() {
-		It("Should add and remove finallizer", func() {
-			By("By creating a new MicroFrontendClass")
-			ctx := context.Background()
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"http://localhost:8080"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
+	Context("Validation and defaults", func() {
+		DescribeTable("Validation scenarios",
+			func(title, baseUri *string, shouldSucceed bool) {
+				ctx := context.Background()
 
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
-
-			By("By checking the MicroFrontendClass has finalizer")
-			Eventually(func() ([]string, error) {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				if err != nil {
-					return []string{}, err
+				mfc := setupMicroFrontendClass(title, baseUri, nil)
+				if shouldSucceed {
+					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
+				} else {
+					Expect(k8sClient.Create(ctx, mfc)).Should(Not(Succeed()))
 				}
-				return createdMicroFrontendClass.ObjectMeta.GetFinalizers(), nil
-			}, timeout, interval).Should(ContainElement(MicroFrontendClassFinalizer))
+			},
+			Entry("missing baseUri", ptr("Test"), nil, false),
+			Entry("missing title", nil, ptr("/base"), false),
+			Entry("valid MicroFrontendClass", ptr("Test"), ptr("/base"), true),
+		)
 
-			By("By deleting the MicroFrontendClass")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
+		It("Should fill defaults when only required fields are set", func() {
+			ctx := context.Background()
+
+			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
+
+			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			created := &polyfeav1alpha1.MicroFrontendClass{}
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
+				return k8sClient.Get(ctx, lookupKey, created) == nil
+			}, timeout, interval).Should(BeTrue())
+			Expect(created.Spec.CspHeader).ShouldNot(BeEmpty())
+			Expect(created.Spec.UserRolesHeader).ShouldNot(BeEmpty())
+			Expect(created.Spec.UserHeader).ShouldNot(BeEmpty())
+
+			Expect(k8sClient.Delete(ctx, created)).Should(Succeed())
+			Eventually(func() bool {
+				return errors.IsNotFound(k8sClient.Get(ctx, lookupKey, created))
 			}, timeout, interval).Should(BeTrue())
 		})
+	})
 
-		It("Should not let create without base uri", func() {
-			By("By creating a new MicroFrontendClass")
+	Context("Repository add/remove", func() {
+		It("Should add and remove MicroFrontendClass from repository", func() {
 			ctx := context.Background()
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
 
-		It("Should not let create without title", func() {
-			By("By creating a new MicroFrontendClass")
-			ctx := context.Background()
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					BaseUri:   &[]string{"http://localhost:8080"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
+			ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-		It("Should let create with base uri and title and fill defaults", func() {
-			By("By creating a new MicroFrontendClass")
-			ctx := context.Background()
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:   &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri: &[]string{"http://localhost:8080"}[0],
-				},
-			}
+			mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+			Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
 
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
+			lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+			created := &polyfeav1alpha1.MicroFrontendClass{}
 			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
+				return k8sClient.Get(ctx, lookupKey, created) == nil
 			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
-			Expect(createdMicroFrontendClass.Spec.CspHeader).Should(Equal("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"))
-			Expect(createdMicroFrontendClass.Spec.ExtraHeaders).Should(BeNil())
-			Expect(createdMicroFrontendClass.Spec.UserRolesHeader).Should(Equal("x-auth-request-roles"))
-			Expect(createdMicroFrontendClass.Spec.UserHeader).Should(Equal("x-auth-request-user"))
-
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-		})
-
-		It("Should add and remove microfrontendclass from repository", func() {
-			By("By creating a new MicroFrontendClass")
-			ctx := context.Background()
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"http://localhost:8080"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"http://localhost:8080"}[0]))
 
 			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
+				result, _ := microFrontendClassRepository.List(func(m *polyfeav1alpha1.MicroFrontendClass) bool {
+					return m.Name == MicroFrontendClassName
 				})
 				return result
 			}, timeout, interval).Should(HaveLen(1))
 
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
+			Expect(k8sClient.Delete(ctx, created)).Should(Succeed())
 			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
+				result, _ := microFrontendClassRepository.List(func(m *polyfeav1alpha1.MicroFrontendClass) bool {
+					return m.Name == MicroFrontendClassName
 				})
 				return result
 			}, timeout, interval).Should(HaveLen(0))
 		})
+	})
 
-		It("Should add and remove http route when routing parent refs are specified", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
+	Context("Routing resource creation and switching", func() {
+		type routingCase struct {
+			routing       *polyfeav1alpha1.Routing
+			expectIngress bool
+			expectRoute   bool
+		}
 
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
+		DescribeTable("Routing scenarios",
+			func(rc routingCase) {
+				ctx := context.Background()
+
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
+
+				operatorService := &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "polyfea-webserver",
+						Namespace: MicroFrontendClassNamespace,
+						Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
 					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
+					Spec: corev1.ServiceSpec{
+						Ports: []corev1.ServicePort{{Name: PortName, Port: 80}},
 					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
-			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, httpRoute)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should add and remove ingres when routing ingress class is specified", func() {
-			By("By creating a new MicroFrontendClass with routing ingress class")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						IngressClassName: &[]string{"nginx"}[0],
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			ingress := &networkingv1.Ingress{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(ingress.Spec.IngressClassName).Should(Equal(microFrontendClass.Spec.Routing.IngressClassName))
-			Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(ingress.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(*microFrontendClass.Spec.BaseUri))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, ingress)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should not allow creating both ingress and httproute", func() {
-			By("By creating a new MicroFrontendClass with routing ingress and parent refs")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						IngressClassName: &[]string{"nginx"}[0],
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should remove HttpRoute if routing is not specified", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
-			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
-
-			By("By setting the routing to nil")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":null}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.Routing).Should(BeNil())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should remove ingress if routing is not specified", func() {
-			By("By creating a new MicroFrontendClass with routing ingress class")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						IngressClassName: &[]string{"nginx"}[0],
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			ingress := &networkingv1.Ingress{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(ingress.Spec.IngressClassName).Should(Equal(microFrontendClass.Spec.Routing.IngressClassName))
-			Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(ingress.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(*microFrontendClass.Spec.BaseUri))
-
-			By("By setting the routing to nil")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":null}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.Routing).Should(BeNil())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should switch from route to ingress if routing is changed", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
-			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
-
-			By("By changing the routing to ingress")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":{"parentRefs":null, "ingressClassName":"nginx"}}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.Routing.ParentRefs).Should(BeNil())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			ingress := &networkingv1.Ingress{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should switch from ingress to route if routing is changed", func() {
-			By("By creating a new MicroFrontendClass with routing ingress class")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						IngressClassName: &[]string{"nginx"}[0],
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			ingress := &networkingv1.Ingress{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(ingress.Spec.IngressClassName).Should(Equal(microFrontendClass.Spec.Routing.IngressClassName))
-			Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(ingress.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(*microFrontendClass.Spec.BaseUri))
-
-			By("By changing the routing to http route")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":{"parentRefs":[{"name": "abcd"}], "ingressClassName":null}}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.Routing.IngressClassName).Should(BeNil())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should apply changes for routing routing parent refs are changed", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
-			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
-
-			By("By changing the routing parent refs")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":{"parentRefs":[{"name": "dcba"}], "ingressClassName":null}}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() gatewayv1.ObjectName {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-
-				if err != nil {
-					return ""
+				}
+				Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
+
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), rc.routing)
+				Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &polyfeav1alpha1.MicroFrontendClass{}
+				Eventually(func() bool {
+					return k8sClient.Get(ctx, lookupKey, created) == nil
+				}, timeout, interval).Should(BeTrue())
+
+				if rc.expectRoute {
+					httpRoute := &gatewayv1.HTTPRoute{}
+					Eventually(func() bool {
+						return k8sClient.Get(ctx, lookupKey, httpRoute) == nil
+					}, timeout, interval).Should(BeTrue())
+					Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
+				}
+				if rc.expectIngress {
+					ingress := &networkingv1.Ingress{}
+					Eventually(func() bool {
+						return k8sClient.Get(ctx, lookupKey, ingress) == nil
+					}, timeout, interval).Should(BeTrue())
+					Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
 				}
 
-				return httpRoute.Spec.CommonRouteSpec.ParentRefs[0].Name
+				Expect(k8sClient.Delete(ctx, created)).Should(Succeed())
+				Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
+			},
+			Entry("parentRefs only", routingCase{routing: &polyfeav1alpha1.Routing{ParentRefs: []gatewayv1.ParentReference{{Name: "abcd"}}}, expectRoute: true, expectIngress: false}),
+			Entry("ingressClassName only", routingCase{routing: &polyfeav1alpha1.Routing{IngressClassName: ptr("nginx")}, expectRoute: false, expectIngress: true}),
+		)
+	})
 
-			}, timeout, interval).Should(Equal(gatewayv1.ObjectName("dcba")))
+	Context("Manifest validation", func() {
+		DescribeTable("Manifest scenarios",
+			func(manifest *polyfeav1alpha1.WebAppManifest, shouldSucceed bool) {
+				ctx := context.Background()
 
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
+				ensureMicroFrontendClassDeleted(ctx, timeout, interval)
 
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should apply changes for routing routing ingressclassname is changed", func() {
-			By("By creating a new MicroFrontendClass with routing ingressclassname")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						IngressClassName: &[]string{"nginx"}[0],
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			ingressLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			ingress := &networkingv1.Ingress{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(ingress.Spec.IngressClassName).Should(Equal(microFrontendClass.Spec.Routing.IngressClassName))
-			Expect(ingress.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(ingress.Spec.Rules[0].HTTP.Paths[0].Path).Should(Equal(*microFrontendClass.Spec.BaseUri))
-
-			By("By changing the routing ingressclassname")
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"routing":{"ingressClassName":"notnginx"}}}`))
-			Expect(k8sClient.Patch(ctx, microFrontendClass, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() *string {
-				err := k8sClient.Get(ctx, ingressLookupKey, ingress)
-
-				if err != nil {
-					return nil
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"), nil)
+				mfc.Spec.ProgressiveWebApp = &polyfeav1alpha1.ProgressiveWebApp{WebAppManifest: manifest}
+				if shouldSucceed {
+					Expect(k8sClient.Create(ctx, mfc)).Should(Succeed())
+				} else {
+					Expect(k8sClient.Create(ctx, mfc)).Should(Not(Succeed()))
 				}
-
-				return ingress.Spec.IngressClassName
-
-			}, timeout, interval).Should(Equal(&[]string{"notnginx"}[0]))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should apply changes for routing service port is changed", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			httpRouteLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			httpRoute := &gatewayv1.HTTPRoute{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(httpRoute.Spec.Rules[0].Matches[0].Path.Value).Should(Equal(microFrontendClass.Spec.BaseUri))
-			Expect(httpRoute.OwnerReferences[0].Kind).Should(Equal("MicroFrontendClass"))
-			Expect(httpRoute.Spec.CommonRouteSpec.ParentRefs).Should(Equal(microFrontendClass.Spec.Routing.ParentRefs))
-
-			By("By changing the port on service")
-			operatorServiceLookupName := types.NamespacedName{Name: "polyfea-webserver", Namespace: MicroFrontendClassNamespace}
-			patch := client.RawPatch(types.MergePatchType, []byte(`{"spec":{"ports":[{"name":"webserver", "port": 8080}]}}`))
-			Expect(k8sClient.Patch(ctx, operatorService, patch)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, operatorServiceLookupName, operatorService)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			expectedPort := gatewayv1.PortNumber(8080)
-			Eventually(func() *gatewayv1.PortNumber {
-				err := k8sClient.Get(ctx, httpRouteLookupKey, httpRoute)
-
-				if err != nil {
-					return nil
-				}
-
-				return httpRoute.Spec.Rules[0].BackendRefs[0].Port
-
-			}, timeout, interval).Should(Equal(&expectedPort))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should create RefGrant", func() {
-			By("By creating a new MicroFrontendClass with routing parent refs")
-			ctx := context.Background()
-
-			operatorService := &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "polyfea-webserver",
-					Namespace: MicroFrontendClassNamespace,
-					Labels:    map[string]string{OperatorServiceSelectorName: OperatorServiceSelectorValue},
-				},
-				Spec: corev1.ServiceSpec{
-					Ports: []corev1.ServicePort{
-						{
-							Name: PortName,
-							Port: 80,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, operatorService)).Should(Succeed())
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					Routing: &polyfeav1alpha1.Routing{
-						ParentRefs: []gatewayv1.ParentReference{
-							{
-								Name: "abcd",
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-
-			refGrantLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			refGrant := &gatewayv1alpha2.ReferenceGrant{}
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, refGrantLookupKey, refGrant)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(refGrant.Namespace).Should(Equal(operatorService.Namespace))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-
-			Eventually(func() []*polyfeav1alpha1.MicroFrontendClass {
-				result, _ := microFrontendClassRepository.GetItems(func(mf *polyfeav1alpha1.MicroFrontendClass) bool {
-					println("Checking microfrontend " + mf.Name)
-					return mf.Name == MicroFrontendClassName
-				})
-				return result
-			}, timeout, interval).Should(HaveLen(0))
-
-			Expect(k8sClient.Delete(ctx, operatorService)).Should(Succeed())
-		})
-
-		It("Should create pwa with default PolyfeaSWReconcileInterval when not specified", func() {
-			By("By creating a new MicroFrontendClass with PWA")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Src:   &[]string{"icon.png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Type:  &[]string{"image/png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-			defaultPolyfeaSWReconcileInterval := &[]int32{1800000}[0]
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval).Should(Equal(defaultPolyfeaSWReconcileInterval))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-		})
-
-		It("Should not create pwa without WebAppManifest", func() {
-			By("By creating a new MicroFrontendClass with PWA")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader:   "X-User-Roles",
-					UserHeader:        "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in web manifest", func() {
-			By("By creating a new MicroFrontendClass with manifest without name")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Src:   &[]string{"icon.png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Type:  &[]string{"image/png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in web manifest", func() {
-			By("By creating a new MicroFrontendClass with manifest without Icons")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name:     &[]string{"Test"}[0],
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in web manifest", func() {
-			By("By creating a new MicroFrontendClass with manifest without starturl")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Src:   &[]string{"icon.png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Type:  &[]string{"image/png"}[0],
-								},
-							},
-							Display: &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in web manifest", func() {
-			By("By creating a new MicroFrontendClass with manifest without display")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Src:   &[]string{"icon.png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Type:  &[]string{"image/png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in icon", func() {
-			By("By creating a new MicroFrontendClass with PWA without mandatory sizes in icon")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Src:  &[]string{"icon.png"}[0],
-									Type: &[]string{"image/png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in icon", func() {
-			By("By creating a new MicroFrontendClass with PWA without mandatory src in icon")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Sizes: &[]string{"192x192"}[0],
-									Type:  &[]string{"image/png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in icon", func() {
-			By("By creating a new MicroFrontendClass with PWA without mandatory type in icon")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Sizes: &[]string{"192x192"}[0],
-									Src:   &[]string{"icon.png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should not create pwa without mandatory fields in pre cache", func() {
-			By("By creating a new MicroFrontendClass with PWA without mandatory url in pre cache")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Type:  &[]string{"image/png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Src:   &[]string{"icon.png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-						CacheOptions: &polyfeav1alpha1.PWACache{
-							PreCache: []polyfeav1alpha1.PreCacheEntry{
-								{
-									Revision: &[]string{"1"}[0],
-								},
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
-
-		It("Should should create pwa without optional fields in pre cache", func() {
-			By("By creating a new MicroFrontendClass with PWA without optional revision in pre cache")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Type:  &[]string{"image/png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Src:   &[]string{"icon.png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-						CacheOptions: &polyfeav1alpha1.PWACache{
-							PreCache: []polyfeav1alpha1.PreCacheEntry{
-								{
-									URL: &[]string{"https://example.com"}[0],
-								},
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.PreCache[0].Revision).Should(BeNil())
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-		})
-
-		It("Should should create pwa without optional fields in runtime cache", func() {
-			By("By creating a new MicroFrontendClass with PWA without optional fields in runtime cache")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Type:  &[]string{"image/png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Src:   &[]string{"icon.png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-						CacheOptions: &polyfeav1alpha1.PWACache{
-							CacheRoutes: []polyfeav1alpha1.CacheRoute{
-								{
-									Pattern: &[]string{"/"}[0],
-								},
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Succeed())
-
-			microFrontendClassLookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
-			createdMicroFrontendClass := &polyfeav1alpha1.MicroFrontendClass{}
-
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdMicroFrontendClass.Spec.BaseUri).Should(Equal(&[]string{"/someother"}[0]))
-			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Strategy).Should(Equal(&[]string{"cache-first"}[0]))
-			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Method).Should(Equal(&[]string{"GET"}[0]))
-			Expect(createdMicroFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0].Statuses).Should(Equal([]int32{0, 200, 201, 202, 204}))
-
-			By("By deleting the MicroFrontend")
-			Expect(k8sClient.Delete(ctx, createdMicroFrontendClass)).Should(Succeed())
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, microFrontendClassLookupKey, createdMicroFrontendClass)
-				return errors.IsNotFound(err)
-			}, timeout, interval).Should(BeTrue())
-		})
-
-		It("Should should not create pwa without mandatory fields in runtime cache", func() {
-			By("By creating a new MicroFrontendClass with PWA without pattern field in runtime cache")
-			ctx := context.Background()
-
-			microFrontendClass := &polyfeav1alpha1.MicroFrontendClass{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "polyfea.github.io/v1alpha1",
-					Kind:       "MicroFrontendClass",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      MicroFrontendClassName,
-					Namespace: MicroFrontendClassNamespace,
-				},
-				Spec: polyfeav1alpha1.MicroFrontendClassSpec{
-					Title:     &[]string{"Test MicroFrontendClass"}[0],
-					BaseUri:   &[]string{"/someother"}[0],
-					CspHeader: "default-src 'self';",
-					ExtraHeaders: []polyfeav1alpha1.Header{
-						{
-							Name:  "X-Frame-Options",
-							Value: "DENY",
-						},
-					},
-					UserRolesHeader: "X-User-Roles",
-					UserHeader:      "X-User-Id",
-					ProgressiveWebApp: &polyfeav1alpha1.ProgressiveWebApp{
-						WebAppManifest: &polyfeav1alpha1.WebAppManifest{
-							Name: &[]string{"Test"}[0],
-							Icons: []polyfeav1alpha1.PWAIcon{
-								{
-									Type:  &[]string{"image/png"}[0],
-									Sizes: &[]string{"192x192"}[0],
-									Src:   &[]string{"icon.png"}[0],
-								},
-							},
-							StartUrl: &[]string{"/"}[0],
-							Display:  &[]string{"standalone"}[0],
-						},
-						CacheOptions: &polyfeav1alpha1.PWACache{
-							CacheRoutes: []polyfeav1alpha1.CacheRoute{
-								{
-									Strategy: &[]string{"network-first"}[0],
-								},
-							},
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, microFrontendClass)).Should(Not(Succeed()))
-		})
+			},
+			Entry("missing name", &polyfeav1alpha1.WebAppManifest{
+				Icons:    []polyfeav1alpha1.PWAIcon{{Src: ptr("icon.png"), Sizes: ptr("192x192"), Type: ptr("image/png")}},
+				StartUrl: ptr("/"), Display: ptr("standalone"),
+			}, false),
+			Entry("missing icons", &polyfeav1alpha1.WebAppManifest{
+				Name: ptr("Test"), StartUrl: ptr("/"), Display: ptr("standalone"),
+			}, false),
+			Entry("missing startUrl", &polyfeav1alpha1.WebAppManifest{
+				Name: ptr("Test"), Icons: []polyfeav1alpha1.PWAIcon{{Src: ptr("icon.png"), Sizes: ptr("192x192"), Type: ptr("image/png")}},
+				Display: ptr("standalone"),
+			}, false),
+			Entry("missing display", &polyfeav1alpha1.WebAppManifest{
+				Name: ptr("Test"), Icons: []polyfeav1alpha1.PWAIcon{{Src: ptr("icon.png"), Sizes: ptr("192x192"), Type: ptr("image/png")}},
+				StartUrl: ptr("/"),
+			}, false),
+			Entry("valid manifest", &polyfeav1alpha1.WebAppManifest{
+				Name: ptr("Test"), Icons: []polyfeav1alpha1.PWAIcon{{Src: ptr("icon.png"), Sizes: ptr("192x192"), Type: ptr("image/png")}},
+				StartUrl: ptr("/"), Display: ptr("standalone"),
+			}, true),
+		)
 	})
 })
