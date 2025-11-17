@@ -39,10 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/controllers"
-	"github.com/polyfea/polyfea-controller/repository"
-	webserver "github.com/polyfea/polyfea-controller/web-server"
-	"github.com/polyfea/polyfea-controller/web-server/configuration"
+	"github.com/polyfea/polyfea-controller/internal/controller"
+	"github.com/polyfea/polyfea-controller/internal/repository"
+	webserver "github.com/polyfea/polyfea-controller/internal/web-server"
+	"github.com/polyfea/polyfea-controller/internal/web-server/configuration"
 
 	//+kubebuilder:scaffold:imports
 
@@ -111,28 +111,25 @@ func main() {
 	microFrontendClassRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
 	webComponentRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
 
-	if err = (&controllers.MicroFrontendReconciler{
+	if err = (&controller.MicroFrontendReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
-		Recorder:   mgr.GetEventRecorderFor("microfrontend-controller"),
 		Repository: microFrontendRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontend")
 		os.Exit(1)
 	}
-	if err = (&controllers.WebComponentReconciler{
+	if err = (&controller.WebComponentReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
-		Recorder:   mgr.GetEventRecorderFor("webcompoent-controller"),
 		Repository: webComponentRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WebComponent")
 		os.Exit(1)
 	}
-	if err = (&controllers.MicroFrontendClassReconciler{
+	if err = (&controller.MicroFrontendClassReconciler{
 		Client:     mgr.GetClient(),
 		Scheme:     mgr.GetScheme(),
-		Recorder:   mgr.GetEventRecorderFor("microfrontendclass-controller"),
 		Repository: microFrontendClassRepository,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontendClass")

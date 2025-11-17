@@ -1,5 +1,5 @@
 /*
-Copyright 2023.
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,35 +14,32 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package controller
 
 import (
 	"context"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/internal/repository"
 )
 
 // MicroFrontendReconciler reconciles a MicroFrontend object.
 type MicroFrontendReconciler struct {
 	client.Client
 	Scheme     *runtime.Scheme
-	Recorder   record.EventRecorder
 	Repository repository.Repository[*polyfeav1alpha1.MicroFrontend]
 }
 
-//+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends/finalizers,verbs=update
 
 // Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -118,5 +115,6 @@ func (r *MicroFrontendReconciler) finalizeMicroFrontend(mf *polyfeav1alpha1.Micr
 func (r *MicroFrontendReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&polyfeav1alpha1.MicroFrontend{}).
+		Named("microfrontend").
 		Complete(r)
 }
