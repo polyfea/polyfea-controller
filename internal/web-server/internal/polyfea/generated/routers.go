@@ -3,7 +3,7 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
  *
  * API version: v1alpha1
  */
@@ -13,7 +13,6 @@ package generated
 import (
 	"encoding/json"
 	"errors"
-	"time"
 	"github.com/gorilla/mux"
 	"io"
 	"mime/multipart"
@@ -22,12 +21,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // A Route defines the parameters for an api endpoint
 type Route struct {
-	Method	  string
-	Pattern	 string
+	Method      string
+	Pattern     string
 	HandlerFunc http.HandlerFunc
 }
 
@@ -154,7 +154,7 @@ func readFileHeaderToTempFile(fileHeader *multipart.FileHeader) (*os.File, error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return file, nil
 }
 
@@ -342,7 +342,6 @@ func parseNumericArrayParameter[T Number](param, delim string, required bool, fn
 
 	return values, nil
 }
-
 
 // parseQuery parses query parameters and returns an error if any malformed value pairs are encountered.
 func parseQuery(rawQuery string) (url.Values, error) {

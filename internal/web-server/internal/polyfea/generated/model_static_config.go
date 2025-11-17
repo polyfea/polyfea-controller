@@ -3,23 +3,20 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
  *
  * API version: v1alpha1
  */
 
 package generated
 
-
-
-
-// StaticConfig - Specification of the application's static configuration.  This configuration is a compilation of all contexts/paths and their elements.  It's particularly useful during development, testing, or for simpler applications.  
+// StaticConfig - Specification of the application's static configuration.  This configuration is a compilation of all contexts/paths and their elements.  It's particularly useful during development, testing, or for simpler applications.
 type StaticConfig struct {
 
-	// A list of context areas along with their elements. Each context area is identified by its  name and the regex path where it's rendered. In the event of a conflict, the first matching  context area is selected. 
+	// A list of context areas along with their elements. Each context area is identified by its  name and the regex path where it's rendered. In the event of a conflict, the first matching  context area is selected.
 	ContextAreas []StaticConfigArea `json:"contextAreas,omitempty"`
 
-	// A dictionary of microfrontends, each identified by its unique name. 
+	// A dictionary of microfrontends, each identified by its unique name.
 	Microfrontends map[string]MicrofrontendSpec `json:"microfrontends"`
 }
 

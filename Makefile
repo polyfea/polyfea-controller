@@ -392,19 +392,19 @@ BOOT_MJS_URL := "https://github.com/polyfea/core/releases/latest/download/boot.m
 BOOT_MJS_FILEPATH := "internal/web-server/internal/polyfea/.resources/boot.mjs"
 .PHONY: boot-package
 boot-package: 
-	rm  $(BOOT_MJS_FILEPATH)
+	rm  -f $(BOOT_MJS_FILEPATH)
 	wget $(BOOT_MJS_URL) -O $(BOOT_MJS_FILEPATH)
 
 REGISTER_MJS_URL := "https://github.com/polyfea/service-worker/releases/latest/download/register.mjs"
 REGISTER_MJS_FILEPATH := "internal/web-server/internal/polyfea/.resources/register.mjs"
 .PHONY: register-package
 register-package: 
-	rm  $(REGISTER_MJS_FILEPATH)
+	rm  -f $(REGISTER_MJS_FILEPATH)
 	wget $(REGISTER_MJS_URL) -O $(REGISTER_MJS_FILEPATH)
 
 SW_MJS_URL := "https://github.com/polyfea/service-worker/releases/latest/download/sw.mjs"
 SW_MJS_FILEPATH := "internal/web-server/internal/polyfea/.resources/sw.mjs"
 .PHONY: sw-package
 sw-package: 
-	rm  $(SW_MJS_FILEPATH)
+	rm  -f $(SW_MJS_FILEPATH)
 	wget $(SW_MJS_URL) -O $(SW_MJS_FILEPATH)

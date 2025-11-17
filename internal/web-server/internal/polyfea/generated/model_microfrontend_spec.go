@@ -3,26 +3,23 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
  *
  * API version: v1alpha1
  */
 
 package generated
 
-
-
-
-// MicrofrontendSpec - Specification of the microfrontend. Microfrontend resources are loaded by the browser as needed.  Each microfrontend comprises a set of resources that are loaded prior to,  or in parallel with, the rendering of microfrontend elements.  Additionally, a microfrontend can have dependencies on other microfrontends. 
+// MicrofrontendSpec - Specification of the microfrontend. Microfrontend resources are loaded by the browser as needed.  Each microfrontend comprises a set of resources that are loaded prior to,  or in parallel with, the rendering of microfrontend elements.  Additionally, a microfrontend can have dependencies on other microfrontends.
 type MicrofrontendSpec struct {
 
-	// The microfrontends that this microfrontend depends on.  The specification of these dependencies is provided in the context area information. 
+	// The microfrontends that this microfrontend depends on.  The specification of these dependencies is provided in the context area information.
 	DependsOn []string `json:"dependsOn,omitempty"`
 
 	// A shorthand for the microfrontend script module resource. The browser loads this module before rendering the elements. If the module has dependencies on other resources, it may load them itself, provided their references are given as a relative path to the module.
 	Module string `json:"module,omitempty"`
 
-	// The resources that the browser should load. Only resources that need to be directly  loaded into the document's `head` element should be specified here. Typical examples  include fonts and stylesheets that must be globally available. 
+	// The resources that the browser should load. Only resources that need to be directly  loaded into the document's `head` element should be specified here. Typical examples  include fonts and stylesheets that must be globally available.
 	Resources []MicrofrontendResource `json:"resources,omitempty"`
 }
 

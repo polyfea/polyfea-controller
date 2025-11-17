@@ -3,29 +3,26 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
  *
  * API version: v1alpha1
  */
 
 package generated
 
-
-
-
-// ElementSpec - Specification of the element. Elements serve as the building blocks of the application.  Each element should be a web component rendered by the browser.  When rendered in context, such as with the `polyfea-context` element,  the `context` attribute is set to the name of the context area. 
+// ElementSpec - Specification of the element. Elements serve as the building blocks of the application.  Each element should be a web component rendered by the browser.  When rendered in context, such as with the `polyfea-context` element,  the `context` attribute is set to the name of the context area.
 type ElementSpec struct {
 
-	// The name of the microfrontend to which the element belongs. The browser  loads the microfrontend before rendering the element.  If this property is not provided, it's assumed that the browser has already  loaded all necessary resources for the element prior to rendering. 
+	// The name of the microfrontend to which the element belongs. The browser  loads the microfrontend before rendering the element.  If this property is not provided, it's assumed that the browser has already  loaded all necessary resources for the element prior to rendering.
 	Microfrontend string `json:"microfrontend,omitempty"`
 
-	// The name of the element, which corresponds to its tag name used in the document flow. 
+	// The name of the element, which corresponds to its tag name used in the document flow.
 	TagName string `json:"tagName"`
 
-	// Attributes to be assigned to the element during rendering. 
+	// Attributes to be assigned to the element during rendering.
 	Attributes map[string]string `json:"attributes,omitempty"`
 
-	// The styles of the element. Primarily intended as a fallback for specific cases,  such as setting CSS variables. 
+	// The styles of the element. Primarily intended as a fallback for specific cases,  such as setting CSS variables.
 	Style map[string]string `json:"style,omitempty"`
 }
 
