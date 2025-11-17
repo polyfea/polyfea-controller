@@ -37,9 +37,9 @@ type MicroFrontendReconciler struct {
 	Repository repository.Repository[*polyfeav1alpha1.MicroFrontend]
 }
 
-// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=polyfea.github.io.polyfea.github.io,resources=microfrontends/finalizers,verbs=update
+// +kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends/finalizers,verbs=update
 
 // Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

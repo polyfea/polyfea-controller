@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: webcomponents.polyfea.github.io
 spec:
   group: polyfea.github.io
@@ -21,14 +20,19 @@ spec:
         description: WebComponent is the Schema for the webcomponents API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -58,14 +62,13 @@ spec:
                   type: object
                 type: array
               displayRules:
-                description: DisplayRules defines the conditions under which the web
-                  component should be loaded. There is an or opperation between the
-                  elements of the DisplayRules list. If any of the DisplayRules is
-                  matched, the web component will be loaded.
+                description: |-
+                  DisplayRules defines the conditions under which the web component should be loaded.
+                  There is an or opperation between the elements of the DisplayRules list. If any of the DisplayRules is matched, the web component will be loaded.
                 items:
-                  description: DisplayRules defines the conditions under which the
-                    web component should be loaded. There is an and opperation between
-                    AllOf, AnyOf and NoneOf lists.
+                  description: |-
+                    DisplayRules defines the conditions under which the web component should be loaded.
+                    There is an and opperation between AllOf, AnyOf and NoneOf lists.
                   properties:
                     allOf:
                       description: If all of the matchers in this list are matched,
@@ -82,10 +85,12 @@ spec:
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
+                            example: /my-menu-item
                             type: string
                           role:
                             description: The list of roles for which this element
                               is intended to be shown.
+                            example: admin
                             type: string
                         type: object
                       type: array
@@ -104,10 +109,12 @@ spec:
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
+                            example: /my-menu-item
                             type: string
                           role:
                             description: The list of roles for which this element
                               is intended to be shown.
+                            example: admin
                             type: string
                         type: object
                       type: array
@@ -126,10 +133,12 @@ spec:
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
+                            example: /my-menu-item
                             type: string
                           role:
                             description: The list of roles for which this element
                               is intended to be shown.
+                            example: admin
                             type: string
                         type: object
                       type: array
@@ -138,6 +147,7 @@ spec:
               element:
                 description: The HTML element tag name to be used when the matcher
                   is matched.
+                example: my-menu-item
                 type: string
               microFrontend:
                 description: Reference to a microfrontend from which the webcomponent

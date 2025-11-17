@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.1
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.18.0
   name: microfrontendclasses.polyfea.github.io
 spec:
   group: polyfea.github.io
@@ -22,14 +21,19 @@ spec:
           API
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -82,11 +86,10 @@ spec:
                   type: object
                 type: array
               progressiveWebApp:
-                description: ProgressiveWebApp defines the configuration settings
-                  for a Progressive Web Application (PWA). It includes specifications
-                  for the web app manifest and cache options, which are crucial for
-                  the PWA's functionality and performance. This field is optional
-                  and can be omitted if not needed.
+                description: |-
+                  ProgressiveWebApp defines the configuration settings for a Progressive Web Application (PWA).
+                  It includes specifications for the web app manifest and cache options, which are crucial for the PWA's functionality and performance.
+                  This field is optional and can be omitted if not needed.
                 properties:
                   cacheOptions:
                     description: CacheOptions specifies the cache settings for the
@@ -96,17 +99,14 @@ spec:
                         description: CacheRoutes specifies the caching strategies
                           for different URL patterns.
                         items:
-                          description: CacheRoute defines the caching strategy for
-                            a specific URL pattern within a Progressive Web Application
-                            (PWA). This struct allows for fine-tuned control over
-                            how different network requests are handled, enhancing
-                            performance, reliability, and offline capabilities based
-                            on the application's requirements.
+                          description: |-
+                            CacheRoute defines the caching strategy for a specific URL pattern within a Progressive Web Application (PWA).
+                            This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
                           properties:
                             destination:
-                              description: 'Destination is the optional destination
-                                URL for this caching strategy. You can find the list
-                                of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination'
+                              description: |-
+                                Destination is the optional destination URL for this caching strategy.
+                                You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
                               type: string
                             maxAgeSeconds:
                               description: MaxAgeSeconds specifies the maximum age
@@ -166,26 +166,19 @@ spec:
                         description: PreCache lists the URLs or resources to be pre-cached
                           when the PWA is installed.
                         items:
-                          description: PreCacheEntry represents an individual entry
-                            in the pre-cache list for a Progressive Web Application
-                            (PWA). Each entry specifies a URL to be cached and an
-                            optional revision identifier to manage cache updates and
-                            invalidation.
+                          description: |-
+                            PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
+                            Each entry specifies a URL to be cached and an optional revision identifier to manage cache updates and invalidation.
                           properties:
                             revision:
-                              description: Revision is an optional field that specifies
-                                a revision identifier for the resource. The revision
-                                helps in cache management by allowing the service
-                                worker to recognize and update cached assets when
-                                their content changes. This ensures users always have
-                                access to the most up-to-date resources.
+                              description: |-
+                                Revision is an optional field that specifies a revision identifier for the resource.
+                                The revision helps in cache management by allowing the service worker to recognize and update cached assets when their content changes. This ensures users always have access to the most up-to-date resources.
                               type: string
                             url:
-                              description: URL specifies the resource URL that should
-                                be pre-cached. This URL points to the asset that needs
-                                to be available offline, ensuring it is cached during
-                                the installation of the PWA. URL needs to be relative
-                                to the base URL of the frontend class.
+                              description: |-
+                                URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
+                                URL needs to be relative to the base URL of the frontend class.
                               type: string
                           required:
                           - url
@@ -216,21 +209,22 @@ spec:
                           description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons'
                           properties:
                             purpose:
-                              description: 'Defines the purpose of the image, for
+                              description: "Defines the purpose of the image, for
                                 example if the image is intended to serve some special
                                 purpose in the context of the host OS (i.e., for better
-                                integration). purpose can have one or more of the
-                                following values, separated by spaces: monochrome:
+                                integration).\npurpose can have one or more of the
+                                following values, separated by spaces:\n\tmonochrome:
                                 A user agent can present this icon where a monochrome
                                 icon with a solid fill is needed. The color information
                                 in the icon is discarded and only the alpha data is
                                 used. The icon can then be used by the user agent
-                                like a mask over any solid fill. maskable: The image
-                                is designed with icon masks and safe zone in mind,
-                                such that any part of the image outside the safe zone
-                                can safely be ignored and masked away by the user
-                                agent. any: The user agent is free to display the
-                                icon in any context (this is the default value).'
+                                like a mask over any solid fill.\n\tmaskable: The
+                                image is designed with icon masks and safe zone in
+                                mind, such that any part of the image outside the
+                                safe zone can safely be ignored and masked away by
+                                the user agent.\n\tany: The user agent is free to
+                                display the icon in any context (this is the default
+                                value)."
                               enum:
                               - monochrome
                               - maskable
@@ -261,9 +255,9 @@ spec:
                         description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name'
                         type: string
                       start_url:
-                        description: 'Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
-                          URL needs to be relative to the base URL of the frontend
-                          class.'
+                        description: |-
+                          Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
+                          URL needs to be relative to the base URL of the frontend class.
                         type: string
                     required:
                     - display
