@@ -207,7 +207,7 @@ docker-buildx: ## Build and push docker image for the manager for cross-platform
 	- $(CONTAINER_TOOL) buildx create --name polyfea-controller-builder
 	$(CONTAINER_TOOL) buildx use polyfea-controller-builder
 	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) $(if $(TAGS),$(PARSED_TAGS),--tag $(IMG)) $(if $(LABELS),$(PARSED_LABELS)) $(if $(ANNOTATIONS),$(PARSED_ANNOTATIONS)) -f Dockerfile.cross .
-	- $(CONTAINER_TOOL) buildx rm polyfea-controller-reborn-builder
+	- $(CONTAINER_TOOL) buildx rm polyfea-controller-builder
 	rm Dockerfile.cross
 
 .PHONY: build-installer
