@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 )
@@ -116,6 +117,19 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 			By("Cleanup the specific resource instance MicroFrontend")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+		})
+
+		It("should successfully reconcile the resource", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &MicroFrontendReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		Context("When creating a MicroFrontend", func() {

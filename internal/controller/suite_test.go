@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	v1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/internal/repository"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -45,6 +46,10 @@ var (
 	testEnv   *envtest.Environment
 	cfg       *rest.Config
 	k8sClient client.Client
+
+	microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]
+	microFrontendRepository      repository.Repository[*v1alpha1.MicroFrontend]
+	webComponentRepository       repository.Repository[*v1alpha1.WebComponent]
 )
 
 func TestControllers(t *testing.T) {
@@ -83,6 +88,10 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	microFrontendClassRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
+	microFrontendRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	webComponentRepository = repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 })
 
 var _ = AfterSuite(func() {
