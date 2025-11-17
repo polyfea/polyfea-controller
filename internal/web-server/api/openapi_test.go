@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 )
 
 var (

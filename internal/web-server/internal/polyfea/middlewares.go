@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/internal/repository"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

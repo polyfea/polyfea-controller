@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
-	"github.com/polyfea/polyfea-controller/web-server/internal/polyfea/generated"
+	"github.com/polyfea/polyfea-controller/internal/repository"
+	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"

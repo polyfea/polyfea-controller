@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/repository"
+	"github.com/polyfea/polyfea-controller/internal/repository"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
