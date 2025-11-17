@@ -1,12 +1,2 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
 resources:
 - manager.yaml
-- service.yaml
-- polyfea_v1alpha1_microfrontendclass.yaml
-
-images:
-- name: controller
-  newName: ghcr.io/polyfea/polyfea-controller
-  newTag: dev-latest
