@@ -3,20 +3,23 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
  *
  * API version: v1alpha1
  */
 
 package generated
 
-// StaticConfigArea - Specification of the static configuration for a context area,  identified by a specific name and path regex.
+
+
+
+// StaticConfigArea - Specification of the static configuration for a context area,  identified by a specific name and path regex. 
 type StaticConfigArea struct {
 
-	// Name of the context area.
+	// Name of the context area. 
 	Name string `json:"name"`
 
-	// The regular expression used to match the path relative to the base href  where this context area should be applied. If no path is provided, the  context area specification applies to all paths. In the event of conflicts,  the first matching context area is used.
+	// The regular expression used to match the path relative to the base href  where this context area should be applied. If no path is provided, the  context area specification applies to all paths. In the event of conflicts,  the first matching context area is used. 
 	Path string `json:"path,omitempty"`
 
 	ContextArea ContextArea `json:"contextArea,omitempty"`

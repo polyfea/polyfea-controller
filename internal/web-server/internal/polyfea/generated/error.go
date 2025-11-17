@@ -3,7 +3,7 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
  *
  * API version: v1alpha1
  */
@@ -67,7 +67,7 @@ func DefaultErrorHandler(w http.ResponseWriter, _ *http.Request, err error, resu
 		// Handle missing required errors
 		_ = EncodeJSONResponse(err.Error(), func(i int) *int { return &i }(http.StatusUnprocessableEntity), map[string][]string{}, w)
 		return
-	}
+	} 
 
 	// Handle all other errors
 	_ = EncodeJSONResponse(err.Error(), &result.Code, result.Headers, w)

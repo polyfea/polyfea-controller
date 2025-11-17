@@ -3,7 +3,7 @@
 /*
  * Polyfea Browser application
  *
- * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI.
+ * This is the OpenAPI definition for the Polyfea endpoint, which serves context information to the  browser client. The client typically requests this context information from the backend when it  encounters the `<polyfea-context>` element. This context information is then used to render the  application's UI. 
  *
  * API version: v1alpha1
  */
@@ -20,7 +20,7 @@ import (
 
 // PolyfeaAPIController binds http requests to an api service and writes the service results to the http response
 type PolyfeaAPIController struct {
-	service      PolyfeaAPIServicer
+	service PolyfeaAPIServicer
 	errorHandler ErrorHandler
 }
 
@@ -64,7 +64,7 @@ func (c *PolyfeaAPIController) Routes() Routes {
 	}
 }
 
-// GetContextArea - Get the context area information.
+// GetContextArea - Get the context area information. 
 func (c *PolyfeaAPIController) GetContextArea(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	query := r.URL.Query()
@@ -88,7 +88,7 @@ func (c *PolyfeaAPIController) GetContextArea(w http.ResponseWriter, r *http.Req
 	EncodeJSONResponse(result.Body, &result.Code, result.Headers, w)
 }
 
-// GetStaticConfig - Get the static information about all resources and context areas.
+// GetStaticConfig - Get the static information about all resources and context areas. 
 func (c *PolyfeaAPIController) GetStaticConfig(w http.ResponseWriter, r *http.Request) {
 	result, err := c.service.GetStaticConfig(r.Context(), r.Header)
 	// If an error occurred, encode the error with the status code
