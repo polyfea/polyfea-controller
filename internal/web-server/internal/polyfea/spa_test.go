@@ -5,10 +5,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/dlclark/regexp2"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 	"github.com/rs/zerolog"
@@ -99,10 +99,10 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 		t.Fatalf("expected content type %s, got %s", "text/html; charset=utf-8", response.Header.Get("Content-Type"))
 	}
 
-	nonceRegex := regexp2.MustCompile(`'nonce-(?!{NONCE_VALUE})[^']*'`, regexp2.None)
+	nonceRegex := regexp.MustCompile(`'nonce-[^']*'`)
 
-	expectedWithoutNonce, _ := nonceRegex.Replace("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'", -1, -1)
-	gotWithoutNonce, _ := nonceRegex.Replace(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'", -1, -1)
+	expectedWithoutNonce := nonceRegex.ReplaceAllString("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'")
+	gotWithoutNonce := nonceRegex.ReplaceAllString(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'")
 
 	if expectedWithoutNonce != gotWithoutNonce {
 		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))

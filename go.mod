@@ -3,13 +3,10 @@ module github.com/polyfea/polyfea-controller
 go 1.24.0
 
 require (
-	github.com/dlclark/regexp2 v1.11.5
 	github.com/gorilla/mux v1.8.1 // MAYBE REPLACE WITH SOMETHING BETTER
-	github.com/jarcoal/httpmock v1.4.1 // MAYBE REMOVE
+	github.com/jarcoal/httpmock v1.4.1
 	github.com/onsi/ginkgo/v2 v2.22.0
 	github.com/onsi/gomega v1.36.1
-	github.com/rs/zerolog v1.34.0 // MAYBE REMOVE
-	github.com/stretchr/testify v1.11.1 // MAYBE REMOVE
 	go.opentelemetry.io/contrib/exporters/autoexport v0.63.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
 	go.opentelemetry.io/otel v1.38.0
