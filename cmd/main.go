@@ -43,6 +43,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/go-logr/logr"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/controller"
 	"github.com/polyfea/polyfea-controller/internal/repository"
@@ -50,8 +51,6 @@ import (
 	"github.com/polyfea/polyfea-controller/internal/web-server/configuration"
 
 	//+kubebuilder:scaffold:imports
-
-	"github.com/rs/zerolog"
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
@@ -269,9 +268,9 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
+	logger := zap.New(zap.UseFlagOptions(&opts))
 
-	shutdown, err := initTelemetry(ctx, &logger)
+	shutdown, err := initTelemetry(ctx)
 	defer shutdown(context.Background())
 
 	if err != nil {
@@ -315,7 +314,7 @@ func startHTTPServer(
 	microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass],
 	microFrontendRepository repository.Repository[*polyfeav1alpha1.MicroFrontend],
 	webComponentRepository repository.Repository[*polyfeav1alpha1.WebComponent],
-	logger *zerolog.Logger) {
+	logger *logr.Logger) {
 
 	defer wg.Done()
 	defer cancel()
@@ -338,7 +337,7 @@ func startHTTPServer(
 	}
 }
 
-func initTelemetry(ctx context.Context, logger *zerolog.Logger) (shutdown func(context.Context) error, err error) {
+func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
 	// prometheus exporter will be in conflict with kubebuilder metrics server
 	metricReader, err := autoexport.NewMetricReader(ctx)
 	if err != nil {

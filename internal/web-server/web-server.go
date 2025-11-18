@@ -1,20 +1,21 @@
 package webserver
 
 import (
+	"net/http"
+
+	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	"github.com/polyfea/polyfea-controller/internal/web-server/api"
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea"
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
-	"github.com/rs/zerolog"
-	"net/http"
 )
 
 func SetupRouter(
 	microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass],
 	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
 	webComponentRepository repository.Repository[*v1alpha1.WebComponent],
-	logger *zerolog.Logger,
+	logger *logr.Logger,
 ) http.Handler {
 
 	polyfeaAPIService := polyfea.NewPolyfeaAPIService(

@@ -7,11 +7,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	"github.com/polyfea/polyfea-controller/internal/web-server/api"
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
-	"github.com/rs/zerolog"
 )
 
 var apiPolyfeaTestSuite = IntegrationTestSuite{
@@ -212,7 +212,7 @@ func polyfeaApiSetupRouter() http.Handler {
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,
 		testMicroFrontendRepository,
-		&zerolog.Logger{},
+		&logr.Logger{},
 	)
 
 	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)

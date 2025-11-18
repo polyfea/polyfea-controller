@@ -3,15 +3,15 @@ package polyfea
 import (
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
-	"github.com/rs/zerolog"
 )
 
 func TestServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 	// Test that the `serveAppWebManifest` method returns the expected manifest
 	// Arrange
-	pwa := NewProgressiveWebApplication(&zerolog.Logger{}, repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]())
+	pwa := NewProgressiveWebApplication(&logr.Logger{}, repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]())
 
 	mfc := createTestMicroFrontendClass("polyfea", "/someother")
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
@@ -74,7 +74,7 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 	}
 	microFrontendRepository.Store(mf2)
 
-	pwa := NewProgressiveWebApplication(&zerolog.Logger{}, microFrontendRepository)
+	pwa := NewProgressiveWebApplication(&logr.Logger{}, microFrontendRepository)
 
 	expected := &ProxyConfigResponse{
 		PreCache: []v1alpha1.PreCacheEntry{

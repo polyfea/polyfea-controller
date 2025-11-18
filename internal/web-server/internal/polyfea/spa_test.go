@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
-	"github.com/rs/zerolog"
 )
 
 var spaTestSuite = IntegrationTestSuite{
@@ -199,7 +199,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 		},
 	}
 
-	spa := NewSinglePageApplication(&zerolog.Logger{})
+	spa := NewSinglePageApplication(&logr.Logger{})
 
 	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -7,9 +7,9 @@ import (
 
 	_ "embed"
 
+	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
-	"github.com/rs/zerolog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -32,11 +32,11 @@ type ProxyConfigResponse struct {
 }
 
 type ProgressiveWebApplication struct {
-	logger                  *zerolog.Logger
+	logger                  *logr.Logger
 	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]
 }
 
-func NewProgressiveWebApplication(logger *zerolog.Logger, microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]) *ProgressiveWebApplication {
+func NewProgressiveWebApplication(logger *logr.Logger, microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]) *ProgressiveWebApplication {
 	return &ProgressiveWebApplication{
 		logger:                  logger,
 		microFrontendRepository: microFrontendRepository,
@@ -77,10 +77,7 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 }
 
 func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *http.Request, functionName, contentType string, resourceProvider func(*v1alpha1.MicroFrontendClass) ([]byte, error)) {
-	logger := pwa.logger.With().
-		Str("function", functionName).
-		Str("method", r.Method).
-		Str("path", r.URL.Path).Logger()
+	logger := pwa.logger.WithValues("function", functionName, "method", r.Method, "path", r.URL.Path)
 
 	_, span := telemetry().tracer.Start(
 		r.Context(), "pwa_d."+functionName,
@@ -94,7 +91,7 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 	microFrontendClass := r.Context().Value(PolyfeaContextKeyMicroFrontendClass).(*v1alpha1.MicroFrontendClass)
 
 	if microFrontendClass == nil {
-		logger.Warn().Msg("Microfrontend class not found")
+		logger.Error(nil, "Microfrontend class not found")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("Microfrontend class not found"))
 		telemetry().not_found.Add(r.Context(), 1)
@@ -102,7 +99,7 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 		return
 	}
 
-	logger = logger.With().Str("base", basePath).Str("frontendClass", microFrontendClass.Name).Logger()
+	logger = logger.WithValues("base", basePath, "frontendClass", microFrontendClass.Name)
 	span.SetAttributes(
 		attribute.String("base", basePath),
 		attribute.String("frontendClass", microFrontendClass.Name),
@@ -115,7 +112,7 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 
 	resource, err := resourceProvider(microFrontendClass)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to provide resource")
+		logger.Error(err, "Failed to provide resource")
 		w.WriteHeader(http.StatusInternalServerError)
 		span.SetStatus(codes.Error, "resource_provider_failed")
 		return
@@ -158,7 +155,7 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 	})
 
 	if err != nil {
-		pwa.logger.Error().Err(err).Msg("Failed to get microfrontends")
+		pwa.logger.Error(err, "Failed to get microfrontends")
 		return nil, err
 	}
 
