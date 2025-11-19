@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 )
@@ -61,59 +60,6 @@ var _ = Describe("WebComponent Controller", func() {
 	)
 
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-webcomponent"
-
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default",
-		}
-		webcomponent := &polyfeav1alpha1.WebComponent{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind WebComponent")
-			err := k8sClient.Get(ctx, typeNamespacedName, webcomponent)
-			if err != nil && errors.IsNotFound(err) {
-				element := "my-menu-item"
-				resource := &polyfeav1alpha1.WebComponent{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: polyfeav1alpha1.WebComponentSpec{
-						Element: &element,
-						DisplayRules: []polyfeav1alpha1.DisplayRules{{
-							AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}, {ContextName: "user"}},
-						}},
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			resource := &polyfeav1alpha1.WebComponent{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance WebComponent")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &WebComponentReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 		DescribeTable("Validation scenarios",
 			func(spec polyfeav1alpha1.WebComponentSpec, shouldSucceed bool) {
 				testCtx := context.Background()

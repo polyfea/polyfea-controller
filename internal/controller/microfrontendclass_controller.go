@@ -100,6 +100,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Store the MicroFrontendClass in the repository
+	log.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc)
 	if err := r.Repository.Store(mfc); err != nil {
 		log.Error(err, "Failed to store MicroFrontendClass in repository")
 		return ctrl.Result{Requeue: true}, err

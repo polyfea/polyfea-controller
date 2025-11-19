@@ -32,6 +32,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	ctrl "sigs.k8s.io/controller-runtime"
+
+	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	v1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	// +kubebuilder:scaffold:imports
@@ -47,9 +50,9 @@ var (
 	cfg       *rest.Config
 	k8sClient client.Client
 
-	microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]
-	microFrontendRepository      repository.Repository[*v1alpha1.MicroFrontend]
-	webComponentRepository       repository.Repository[*v1alpha1.WebComponent]
+	microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass]
+	microFrontendRepository      repository.Repository[*polyfeav1alpha1.MicroFrontend]
+	webComponentRepository       repository.Repository[*polyfeav1alpha1.WebComponent]
 )
 
 func TestControllers(t *testing.T) {
@@ -82,6 +85,7 @@ var _ = BeforeSuite(func() {
 
 	// cfg is defined in this file globally.
 	cfg, err = testEnv.Start()
+
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
@@ -89,9 +93,41 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 
-	microFrontendClassRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
-	microFrontendRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	webComponentRepository = repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme: scheme.Scheme,
+	})
+	Expect(err).ToNot(HaveOccurred())
+
+	microFrontendClassRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
+	microFrontendRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontend]()
+	webComponentRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
+
+	err = (&MicroFrontendReconciler{
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Repository: microFrontendRepository,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&WebComponentReconciler{
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Repository: webComponentRepository,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&MicroFrontendClassReconciler{
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		Repository: microFrontendClassRepository,
+	}).SetupWithManager(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
+	go func() {
+		defer GinkgoRecover()
+		err = mgr.Start(ctx)
+		Expect(err).ToNot(HaveOccurred(), "failed to run manager")
+	}()
 })
 
 var _ = AfterSuite(func() {
