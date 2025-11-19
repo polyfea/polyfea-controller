@@ -1,0 +1,32 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  labels:
+    app.kubernetes.io/name: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: microfrontendclass-sample
+spec:
+  # Base URI for which this frontend class will be used
+  baseUri: "/"
+  
+  # Title that will be displayed in the browser
+  title: "Sample Application"
+  
+  # Content Security Policy header (optional)
+  cspHeader: "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
+  
+  # Extra meta tags to include in the HTML head (optional)
+  extraMetaTags:
+    - name: "description"
+      content: "Sample micro frontend application"
+  
+  # Extra HTTP headers to include in responses (optional)
+  extraHeaders:
+    - name: "X-Custom-Header"
+      value: "sample-value"
+  
+  # Header name containing user roles (defaults to x-auth-request-roles)
+  rolesHeader: "x-auth-request-roles"
+  
+  # Header name containing user ID (defaults to x-auth-request-user)
+  userHeader: "x-auth-request-user"

@@ -25,4 +25,10 @@ resources:
 - microfrontend_admin_role.yaml
 - microfrontend_editor_role.yaml
 - microfrontend_viewer_role.yaml
+- webcomponent_admin_role.yaml
+- webcomponent_editor_role.yaml
+- webcomponent_viewer_role.yaml
+- microfrontendclass_admin_role.yaml
+- microfrontendclass_editor_role.yaml
+- microfrontendclass_viewer_role.yaml
 

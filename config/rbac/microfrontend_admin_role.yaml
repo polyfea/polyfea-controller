@@ -14,13 +14,13 @@ metadata:
   name: microfrontend-admin-role
 rules:
 - apiGroups:
-  - polyfea.github.io.polyfea.github.io
+  - polyfea.github.io
   resources:
   - microfrontends
   verbs:
   - '*'
 - apiGroups:
-  - polyfea.github.io.polyfea.github.io
+  - polyfea.github.io
   resources:
   - microfrontends/status
   verbs:

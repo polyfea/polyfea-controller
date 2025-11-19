@@ -1,7 +1,7 @@
 # This rule is not used by the project polyfea-controller itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants read-only access to polyfea.github.io.polyfea.github.io resources.
+# Grants read-only access to polyfea.github.io resources.
 # This role is intended for users who need visibility into these resources
 # without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
 
@@ -11,12 +11,12 @@ metadata:
   labels:
     app.kubernetes.io/name: polyfea-controller
     app.kubernetes.io/managed-by: kustomize
-  name: microfrontend-viewer-role
+  name: microfrontendclass-viewer-role
 rules:
 - apiGroups:
   - polyfea.github.io
   resources:
-  - microfrontends
+  - microfrontendclasses
   verbs:
   - get
   - list
@@ -24,6 +24,6 @@ rules:
 - apiGroups:
   - polyfea.github.io
   resources:
-  - microfrontends/status
+  - microfrontendclasses/status
   verbs:
   - get
