@@ -58,12 +58,28 @@ func setupMicroFrontend(name string, service, modulePath *string, proxy *bool, f
 	}
 }
 
+func runReconcile(ctx context.Context, typeNamespacedName types.NamespacedName) error {
+	controllerReconciler := &MicroFrontendReconciler{
+		Client:     k8sClient,
+		Scheme:     k8sClient.Scheme(),
+		Repository: microFrontendRepository,
+	}
+
+	_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+		NamespacedName: typeNamespacedName,
+	})
+	return err
+}
+
 func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
 	existingMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
 	if err == nil {
 		// Delete the existing resource
-		Expect(k8sClient.Delete(ctx, existingMicroFrontend)).Should(Succeed())
+		Expect(k8sClient.Delete(ctx, existingMicroFrontend)).To(Succeed())
+
+		Expect(runReconcile(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
+
 		// Wait for the resource to be fully deleted
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
@@ -78,60 +94,6 @@ var _ = Describe("MicroFrontend Controller", func() {
 	)
 
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-microfrontend"
-
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default",
-		}
-		microfrontend := &polyfeav1alpha1.MicroFrontend{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind MicroFrontend")
-			err := k8sClient.Get(ctx, typeNamespacedName, microfrontend)
-			if err != nil && errors.IsNotFound(err) {
-				service := "http://test-service.test-namespace.svc.cluster.local"
-				modulePath := "module.jsm"
-				proxy := true
-				resource := &polyfeav1alpha1.MicroFrontend{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: polyfeav1alpha1.MicroFrontendSpec{
-						Service:    &service,
-						ModulePath: &modulePath,
-						Proxy:      &proxy,
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			resource := &polyfeav1alpha1.MicroFrontend{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance MicroFrontend")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &MicroFrontendReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 		Context("When creating a MicroFrontend", func() {
 			It("Should add and remove finalizer", func() {
 				By("Creating a new MicroFrontend")
@@ -149,9 +111,11 @@ var _ = Describe("MicroFrontend Controller", func() {
 					[]polyfeav1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 					nil,
 				)
-				Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
+				Expect(runReconcile(testCtx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
 				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+
 				createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
 
 				Eventually(func() bool {
@@ -172,6 +136,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				By("Deleting the MicroFrontend")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(runReconcile(testCtx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
 				Eventually(func() bool {
 					return errors.IsNotFound(k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend))
 				}, timeout, interval).Should(BeTrue())
@@ -195,6 +160,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					)
 					if shouldSucceed {
 						Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+						Expect(runReconcile(testCtx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
 					} else {
 						Expect(k8sClient.Create(testCtx, microFrontend)).Should(Not(Succeed()))
 					}
@@ -220,6 +186,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+				Expect(runReconcile(testCtx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
 
 				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
 				createdMicroFrontend := &polyfeav1alpha1.MicroFrontend{}
@@ -236,6 +203,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
 
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(runReconcile(testCtx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})).To(Succeed())
 				Eventually(func() bool {
 					return errors.IsNotFound(k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend))
 				}, timeout, interval).Should(BeTrue())
