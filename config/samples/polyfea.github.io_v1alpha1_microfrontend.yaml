@@ -2,7 +2,7 @@ apiVersion: polyfea.github.io.polyfea.github.io/v1alpha1
 kind: MicroFrontend
 metadata:
   labels:
-    app.kubernetes.io/name: polyfea-controller-reborn
+    app.kubernetes.io/name: polyfea-controller
     app.kubernetes.io/managed-by: kustomize
   name: microfrontend-sample
 spec:
