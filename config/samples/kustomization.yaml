@@ -1,4 +1,6 @@
 ## Append samples of your project ##
 resources:
 - polyfea.github.io_v1alpha1_microfrontend.yaml
+- polyfea.github.io_v1alpha1_webcomponent.yaml
+- polyfea.github.io_v1alpha1_microfrontendclass.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

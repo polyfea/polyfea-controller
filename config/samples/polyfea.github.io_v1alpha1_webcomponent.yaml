@@ -1,0 +1,31 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: WebComponent
+metadata:
+  labels:
+    app.kubernetes.io/name: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: webcomponent-sample
+spec:
+  # Reference to a microfrontend from which the webcomponent would be served
+  microFrontend: "microfrontend-sample"
+  
+  # The HTML element tag name
+  element: "my-web-component"
+  
+  # Attributes for the web component
+  attributes:
+    - name: "title"
+      value: "Sample Component"
+  
+  # Display rules that determine when this component should be loaded
+  displayRules:
+    - allOf:
+        - contextArea: "main"
+  
+  # Priority for ordering (higher numbers = higher priority)
+  priority: 0
+  
+  # Styles to apply to the component
+  style:
+    - name: "display"
+      value: "block"

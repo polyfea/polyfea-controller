@@ -14,7 +14,7 @@ metadata:
   name: microfrontend-editor-role
 rules:
 - apiGroups:
-  - polyfea.github.io.polyfea.github.io
+  - polyfea.github.io
   resources:
   - microfrontends
   verbs:
@@ -26,7 +26,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - polyfea.github.io.polyfea.github.io
+  - polyfea.github.io
   resources:
   - microfrontends/status
   verbs:
