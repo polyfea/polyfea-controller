@@ -9,8 +9,10 @@ func TestGetConfigurationValueValueReturned(t *testing.T) {
 	// Arrange
 	testKey := "TEST_KEY"
 	testValue := "TEST_VALUE"
-	os.Setenv(testKey, testValue)
-
+	err := os.Setenv(testKey, testValue)
+	if err != nil {
+		t.Fatalf("Failed to set environment variable: %v", err)
+	}
 	// Act
 	value := GetConfigurationValue(testKey)
 

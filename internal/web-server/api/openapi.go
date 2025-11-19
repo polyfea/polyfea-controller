@@ -10,5 +10,8 @@ var openapiSpec []byte
 
 func HandleOpenApi(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
-	w.Write(openapiSpec)
+	_, err := w.Write(openapiSpec)
+	if err != nil {
+		http.Error(w, "Failed to respond with OpenAPI spec", http.StatusInternalServerError)
+	}
 }

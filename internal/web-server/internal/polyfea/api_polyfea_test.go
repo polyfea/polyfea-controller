@@ -3,6 +3,7 @@ package polyfea
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
@@ -46,7 +47,7 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 			createTestElementSpec("other-microfrontend"),
 		},
 		map[string]generated.MicrofrontendSpec{
-			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
+			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}),
 		})
 
 	// Act
@@ -64,7 +65,12 @@ func PolyfeaApiGetContextAreaMultipleElementsTakeOneCorrectComponentIsSelected(t
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
 
 	// Assert
 	if err != nil {
@@ -109,7 +115,12 @@ func PolyfeaApiGetContextAreaMultipleElementsNotMatchingReturnNotFound(t *testin
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
 
 	// Assert
 	if err != nil {
@@ -142,8 +153,8 @@ func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 			createTestElementSpec("test-microfrontend"),
 		},
 		map[string]generated.MicrofrontendSpec{
-			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}, true),
-			"test-microfrontend":  createTestMicroFrontendSpec("test-microfrontend", []string{}, true),
+			"other-microfrontend": createTestMicroFrontendSpec("other-microfrontend", []string{}),
+			"test-microfrontend":  createTestMicroFrontendSpec("test-microfrontend", []string{}),
 		})
 
 	// Act
@@ -161,7 +172,12 @@ func PolyfeaApiGetContextAreaMultipleElementsMatchingReturned(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
 
 	// Assert
 	if err != nil {
@@ -193,7 +209,12 @@ func PolyfeaApiGetStaticConfigReturnsNotImplemented(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			t.Errorf("Error closing response body: %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusNotImplemented {
 		t.Errorf("Expected status code %d, got %d", http.StatusNotImplemented, response.StatusCode)
@@ -233,10 +254,9 @@ func polyfeaApiSetupRouter() http.Handler {
 }
 
 func storeTestWebComponents(repo *repository.InMemoryRepository[*v1alpha1.WebComponent]) {
-	repo.Store(createTestWebComponent(
+	err := repo.Store(createTestWebComponent(
 		"test-name",
 		"test-microfrontend",
-		"test-tag-name",
 		[]v1alpha1.DisplayRules{
 			{
 				NoneOf: []v1alpha1.Matcher{
@@ -251,11 +271,13 @@ func storeTestWebComponents(repo *repository.InMemoryRepository[*v1alpha1.WebCom
 		},
 		&[]int32{1}[0],
 	))
+	if err != nil {
+		fmt.Printf("Failed to store WebComponent in repository: %v", err)
+	}
 
-	repo.Store(createTestWebComponent(
+	err = repo.Store(createTestWebComponent(
 		"test-other-name",
 		"other-microfrontend",
-		"test-tag-name",
 		[]v1alpha1.DisplayRules{
 			{
 				NoneOf: []v1alpha1.Matcher{
@@ -286,11 +308,21 @@ func storeTestWebComponents(repo *repository.InMemoryRepository[*v1alpha1.WebCom
 		},
 		&[]int32{10}[0],
 	))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to store WebComponent in repository: %v", err))
+	}
 }
 
 func storeTestMicroFrontends(repo *repository.InMemoryRepository[*v1alpha1.MicroFrontend]) {
-	repo.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true))
-	repo.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	err := repo.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		fmt.Printf("Failed to store MicroFrontend in repository: %v", err)
+	}
+
+	err = repo.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to store MicroFrontend in repository: %v", err))
+	}
 }
 
 func addDummyMiddleware(next http.Handler, basePath string, microFrontendClass *v1alpha1.MicroFrontendClass) http.Handler {

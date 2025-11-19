@@ -51,26 +51,26 @@ const (
 // Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	const finalizerName = "polyfea.github.io/finalizer"
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	mfc := &polyfeav1alpha1.MicroFrontendClass{}
 	if err := r.Get(ctx, req.NamespacedName, mfc); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("MicroFrontendClass resource not found. Ignoring since object must be deleted.")
+			logger.Info("MicroFrontendClass resource not found. Ignoring since object must be deleted.")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get MicroFrontendClass")
+		logger.Error(err, "Failed to get MicroFrontendClass")
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	log.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
+	logger.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
 
 	// Add finalizer if not present
 	if !controllerutil.ContainsFinalizer(mfc, finalizerName) {
-		log.Info("Adding Finalizer for MicroFrontendClass")
+		logger.Info("Adding Finalizer for MicroFrontendClass")
 		controllerutil.AddFinalizer(mfc, finalizerName)
 		if err := r.Update(ctx, mfc); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer")
+			logger.Error(err, "Failed to update custom resource to add finalizer")
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{}, nil
@@ -79,19 +79,19 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// Handle deletion
 	if mfc.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(mfc, finalizerName) {
-			log.Info("Performing finalizer operations before deletion")
+			logger.Info("Performing finalizer operations before deletion")
 			if err := r.finalizeOperationsForMicroFrontendClass(mfc); err != nil {
-				log.Error(err, "Failed to perform finalizer operations")
+				logger.Error(err, "Failed to perform finalizer operations")
 				return ctrl.Result{Requeue: true}, nil
 			}
 			if err := r.Get(ctx, req.NamespacedName, mfc); err != nil {
-				log.Error(err, "Failed to re-fetch MicroFrontendClass")
+				logger.Error(err, "Failed to re-fetch MicroFrontendClass")
 				return ctrl.Result{Requeue: true}, err
 			}
-			log.Info("Removing Finalizer for MicroFrontendClass after successful operations")
+			logger.Info("Removing Finalizer for MicroFrontendClass after successful operations")
 			controllerutil.RemoveFinalizer(mfc, finalizerName)
 			if err := r.Update(ctx, mfc); err != nil {
-				log.Error(err, "Failed to remove finalizer")
+				logger.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{Requeue: true}, err
 			}
 			return ctrl.Result{}, nil
@@ -100,9 +100,9 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Store the MicroFrontendClass in the repository
-	log.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc)
+	logger.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc)
 	if err := r.Repository.Store(mfc); err != nil {
-		log.Error(err, "Failed to store MicroFrontendClass in repository")
+		logger.Error(err, "Failed to store MicroFrontendClass in repository")
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -110,9 +110,13 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 func (r *MicroFrontendClassReconciler) finalizeOperationsForMicroFrontendClass(mfc *polyfeav1alpha1.MicroFrontendClass) error {
-	log := log.FromContext(context.Background())
-	r.Repository.Delete(mfc)
-	log.Info("Removing finalizer from MicroFrontendClass", "MicroFrontendClass", mfc)
+	logger := log.FromContext(context.Background())
+	err := r.Repository.Delete(mfc)
+	if err != nil {
+		logger.Error(err, "Failed to remove MicroFrontendClass from repository", "MicroFrontendClass", mfc)
+		return err
+	}
+	logger.Info("Removing finalizer from MicroFrontendClass", "MicroFrontendClass", mfc)
 	return nil
 }
 

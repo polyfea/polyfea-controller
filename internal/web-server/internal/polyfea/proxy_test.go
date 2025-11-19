@@ -2,7 +2,6 @@ package polyfea
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -35,23 +34,40 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 	// Test that the proxy correctly forwards the call and returns the result
 	// Arrange
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true)
+	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
 
 	// Create a mock HTTP server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test-module"))
+		_, err := w.Write([]byte(TestModuleName))
+		if err != nil {
+			t.Error("Failed to write response")
+		}
 	}))
 	defer mockServer.Close()
 
 	requestedMicroFrontend.Spec.Service = &mockServer.URL
-	testMicroFrontendRepository.Store(requestedMicroFrontend)
-	testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
+	if err != nil {
+		t.Error("Failed to store requested microfrontend")
+	}
+	err = testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		t.Error("Failed to store other microfrontend")
+	}
 
 	testMicrofrontendClassRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
-	testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+
+	err = testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("test-frontend-class", "/"))
+	if err != nil {
+		t.Error("Failed to store test microfrontend class")
+	}
+
+	err = testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+	if err != nil {
+		t.Error("Failed to store other microfrontend class")
+	}
 
 	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &logr.Logger{})
 
@@ -65,7 +81,7 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 		t.Error("The proxy did not return the correct status code.")
 	}
 
-	if writer.Body.String() != "test-module" {
+	if writer.Body.String() != TestModuleName {
 		t.Error("The proxy did not return the correct body.")
 	}
 }
@@ -74,15 +90,30 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	// Test that the proxy returns an error if the service is not found
 	// Arrange
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true)
+	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
 	requestedMicroFrontend.Spec.Service = &[]string{"http://test-service.default.svc.cluster.local"}[0]
 
-	testMicroFrontendRepository.Store(requestedMicroFrontend)
-	testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
+	if err != nil {
+		t.Error("Failed to store requested microfrontend")
+	}
+
+	err = testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		t.Error("Failed to store other microfrontend")
+	}
 
 	testMicrofrontendClassRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
-	testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("test-frontend-class", "/"))
-	testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+
+	err = testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("test-frontend-class", "/"))
+	if err != nil {
+		t.Error("Failed to store test microfrontend class")
+	}
+
+	err = testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+	if err != nil {
+		t.Error("Failed to store other microfrontend class")
+	}
 
 	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &logr.Logger{})
 
@@ -101,31 +132,48 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 	// Test that the proxy correctly forwards the call and returns the result with extra headers
 	// Arrange
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true)
+	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
 
 	// Create a mock HTTP server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test-module"))
+		_, err := w.Write([]byte(TestModuleName))
+		if err != nil {
+			t.Error("Failed to write response")
+		}
 	}))
 	defer mockServer.Close()
 
 	requestedMicroFrontend.Spec.Service = &mockServer.URL
-	testMicroFrontendRepository.Store(requestedMicroFrontend)
-	testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
+	if err != nil {
+		t.Error("Failed to store requested microfrontend")
+	}
+
+	err = testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		t.Error("Failed to store other microfrontend")
+	}
 
 	testMicrofrontendClassRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
 	expectedFrontendClass := createTestMicroFrontendClass("test-frontend-class", "/")
 	expectedFrontendClass.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
 			Name:  "test-header",
-			Value: "test-value",
+			Value: TestHeaderValue,
 		},
 	}
 
-	testMicrofrontendClassRepository.Store(expectedFrontendClass)
-	testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+	err = testMicrofrontendClassRepository.Store(expectedFrontendClass)
+	if err != nil {
+		t.Error("Failed to store test microfrontend class")
+	}
+
+	err = testMicrofrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+	if err != nil {
+		t.Error("Failed to store other microfrontend class")
+	}
 
 	proxy := NewPolyfeaProxy(testMicrofrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &logr.Logger{})
 
@@ -139,11 +187,11 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 		t.Error("The proxy did not return the correct status code.")
 	}
 
-	if writer.Body.String() != "test-module" {
+	if writer.Body.String() != TestModuleName {
 		t.Error("The proxy did not return the correct body.")
 	}
 
-	if writer.Header().Get("test-header") != "test-value" {
+	if writer.Header().Get("test-header") != TestHeaderValue {
 		t.Error("The proxy did not return the correct header.")
 	}
 }
@@ -172,7 +220,12 @@ func PolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	if err != nil {
 		t.Error("Unexpected error occurred while calling the proxy.")
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Error("Error closing response body", err)
+		}
+	}()
 
 	if response.StatusCode != 500 {
 		t.Error("The proxy did not return the correct status code.")
@@ -187,7 +240,10 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 
 	myHandler.HandleFunc("/test-module.css", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
-		w.Write([]byte("test-module"))
+		_, err := w.Write([]byte(TestModuleName))
+		if err != nil {
+			t.Error("Failed to write response")
+		}
 	})
 
 	server := &http.Server{
@@ -197,20 +253,28 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not listen on '%s': %v\n", server.Addr, err)
+			t.Error("Could not start mock server")
 		}
 	}()
 
 	for {
 		resp, err := http.Get("http://" + server.Addr)
 		if err == nil {
-			resp.Body.Close()
+			err := resp.Body.Close()
+			if err != nil {
+				t.Error("Error closing response body", err)
+			}
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	defer server.Close()
+	defer func() {
+		err := server.Close()
+		if err != nil {
+			t.Error("Error closing server", err)
+		}
+	}()
 
 	// Act
 	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module.css")
@@ -219,7 +283,12 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	if err != nil {
 		t.Error("Unexpected error occurred while calling the proxy.")
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Error("Error closing response body", err)
+		}
+	}()
 
 	if response.StatusCode != 200 {
 		t.Error("The proxy did not return the correct status code.")
@@ -231,11 +300,11 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	}
 	bodyString := string(buffer[:n])
 
-	if bodyString != "test-module" {
+	if bodyString != TestModuleName {
 		t.Error("The proxy did not return the correct body.")
 	}
 
-	if response.Header.Get("test-header") != "test-value" {
+	if response.Header.Get("test-header") != TestHeaderValue {
 		t.Error("The proxy did not return the correct header.")
 	}
 }
@@ -243,10 +312,9 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 func polyfeaProxyApiSetupRouter() http.Handler {
 	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 
-	testWebComponentRepository.Store(createTestWebComponent(
+	err := testWebComponentRepository.Store(createTestWebComponent(
 		"test-name",
 		"test-microfrontend",
-		"test-tag-name",
 		[]v1alpha1.DisplayRules{
 			{
 				NoneOf: []v1alpha1.Matcher{
@@ -260,11 +328,13 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 			},
 		},
 		&[]int32{1}[0]))
+	if err != nil {
+		panic("Failed to store test web component")
+	}
 
-	testWebComponentRepository.Store(createTestWebComponent(
+	err = testWebComponentRepository.Store(createTestWebComponent(
 		"test-other-name",
 		"other-microfrontend",
-		"test-tag-name",
 		[]v1alpha1.DisplayRules{
 			{
 				NoneOf: []v1alpha1.Matcher{
@@ -294,13 +364,23 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 			},
 		},
 		&[]int32{10}[0]))
+	if err != nil {
+		panic("Failed to store other test web component")
+	}
 
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	mf := createTestMicroFrontend("test-microfrontend", []string{}, "test-module", "test-frontend-class", true)
+	mf := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
 	mf.Spec.Service = &[]string{"http://localhost:5003"}[0]
-	testMicroFrontendRepository.Store(mf)
-	testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-module", "test-frontend-class", true))
+	err = testMicroFrontendRepository.Store(mf)
+	if err != nil {
+		panic("Failed to store requested microfrontend")
+	}
+
+	err = testMicroFrontendRepository.Store(createTestMicroFrontend("other-microfrontend", []string{}, "test-frontend-class", true))
+	if err != nil {
+		panic("Failed to store other microfrontend")
+	}
 
 	testMicroFrontendClassRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
 
@@ -308,11 +388,19 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
 			Name:  "test-header",
-			Value: "test-value",
+			Value: TestHeaderValue,
 		},
 	}
-	testMicroFrontendClassRepository.Store(mfc)
-	testMicroFrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+
+	err = testMicroFrontendClassRepository.Store(mfc)
+	if err != nil {
+		panic("Failed to store test microfrontend class")
+	}
+
+	err = testMicroFrontendClassRepository.Store(createTestMicroFrontendClass("other-frontend-class", "other"))
+	if err != nil {
+		panic("Failed to store other microfrontend class")
+	}
 
 	polyfeaAPIService := NewPolyfeaAPIService(
 		testWebComponentRepository,

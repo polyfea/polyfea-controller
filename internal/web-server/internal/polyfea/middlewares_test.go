@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -48,7 +49,12 @@ func BasePathStrippingMiddlewareStripsTheBasePathAndForwardItInContext(t *testin
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -69,7 +75,12 @@ func BasePathStrippingMiddlewareNoBasePathIsFoundUseDefault(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -91,7 +102,12 @@ func BasePathStrippingMiddlewareBasePathIsFound(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -112,7 +128,12 @@ func BasePathStrippingMiddlewareWithoutPolyfea(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -146,7 +167,12 @@ func BasePathStrippingMiddlewareRewritesURLPathCorrectly(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -179,7 +205,7 @@ func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 	mfcRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
 
 	for _, data := range testData {
-		mfcRepository.Store(&v1alpha1.MicroFrontendClass{
+		err := mfcRepository.Store(&v1alpha1.MicroFrontendClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      data.name,
 				Namespace: data.namespace,
@@ -188,6 +214,9 @@ func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 				BaseUri: data.baseUri,
 			},
 		})
+		if err != nil {
+			panic(fmt.Sprintf("Failed to store MicroFrontendClass in repository: %v", err))
+		}
 	}
 
 	return mfcRepository

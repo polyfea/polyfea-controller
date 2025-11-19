@@ -175,7 +175,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
 				}, timeout, interval).Should(BeTrue())
 				Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
-				Expect(*createdMicroFrontend.Spec.Proxy).Should(Equal(true))
+				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
 				Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr("polyfea-controller-default")))
 				Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())

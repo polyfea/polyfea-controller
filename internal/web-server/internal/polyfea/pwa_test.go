@@ -42,7 +42,12 @@ func ServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 
 	response, err := http.Get(testServerUrl + "/polyfea/app.webmanifest")
 	handleHTTPError(t, err)
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	actual := parseResponseBodyToManifest(t, response.Body)
 	assertWebAppManifestEquality(t, expected, actual)
@@ -54,7 +59,12 @@ func ServeRegisterReturnsExpectedFile(t *testing.T) {
 
 	response, err := http.Get(testServerUrl + "/polyfea/register.mjs")
 	handleHTTPError(t, err)
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	body := readResponseBody(t, response.Body)
 	assertStringEquality(t, expected, string(body))
@@ -66,7 +76,12 @@ func ServeServiceWorkerReturnsExpectedFile(t *testing.T) {
 
 	response, err := http.Get(testServerUrl + "/sw.mjs")
 	handleHTTPError(t, err)
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	body := readResponseBody(t, response.Body)
 	assertStringEquality(t, expected, string(body))
@@ -78,7 +93,12 @@ func ServeCachingReturnsExpectedConfig(t *testing.T) {
 
 	response, err := http.Get(testServerUrl + "/polyfea-caching.json")
 	handleHTTPError(t, err)
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	actual := parseResponseBodyToProxyConfig(t, response.Body)
 	sortProxyConfigEntries(actual, expected)
@@ -243,7 +263,7 @@ func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 		},
 	}
 
-	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
+	mf := createTestMicroFrontend("polyfea1", []string{}, "polyfea", true)
 	mf.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -252,7 +272,7 @@ func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 		},
 	}
 
-	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
+	mf2 := createTestMicroFrontend("polyfea2", []string{}, "polyfea", true)
 	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -325,7 +345,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
+	mf := createTestMicroFrontend("polyfea1", []string{}, "polyfea", true)
 	mf.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -333,9 +353,12 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.Store(mf)
+	err := microFrontendRepository.Store(mf)
+	if err != nil {
+		panic(err)
+	}
 
-	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
+	mf2 := createTestMicroFrontend("polyfea2", []string{}, "polyfea", true)
 	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -349,9 +372,12 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.Store(mf2)
+	err = microFrontendRepository.Store(mf2)
+	if err != nil {
+		panic(err)
+	}
 
-	mf3 := createTestMicroFrontend("polyfea3", []string{}, "test-module", "polyfea", false)
+	mf3 := createTestMicroFrontend("polyfea3", []string{}, "polyfea", false)
 	mf3.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -359,9 +385,12 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.Store(mf3)
+	err = microFrontendRepository.Store(mf3)
+	if err != nil {
+		panic(err)
+	}
 
-	mf4 := createTestMicroFrontend("polyfea4", []string{}, "test-module", "someother", false)
+	mf4 := createTestMicroFrontend("polyfea4", []string{}, "someother", false)
 	mf4.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
@@ -369,7 +398,10 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			},
 		},
 	}
-	microFrontendRepository.Store(mf4)
+	err = microFrontendRepository.Store(mf4)
+	if err != nil {
+		panic(err)
+	}
 
 	spa := NewProgressiveWebApplication(&logr.Logger{}, microFrontendRepository)
 

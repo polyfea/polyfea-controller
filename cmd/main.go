@@ -50,7 +50,7 @@ import (
 	webserver "github.com/polyfea/polyfea-controller/internal/web-server"
 	"github.com/polyfea/polyfea-controller/internal/web-server/configuration"
 
-	//+kubebuilder:scaffold:imports
+	// +kubebuilder:scaffold:imports
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	metricsdk "go.opentelemetry.io/otel/sdk/metric"
@@ -69,7 +69,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(polyfeav1alpha1.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
+	// +kubebuilder:scaffold:scheme
 }
 
 func main() {
@@ -160,13 +160,13 @@ func main() {
 		TLSOpts:       tlsOpts,
 	}
 
-	if secureMetrics {
-		// FilterProvider is used to protect the metrics endpoint with authn/authz.
-		// These configurations ensure that only authorized users and service accounts
-		// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
-		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
-		// metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
-	}
+	// if secureMetrics {
+	// FilterProvider is used to protect the metrics endpoint with authn/authz.
+	// These configurations ensure that only authorized users and service accounts
+	// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
+	// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
+	// metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+	// }
 
 	// If the certificate is not specified, controller-runtime will automatically
 	// generate self-signed certificates for the metrics server. While convenient for development and testing,
@@ -247,7 +247,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontendClass")
 		os.Exit(1)
 	}
-	//+kubebuilder:scaffold:builder
+	// +kubebuilder:scaffold:builder
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
@@ -271,7 +271,11 @@ func main() {
 	logger := zap.New(zap.UseFlagOptions(&opts))
 
 	shutdown, err := initTelemetry(ctx)
-	defer shutdown(context.Background())
+	defer func() {
+		if shutdownErr := shutdown(context.Background()); shutdownErr != nil {
+			setupLog.Error(shutdownErr, "error during telemetry shutdown")
+		}
+	}()
 
 	if err != nil {
 		setupLog.Error(err, "unable to initialize telemetry")
@@ -288,7 +292,7 @@ func main() {
 	}
 
 	wg.Add(1)
-	go startManager(ctx, cancel, mgr)
+	go startManager(cancel, mgr)
 
 	wg.Add(1)
 	go startHTTPServer(ctx, cancel, microFrontendClassRepository, microFrontendRepository, webComponentRepository, &logger)
@@ -298,7 +302,7 @@ func main() {
 	wg.Wait()
 }
 
-func startManager(ctx context.Context, cancel context.CancelFunc, mgr manager.Manager) {
+func startManager(cancel context.CancelFunc, mgr manager.Manager) {
 	defer wg.Done()
 	defer cancel()
 
@@ -329,7 +333,10 @@ func startHTTPServer(
 
 	go func() {
 		<-ctx.Done()
-		server.Shutdown(context.Background())
+		err := server.Shutdown(context.Background())
+		if err != nil {
+			setupLog.Error(err, "problem shutting down server")
+		}
 	}()
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

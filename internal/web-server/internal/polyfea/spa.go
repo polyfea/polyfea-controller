@@ -60,7 +60,10 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 
 	if microFrontendClass == nil {
 		logger.Error(nil, "Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
+		_, err := w.Write([]byte("Microfrontend class not found"))
+		if err != nil {
+			logger.Error(err, "Error while writing response")
+		}
 		w.WriteHeader(http.StatusNotFound)
 		telemetry().not_found.Add(r.Context(), 1)
 		span.SetStatus(codes.Error, "microfrontend_class_not_found")
@@ -116,7 +119,11 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Security-Policy", cspHeader)
 
-	w.Write([]byte(templatedHtml))
+	_, err = w.Write([]byte(templatedHtml))
+	if err != nil {
+		logger.Error(err, "Error while writing response")
+	}
+
 	logger.Info("Served single page application")
 	telemetry().spa_served.Add(r.Context(), 1)
 	span.SetStatus(codes.Ok, "served")
@@ -137,7 +144,11 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 
 	if microFrontendClass == nil {
 		logger.Info("Microfrontend class not found")
-		w.Write([]byte("Microfrontend class not found"))
+		_, err := w.Write([]byte("Microfrontend class not found"))
+		if err != nil {
+			logger.Error(err, "Error while writing response")
+		}
+
 		w.WriteHeader(http.StatusNotFound)
 		telemetry().not_found.Add(r.Context(), 1)
 		return
@@ -149,7 +160,11 @@ func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/javascript;")
 
-	w.Write(bootJs)
+	_, err := w.Write(bootJs)
+	if err != nil {
+		logger.Error(err, "Error while writing response")
+	}
+
 	logger.Info("Served boot js")
 	telemetry().boot_served.Add(r.Context(), 1)
 }
@@ -172,13 +187,13 @@ func templateHtml(content string, templateVars *TemplateData) (string, error) {
 }
 
 func generateNonce() (string, error) {
-	codes := make([]byte, 128)
-	_, err := rand.Read(codes)
+	randomCodes := make([]byte, 128)
+	_, err := rand.Read(randomCodes)
 	if err != nil {
 		return "", err
 	}
 
-	text := string(codes)
+	text := string(randomCodes)
 	nonce := base64.StdEncoding.EncodeToString([]byte(text))
 
 	return nonce, nil

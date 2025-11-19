@@ -19,7 +19,7 @@ type instruments struct {
 	not_found        metric.Int64Counter
 }
 
-var telemetry = sync.OnceValue[instruments](func() instruments {
+var telemetry = sync.OnceValue(func() instruments {
 	var err error
 	instruments := instruments{}
 

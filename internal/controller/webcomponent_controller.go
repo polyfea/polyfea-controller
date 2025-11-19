@@ -44,25 +44,25 @@ type WebComponentReconciler struct {
 
 func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	const webComponentFinalizer = "polyfea.github.io/finalizer"
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	webComponent := &polyfeav1alpha1.WebComponent{}
 	if err := r.Get(ctx, req.NamespacedName, webComponent); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("WebComponent resource not found. Ignoring since object must be deleted!")
+			logger.Info("WebComponent resource not found. Ignoring since object must be deleted!")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get WebComponent!")
+		logger.Error(err, "Failed to get WebComponent!")
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	log.Info("Reconciling WebComponent.", "WebComponent", webComponent)
+	logger.Info("Reconciling WebComponent.", "WebComponent", webComponent)
 
 	if !controllerutil.ContainsFinalizer(webComponent, webComponentFinalizer) {
-		log.Info("Adding Finalizer for WebComponent.")
+		logger.Info("Adding Finalizer for WebComponent.")
 		controllerutil.AddFinalizer(webComponent, webComponentFinalizer)
 		if err := r.Update(ctx, webComponent); err != nil {
-			log.Error(err, "Failed to update custom resource to add finalizer!")
+			logger.Error(err, "Failed to update custom resource to add finalizer!")
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{}, nil
@@ -70,14 +70,14 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if webComponent.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(webComponent, webComponentFinalizer) {
-			log.Info("Performing finalizer operations for the WebComponent before deleting the custom resource.")
+			logger.Info("Performing finalizer operations for the WebComponent before deleting the custom resource.")
 			if err := r.finalizeOperationsForWebComponent(webComponent); err != nil {
-				log.Error(err, "Failed to perform finalizer operations for the WebComponent!")
+				logger.Error(err, "Failed to perform finalizer operations for the WebComponent!")
 				return ctrl.Result{Requeue: true}, nil
 			}
 			controllerutil.RemoveFinalizer(webComponent, webComponentFinalizer)
 			if err := r.Update(ctx, webComponent); err != nil {
-				log.Error(err, "Failed to remove finalizer for WebComponent!")
+				logger.Error(err, "Failed to remove finalizer for WebComponent!")
 				return ctrl.Result{Requeue: true}, err
 			}
 		}
@@ -85,7 +85,7 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if err := r.Repository.Store(webComponent); err != nil {
-		log.Error(err, "Failed to store WebComponent in repository!")
+		logger.Error(err, "Failed to store WebComponent in repository!")
 		return ctrl.Result{}, err
 	}
 
@@ -93,12 +93,12 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 func (r *WebComponentReconciler) finalizeOperationsForWebComponent(webComponent *polyfeav1alpha1.WebComponent) error {
-	log := log.FromContext(context.Background())
+	logger := log.FromContext(context.Background())
 	if err := r.Repository.Delete(webComponent); err != nil {
-		log.Error(err, "Failed to delete WebComponent from repository!")
+		logger.Error(err, "Failed to delete WebComponent from repository!")
 		return err
 	}
-	log.Info("Finalizer cleanup complete for WebComponent.", "WebComponent", webComponent)
+	logger.Info("Finalizer cleanup complete for WebComponent.", "WebComponent", webComponent)
 	return nil
 }
 

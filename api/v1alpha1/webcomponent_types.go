@@ -114,8 +114,8 @@ type WebComponentStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // WebComponent is the Schema for the webcomponents API
 type WebComponent struct {
@@ -126,7 +126,7 @@ type WebComponent struct {
 	Status WebComponentStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // WebComponentList contains a list of WebComponent
 type WebComponentList struct {

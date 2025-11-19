@@ -34,7 +34,6 @@ import (
 
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	v1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	// +kubebuilder:scaffold:imports
@@ -50,9 +49,9 @@ var (
 	cfg       *rest.Config
 	k8sClient client.Client
 
-	microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass]
-	microFrontendRepository      repository.Repository[*polyfeav1alpha1.MicroFrontend]
-	webComponentRepository       repository.Repository[*polyfeav1alpha1.WebComponent]
+	microFrontendClassRepository repository.Repository[*v1alpha1.MicroFrontendClass]
+	microFrontendRepository      repository.Repository[*v1alpha1.MicroFrontend]
+	webComponentRepository       repository.Repository[*v1alpha1.WebComponent]
 )
 
 func TestControllers(t *testing.T) {
@@ -98,9 +97,9 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	microFrontendClassRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
-	microFrontendRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontend]()
-	webComponentRepository = repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
+	microFrontendClassRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
+	microFrontendRepository = repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	webComponentRepository = repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 
 	err = (&MicroFrontendReconciler{
 		Client:     mgr.GetClient(),

@@ -38,7 +38,11 @@ func TestOpenApiReturnsCorrectOpenApiSpec(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("Failed to close response body: %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Errorf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)

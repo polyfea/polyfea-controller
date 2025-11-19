@@ -44,26 +44,26 @@ type MicroFrontendReconciler struct {
 // Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	const finalizerName = "polyfea.github.io/finalizer"
-	log := log.FromContext(ctx)
+	logger := log.FromContext(ctx)
 
 	mf := &polyfeav1alpha1.MicroFrontend{}
 	if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("MicroFrontend resource not found; assuming it was deleted.")
+			logger.Info("MicroFrontend resource not found; assuming it was deleted.")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get MicroFrontend")
+		logger.Error(err, "Failed to get MicroFrontend")
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	log.Info("Reconciling MicroFrontend", "MicroFrontend", mf)
+	logger.Info("Reconciling MicroFrontend", "MicroFrontend", mf)
 
 	// Add finalizer if not present
 	if !controllerutil.ContainsFinalizer(mf, finalizerName) {
-		log.Info("Adding finalizer")
+		logger.Info("Adding finalizer")
 		controllerutil.AddFinalizer(mf, finalizerName)
 		if err := r.Update(ctx, mf); err != nil {
-			log.Error(err, "Failed to update MicroFrontend with finalizer")
+			logger.Error(err, "Failed to update MicroFrontend with finalizer")
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{}, nil
@@ -72,19 +72,19 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// Handle deletion
 	if mf.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(mf, finalizerName) {
-			log.Info("Running finalizer operations before deletion")
+			logger.Info("Running finalizer operations before deletion")
 			if err := r.finalizeMicroFrontend(mf); err != nil {
-				log.Error(err, "Finalizer operations failed")
+				logger.Error(err, "Finalizer operations failed")
 				return ctrl.Result{Requeue: true}, nil
 			}
 			// Re-fetch in case of update
 			if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
-				log.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
+				logger.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
 				return ctrl.Result{Requeue: true}, err
 			}
 			controllerutil.RemoveFinalizer(mf, finalizerName)
 			if err := r.Update(ctx, mf); err != nil {
-				log.Error(err, "Failed to remove finalizer")
+				logger.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{Requeue: true}, err
 			}
 		}
@@ -93,7 +93,7 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Store the MicroFrontend in the repository
 	if err := r.Repository.Store(mf); err != nil {
-		log.Error(err, "Failed to store MicroFrontend in repository")
+		logger.Error(err, "Failed to store MicroFrontend in repository")
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -102,12 +102,12 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 // finalizeMicroFrontend performs cleanup before deletion.
 func (r *MicroFrontendReconciler) finalizeMicroFrontend(mf *polyfeav1alpha1.MicroFrontend) error {
-	log := log.FromContext(context.Background())
+	logger := log.FromContext(context.Background())
 	if err := r.Repository.Delete(mf); err != nil {
-		log.Error(err, "Failed to delete MicroFrontend from repository")
+		logger.Error(err, "Failed to delete MicroFrontend from repository")
 		return err
 	}
-	log.Info("Finalizer cleanup complete", "MicroFrontend", mf)
+	logger.Info("Finalizer cleanup complete", "MicroFrontend", mf)
 	return nil
 }
 

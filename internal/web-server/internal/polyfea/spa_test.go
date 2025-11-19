@@ -47,7 +47,12 @@ func PolyfeaSinglePageApplicationReturnsNotFoundIfUnknownPolyfeaPathIsRequested(
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
@@ -65,7 +70,12 @@ func PolyfeaSinglePageApplicationReturnsSuccessIfKnownPolyfeaPathIsRequested(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("expected status code %d, got %d", http.StatusNotFound, response.StatusCode)
@@ -89,7 +99,12 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -108,8 +123,8 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))
 	}
 
-	if response.Header.Get("test-header") != "test-value" {
-		t.Fatalf("expected header %s, got %s", "test-value", response.Header.Get("test-header"))
+	if response.Header.Get("test-header") != TestHeaderValue {
+		t.Fatalf("expected header %s, got %s", TestHeaderValue, response.Header.Get("test-header"))
 	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -142,7 +157,12 @@ func PolyfeaSinglePageApplicationReturnsBootJsWhenRequested(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
@@ -170,7 +190,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
 		{
 			Name:  "test-header",
-			Value: "test-value",
+			Value: TestHeaderValue,
 		},
 	}
 	mfc.Spec.ExtraMetaTags = []v1alpha1.MetaTag{

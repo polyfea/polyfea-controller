@@ -55,15 +55,18 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 		},
 	}
 
-	mf := createTestMicroFrontend("polyfea1", []string{}, "test-module", "polyfea", true)
+	mf := createTestMicroFrontend("polyfea1", []string{}, "polyfea", true)
 	mf.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{URL: &[]string{"/test"}[0]},
 		},
 	}
-	microFrontendRepository.Store(mf)
+	err := microFrontendRepository.Store(mf)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	mf2 := createTestMicroFrontend("polyfea2", []string{}, "test-module", "polyfea", true)
+	mf2 := createTestMicroFrontend("polyfea2", []string{}, "polyfea", true)
 	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{URL: &[]string{"/test2"}[0]},
@@ -72,7 +75,11 @@ func TestServeProxyConfigReturnsExpectedConfigForAllRelevantMicrofrontends(t *te
 			{Pattern: &[]string{"/cache-route"}[0], Strategy: &[]string{"network-first"}[0]},
 		},
 	}
-	microFrontendRepository.Store(mf2)
+
+	err = microFrontendRepository.Store(mf2)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pwa := NewProgressiveWebApplication(&logr.Logger{}, microFrontendRepository)
 

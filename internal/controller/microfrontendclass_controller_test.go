@@ -54,7 +54,7 @@ func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClas
 	}
 }
 
-func ensureMicroFrontendClassDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+func ensureMicroFrontendClassDeleted(ctx context.Context) {
 	existingMicroFrontendClass := &v1alpha1.MicroFrontendClass{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass)
 	if err == nil {
@@ -63,7 +63,7 @@ func ensureMicroFrontendClassDeleted(ctx context.Context, timeout time.Duration,
 		// Wait for the resource to be fully deleted
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass))
-		}, timeout, interval).Should(BeTrue())
+		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 	}
 }
 
@@ -79,7 +79,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				func(title, baseUri *string, shouldSucceed bool) {
 					testCtx := context.Background()
 
-					ensureMicroFrontendClassDeleted(testCtx, timeout, interval)
+					ensureMicroFrontendClassDeleted(testCtx)
 
 					mfc := setupMicroFrontendClass(title, baseUri)
 					if shouldSucceed {
@@ -96,7 +96,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 			It("Should fill defaults when only required fields are set", func() {
 				testCtx := context.Background()
 
-				ensureMicroFrontendClassDeleted(testCtx, timeout, interval)
+				ensureMicroFrontendClassDeleted(testCtx)
 
 				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
@@ -121,7 +121,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 			It("Should add and remove MicroFrontendClass from repository", func() {
 				testCtx := context.Background()
 
-				ensureMicroFrontendClassDeleted(testCtx, timeout, interval)
+				ensureMicroFrontendClassDeleted(testCtx)
 
 				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
@@ -145,7 +145,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 						return m.Name == MicroFrontendClassName
 					})
 					return result
-				}, timeout, interval).Should(HaveLen(0))
+				}, timeout, interval).Should(BeEmpty())
 			})
 		})
 
@@ -154,7 +154,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				func(manifest *v1alpha1.WebAppManifest, shouldSucceed bool) {
 					testCtx := context.Background()
 
-					ensureMicroFrontendClassDeleted(testCtx, timeout, interval)
+					ensureMicroFrontendClassDeleted(testCtx)
 
 					mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 					mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{WebAppManifest: manifest}

@@ -93,7 +93,10 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 	if microFrontendClass == nil {
 		logger.Error(nil, "Microfrontend class not found")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("Microfrontend class not found"))
+		_, err := w.Write([]byte("Microfrontend class not found"))
+		if err != nil {
+			logger.Error(err, "Failed to write response")
+		}
 		telemetry().not_found.Add(r.Context(), 1)
 		span.SetStatus(codes.Error, "microfrontend_class_not_found")
 		return
@@ -118,7 +121,10 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 		return
 	}
 
-	w.Write(resource)
+	_, err = w.Write(resource)
+	if err != nil {
+		logger.Error(err, "Failed to write response")
+	}
 }
 
 func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha1.MicroFrontendClass) (*ProxyConfigResponse, error) {

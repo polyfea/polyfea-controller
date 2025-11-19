@@ -34,9 +34,6 @@ const (
 	WebComponentName      = "test-webcomponent"
 	WebComponentNamespace = "default"
 	WebComponentFinalizer = "polyfea.github.io/finalizer"
-
-	timeout  = time.Second * 10
-	interval = time.Millisecond * 250
 )
 
 // Ensure the WebComponent resource does not already exist
@@ -201,7 +198,7 @@ var _ = Describe("WebComponent Controller", func() {
 					return mf.Name == WebComponentName
 				})
 				return result
-			}, timeout, interval).Should(HaveLen(0))
+			}, timeout, interval).Should(BeEmpty())
 		})
 	})
 })

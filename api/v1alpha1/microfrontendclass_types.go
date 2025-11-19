@@ -218,8 +218,8 @@ type MicroFrontendClassStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
 // MicroFrontendClass is the Schema for the microfrontendclasses API
 type MicroFrontendClass struct {
@@ -230,7 +230,7 @@ type MicroFrontendClass struct {
 	Status MicroFrontendClassStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // MicroFrontendClassList contains a list of MicroFrontendClass
 type MicroFrontendClassList struct {

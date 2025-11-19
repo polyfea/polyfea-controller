@@ -64,16 +64,21 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxyUrl := p.buildProxyUrl(microfrontend.Spec.Service, path)
-	resp, err := p.proxyRequest(ctx, proxyUrl, r, logger, span, w)
+	resp, err := p.proxyRequest(ctx, proxyUrl, r, logger, w)
 	if err != nil {
 		logger.Error(err, "Error while proxying request.")
 		span.SetStatus(codes.Error, "proxying_request: "+err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			logger.Error(err, "Error while closing response body.")
+		}
+	}()
 
-	p.finalizeResponse(w, resp, microfrontendClass.Spec.ExtraHeaders, ctx, span)
+	p.finalizeResponse(w, resp, microfrontendClass.Spec.ExtraHeaders, ctx, span, logger)
 }
 
 // Helper methods for HandleProxy
@@ -139,7 +144,7 @@ func (p *PolyfeaProxy) buildProxyUrl(service *string, path string) string {
 	return *service + path
 }
 
-func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *http.Request, logger logr.Logger, span trace.Span, w http.ResponseWriter) (*http.Response, error) {
+func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *http.Request, logger logr.Logger, w http.ResponseWriter) (*http.Response, error) {
 	subctx, subspan := telemetry().tracer.Start(ctx, "polyfea_d.proxy_request", trace.WithAttributes(
 		attribute.String("proxy_url", proxyUrl),
 	))
@@ -160,12 +165,15 @@ func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *htt
 	return p.client.Do(req)
 }
 
-func (p *PolyfeaProxy) finalizeResponse(w http.ResponseWriter, resp *http.Response, extraHeaders []v1alpha1.Header, ctx context.Context, span trace.Span) {
+func (p *PolyfeaProxy) finalizeResponse(w http.ResponseWriter, resp *http.Response, extraHeaders []v1alpha1.Header, ctx context.Context, span trace.Span, logger logr.Logger) {
 	copyHeaders(w.Header(), resp.Header)
 	copyExtraHeaders(w.Header(), extraHeaders)
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	_, err := io.Copy(w, resp.Body)
+	if err != nil {
+		logger.Error(err, "Error while copying response body.")
+	}
 	telemetry().proxied_resource.Add(ctx, 1)
 	span.SetStatus(codes.Ok, "proxied_request")
 }
