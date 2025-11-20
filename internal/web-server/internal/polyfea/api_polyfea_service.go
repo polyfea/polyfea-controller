@@ -174,26 +174,26 @@ func (s *PolyfeaApiService) getWebComponents(name, path string, userRoles []stri
 func (s *PolyfeaApiService) handleRepositoryError(w http.ResponseWriter, logger logr.Logger, span trace.Span, errorCode string, frontendClass *v1alpha1.MicroFrontendClass, err error) {
 	logger.Error(err, "Error while processing repository")
 	span.SetStatus(codes.Error, errorCode)
+	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 	w.WriteHeader(http.StatusInternalServerError)
 	_, err = w.Write([]byte("Internal server error"))
 	if err != nil {
 		logger.Error(err, "Error while writing response")
 		span.SetStatus(codes.Error, "response_writing_error")
 	}
-	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 }
 
 func (s *PolyfeaApiService) handleNoWebComponentsFound(w http.ResponseWriter, logger logr.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea, ctx context.Context) {
 	logger.Info("No webcomponents found for query")
 	telemetry().not_found.Add(ctx, 1)
 	span.SetStatus(codes.Ok, "webcomponent_not_found")
+	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(result)
 	if err != nil {
 		logger.Error(err, "Error while encoding response")
 		span.SetStatus(codes.Error, "response_encoding_error")
 	}
-	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 }
 
 func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComponent, take *int) []*v1alpha1.WebComponent {
@@ -241,6 +241,7 @@ func (s *PolyfeaApiService) finalizeResponse(w http.ResponseWriter, logger logr.
 	logger.Info("Context area successfully generated")
 	span.SetStatus(codes.Ok, "ok")
 	telemetry().context_areas.Add(ctx, 1)
+	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(result)
 
@@ -253,8 +254,6 @@ func (s *PolyfeaApiService) finalizeResponse(w http.ResponseWriter, logger logr.
 			logger.Error(err, "Error while writing response")
 		}
 	}
-
-	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 }
 
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
