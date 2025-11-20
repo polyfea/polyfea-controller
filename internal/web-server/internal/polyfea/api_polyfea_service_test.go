@@ -208,7 +208,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -270,7 +270,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -347,7 +347,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -419,7 +419,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, headers)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -485,7 +485,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, headers)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -550,7 +550,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t
 
 	// Act
 	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test.*", &take, headers)
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -612,7 +612,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatchin
 
 	// Act
 	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test.*", &take, headers)
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -674,7 +674,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testi
 
 	// Act
 	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "sometest", &take, headers)
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -741,7 +741,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testin
 
 	// Act
 	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "sometest.*", &take, headers)
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -803,7 +803,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *test
 
 	// Act
 	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "sometest.*", &take, headers)
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -888,7 +888,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 	// Act
 	take := 1
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -976,7 +976,7 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 
 	// Act
 	take := 1
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -1078,7 +1078,7 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 
 	// Act
 	take := 0
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -1164,7 +1164,7 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependencyMissingErrorIsRet
 
 	// Act
 	take := 0
-	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	// Errors are now returned as HTTP 500, not error values
@@ -1245,7 +1245,7 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 
 	// Act
 	take := 0
-	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, nil)
+	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
 	// Errors are now returned as HTTP 500, not error values
@@ -1274,7 +1274,7 @@ func TestPolyfeaApiServiceGetContextAreaInvalidHeaders(t *testing.T) {
 
 	// Act
 	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-name", "test-path", &take, headers)
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
 	if statusCode != http.StatusOK {
@@ -1302,14 +1302,14 @@ func setupContext(basePath string, frontendClassName string) context.Context {
 }
 
 // Helper to call GetContextArea with the new API
-func callGetContextArea(t *testing.T, service *PolyfeaApiService, ctx context.Context, name, path string, take *int, headers http.Header) (int, generated.ContextArea) {
+func callGetContextArea(t *testing.T, service *PolyfeaApiService, ctx context.Context, path string, take *int, headers http.Header) (int, generated.ContextArea) {
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/context-area/"+name, nil)
+	req := httptest.NewRequest("GET", "/context-area/test-name", nil)
 	req = req.WithContext(ctx)
 	if headers != nil {
 		req.Header = headers
 	}
-	service.GetContextArea(w, req, name, generated.GetContextAreaParams{Path: path, Take: take})
+	service.GetContextArea(w, req, "test-name", generated.GetContextAreaParams{Path: path, Take: take})
 
 	var result generated.ContextArea
 	if w.Code == http.StatusOK && w.Body.Len() > 0 {
