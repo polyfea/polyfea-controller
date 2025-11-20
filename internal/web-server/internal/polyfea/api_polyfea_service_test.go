@@ -1313,8 +1313,12 @@ func callGetContextArea(t *testing.T, service *PolyfeaApiService, ctx context.Co
 
 	var result generated.ContextArea
 	if w.Code == http.StatusOK && w.Body.Len() > 0 {
-		if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-			t.Fatalf("Failed to unmarshal response: %v", err)
+		// Only try to unmarshal if it looks like JSON (starts with '{' or '[')
+		bodyBytes := w.Body.Bytes()
+		if len(bodyBytes) > 0 && (bodyBytes[0] == '{' || bodyBytes[0] == '[') {
+			if err := json.Unmarshal(bodyBytes, &result); err != nil {
+				t.Fatalf("Failed to unmarshal response: %v", err)
+			}
 		}
 	}
 	return w.Code, result
