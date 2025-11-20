@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-
-	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 )
 
 var (
@@ -16,11 +14,11 @@ var (
 
 func TestMain(t *testing.M) {
 	// Setup
-	r := generated.NewRouter()
-	r.HandleFunc("/openapi", HandleOpenApi)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/openapi", HandleOpenApi)
 
 	// Test server
-	testServer = httptest.NewServer(r)
+	testServer = httptest.NewServer(mux)
 	defer testServer.Close()
 
 	t.Run()

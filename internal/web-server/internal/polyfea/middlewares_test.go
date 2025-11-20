@@ -9,7 +9,6 @@ import (
 
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
-	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -180,13 +179,13 @@ func BasePathStrippingMiddlewareRewritesURLPathCorrectly(t *testing.T) {
 }
 
 func basePathStrippingMiddlewareRouter() http.Handler {
-	router := generated.NewRouter()
-	router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		basePathValue := r.Context().Value(PolyfeaContextKeyBasePath)
 		w.Header().Set("X-Base-Path", basePathValue.(string))
 		w.WriteHeader(http.StatusOK)
 	})
-	return BasePathStrippingMiddleware(router, setupMfcRepository())
+	return BasePathStrippingMiddleware(mux, setupMfcRepository())
 }
 
 func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {

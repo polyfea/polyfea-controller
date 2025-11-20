@@ -11,7 +11,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
-	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 )
 
 var pwaTestSuite = IntegrationTestSuite{
@@ -341,7 +340,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 		},
 	}
 
-	router := generated.NewRouter()
+	mux := http.NewServeMux()
 
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
@@ -405,10 +404,10 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 
 	spa := NewProgressiveWebApplication(&logr.Logger{}, microFrontendRepository)
 
-	router.HandleFunc("/polyfea/app.webmanifest", spa.ServeAppWebManifest)
-	router.HandleFunc("/polyfea/register.mjs", spa.ServeRegister)
-	router.HandleFunc("/sw.mjs", spa.ServeServiceWorker)
-	router.HandleFunc("/polyfea-caching.json", spa.ServeCaching)
+	mux.HandleFunc("/polyfea/app.webmanifest", spa.ServeAppWebManifest)
+	mux.HandleFunc("/polyfea/register.mjs", spa.ServeRegister)
+	mux.HandleFunc("/sw.mjs", spa.ServeServiceWorker)
+	mux.HandleFunc("/polyfea-caching.json", spa.ServeCaching)
 
-	return addDummyMiddleware(router, "/", mfc)
+	return addDummyMiddleware(mux, "/", mfc)
 }

@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 )
 
 var spaTestSuite = IntegrationTestSuite{
@@ -202,7 +201,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
 	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
-	router := generated.NewRouter()
+	mux := http.NewServeMux()
 
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
 		WebAppManifest: &v1alpha1.WebAppManifest{
@@ -221,17 +220,17 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 
 	spa := NewSinglePageApplication(&logr.Logger{})
 
-	router.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
+	mux.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
-	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/polyfea/", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
 
-	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
+	mux.HandleFunc("/", spa.HandleSinglePageApplication)
 
-	return addDummyMiddleware(router, "/", mfc)
+	return addDummyMiddleware(mux, "/", mfc)
 }

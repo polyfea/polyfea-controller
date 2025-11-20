@@ -24,31 +24,32 @@ func SetupRouter(
 		logger,
 	)
 
-	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
+	// Create a new mux and add handlers
+	mux := http.NewServeMux()
+	mux.HandleFunc("/openapi", api.HandleOpenApi)
 
-	router := generated.NewRouter(polyfeaAPIController)
-
-	router.HandleFunc("/openapi", api.HandleOpenApi)
+	// Create the polyfea handler with base URL "/polyfea"
+	_ = generated.HandlerFromMuxWithBaseURL(polyfeaAPIService, mux, "/polyfea")
 
 	proxy := polyfea.NewPolyfeaProxy(microFrontendClassRepository, microFrontendRepository, &http.Client{}, logger)
 
-	router.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+":.*}", proxy.HandleProxy)
+	mux.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"...}", proxy.HandleProxy)
 
 	spa := polyfea.NewSinglePageApplication(logger)
 	pwa := polyfea.NewProgressiveWebApplication(logger, microFrontendRepository)
 
-	router.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
+	mux.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)
 
-	router.HandleFunc("/polyfea/app.webmanifest", pwa.ServeAppWebManifest)
-	router.HandleFunc("/polyfea/register.mjs", pwa.ServeRegister)
+	mux.HandleFunc("/polyfea/app.webmanifest", pwa.ServeAppWebManifest)
+	mux.HandleFunc("/polyfea/register.mjs", pwa.ServeRegister)
 
-	router.PathPrefix("/polyfea/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/polyfea/", func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	})
 
-	router.HandleFunc("/sw.mjs", pwa.ServeServiceWorker)
-	router.HandleFunc("/polyfea-caching.json", pwa.ServeCaching)
-	router.PathPrefix("/").HandlerFunc(spa.HandleSinglePageApplication)
+	mux.HandleFunc("/sw.mjs", pwa.ServeServiceWorker)
+	mux.HandleFunc("/polyfea-caching.json", pwa.ServeCaching)
+	mux.HandleFunc("/", spa.HandleSinglePageApplication)
 
-	return polyfea.BasePathStrippingMiddleware(router, microFrontendClassRepository)
+	return polyfea.BasePathStrippingMiddleware(mux, microFrontendClassRepository)
 }
