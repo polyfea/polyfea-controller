@@ -8,8 +8,5 @@ func strToPtr(in string) *string {
 }
 
 func arrToPtr[T any](in []T) *[]T {
-	if in != nil {
-		return &in
-	}
-	return nil
+	return &in
 }

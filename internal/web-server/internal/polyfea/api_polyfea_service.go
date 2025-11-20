@@ -188,10 +188,10 @@ func (s *PolyfeaApiService) handleNoWebComponentsFound(w http.ResponseWriter, lo
 	telemetry().not_found.Add(ctx, 1)
 	span.SetStatus(codes.Ok, "webcomponent_not_found")
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte("No webcomponents found"))
+	err := json.NewEncoder(w).Encode(result)
 	if err != nil {
-		logger.Error(err, "Error while writing response")
-		span.SetStatus(codes.Error, "response_writing_error")
+		logger.Error(err, "Error while encoding response")
+		span.SetStatus(codes.Error, "response_encoding_error")
 	}
 	addExtraHeaders(w, frontendClass.Spec.ExtraHeaders)
 }
