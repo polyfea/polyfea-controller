@@ -248,11 +248,6 @@ func (s *PolyfeaApiService) finalizeResponse(w http.ResponseWriter, logger logr.
 	if err != nil {
 		logger.Error(err, "Error while encoding response")
 		span.SetStatus(codes.Error, "response_encoding_error")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, err := w.Write([]byte("Internal server error"))
-		if err != nil {
-			logger.Error(err, "Error while writing response")
-		}
 	}
 }
 
