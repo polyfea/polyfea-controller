@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"slices"
-	"strings"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -56,13 +55,20 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 	ctx := setupContext("/", "test-frontend-class")
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/context-area/test-name?path=test-path&take=10", nil)
+	req = req.WithContext(ctx)
+	take := 10
+	polyfeaApiService.GetContextArea(w, req, "test-name", generated.GetContextAreaParams{Path: "test-path", Take: &take})
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", w.Code)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
+	var actualContextArea generated.ContextArea
+	if err := json.Unmarshal(w.Body.Bytes(), &actualContextArea); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -126,13 +132,21 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, mfc)
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/context-area/test-name", nil)
+	req = req.WithContext(ctx)
+	take := 10
+	polyfeaApiService.GetContextArea(w, req, "test-name", generated.GetContextAreaParams{Path: "test-path", Take: &take})
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", w.Code)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
+
+	var actualContextArea generated.ContextArea
+	if err := json.Unmarshal(w.Body.Bytes(), &actualContextArea); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -141,8 +155,9 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
 	}
 
-	if !slices.Contains(actualContextAreaResponse.Headers["test-header"], "test-value") {
-		t.Errorf("Expected %v, got %v", "test-value", actualContextAreaResponse.Headers["test-header"][0])
+	// Check extra headers
+	if w.Header().Get("test-header") != "test-value" {
+		t.Errorf("Expected header 'test-header' with value 'test-value', got '%v'", w.Header().Get("test-header"))
 	}
 }
 
@@ -192,13 +207,13 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -254,13 +269,13 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *t
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -331,13 +346,13 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIs
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, map[string][]string{})
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -403,13 +418,13 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatc
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, headers)
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -469,13 +484,13 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, headers)
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -534,19 +549,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)
+	take := 10
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected 200, got %v", statusCode)
 	}
 
-	if response.Code != 200 {
-		t.Errorf("Expected 200, got %v", response.Code)
-	}
-
-	if len(response.Body.(generated.ContextArea).Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
+	if len(contextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
 	}
 }
 
@@ -599,19 +611,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatchin
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test.*", 10, headers)
+	take := 10
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected 200, got %v", statusCode)
 	}
 
-	if response.Code != 200 {
-		t.Errorf("Expected 200, got %v", response.Code)
-	}
-
-	if len(response.Body.(generated.ContextArea).Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
+	if len(contextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
 	}
 }
 
@@ -664,19 +673,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testi
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest", 10, headers)
+	take := 10
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected 200, got %v", statusCode)
 	}
 
-	if response.Code != 200 {
-		t.Errorf("Expected 200, got %v", response.Code)
-	}
-
-	if len(response.Body.(generated.ContextArea).Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
+	if len(contextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
 	}
 }
 
@@ -734,19 +740,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testin
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest.*", 10, headers)
+	take := 10
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected 200, got %v", statusCode)
 	}
 
-	if response.Code != 200 {
-		t.Errorf("Expected 200, got %v", response.Code)
-	}
-
-	if len(response.Body.(generated.ContextArea).Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
+	if len(contextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
 	}
 }
 
@@ -799,19 +802,16 @@ func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *test
 	headers.Add("test-user-roles-header", "test-role, test-other-role")
 
 	// Act
-	response, err := polyfeaApiService.GetContextArea(ctx, "test-name", "sometest.*", 10, headers)
+	take := 10
+	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected 200, got %v", statusCode)
 	}
 
-	if response.Code != 200 {
-		t.Errorf("Expected 200, got %v", response.Code)
-	}
-
-	if len(response.Body.(generated.ContextArea).Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(response.Body.(generated.ContextArea).Elements))
+	if len(contextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
 	}
 }
 
@@ -887,13 +887,13 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneOnlyOneElementRet
 	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 1, map[string][]string{})
+	take := 1
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -975,13 +975,13 @@ func TestPolyfeaApiServiceGetContextAreaMultipleElementsTakeOneCorrectComponentI
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 1, map[string][]string{})
+	take := 1
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -1077,13 +1077,13 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependsOnIsEvaluated(t *tes
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
+	take := 0
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -1163,15 +1163,13 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendDependencyMissingErrorIsRet
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	_, err = polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
+	take := 0
+	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err == nil {
-		t.Errorf("Expected error, got %v", err)
-	}
-
-	if err.Error() != "Microfrontend yet-another-test-dependency not found" {
-		t.Errorf("Expected error, got %v", err)
+	// Errors are now returned as HTTP 500, not error values
+	if statusCode != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %v", statusCode)
 	}
 }
 
@@ -1246,15 +1244,13 @@ func TestPolyfeaApiServiceGetContextAreaMicroFrontendCircularDependencyErrorIsRe
 	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 
 	// Act
-	_, err = polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 0, map[string][]string{})
+	take := 0
+	statusCode, _ := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
 
 	// Assert
-	if err == nil {
-		t.Errorf("Expected error, got %v", err)
-	}
-
-	if !strings.Contains(err.Error(), "Circular dependency detected") {
-		t.Errorf("Expected error, got %v", err)
+	// Errors are now returned as HTTP 500, not error values
+	if statusCode != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %v", statusCode)
 	}
 }
 
@@ -1277,13 +1273,13 @@ func TestPolyfeaApiServiceGetContextAreaInvalidHeaders(t *testing.T) {
 	headers.Set("invalid-header", "invalid-value")
 
 	// Act
-	actualContextAreaResponse, err := polyfeaApiService.GetContextArea(ctx, "test-name", "test-path", 10, headers)
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
 
 	// Assert
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
 	}
-	actualContextArea := actualContextAreaResponse.Body.(generated.ContextArea)
 
 	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
 	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
@@ -1305,10 +1301,33 @@ func setupContext(basePath string, frontendClassName string) context.Context {
 	return ctx
 }
 
+// Helper to call GetContextArea with the new API
+func callGetContextArea(t *testing.T, service *PolyfeaApiService, ctx context.Context, path string, take *int, headers http.Header) (int, generated.ContextArea) {
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/context-area/test-name", nil)
+	req = req.WithContext(ctx)
+	if headers != nil {
+		req.Header = headers
+	}
+	service.GetContextArea(w, req, "test-name", generated.GetContextAreaParams{Path: path, Take: take})
+
+	var result generated.ContextArea
+	if w.Code == http.StatusOK && w.Body.Len() > 0 {
+		// Only try to unmarshal if it looks like JSON (starts with '{' or '[')
+		bodyBytes := w.Body.Bytes()
+		if len(bodyBytes) > 0 && (bodyBytes[0] == '{' || bodyBytes[0] == '[') {
+			if err := json.Unmarshal(bodyBytes, &result); err != nil {
+				t.Fatalf("Failed to unmarshal response: %v", err)
+			}
+		}
+	}
+	return w.Code, result
+}
+
 func createTestContextArea(expectedElements []generated.ElementSpec, expectedMicroFrontends map[string]generated.MicrofrontendSpec) generated.ContextArea {
 	return generated.ContextArea{
 		Elements:       expectedElements,
-		Microfrontends: expectedMicroFrontends,
+		Microfrontends: &expectedMicroFrontends,
 	}
 }
 
@@ -1391,35 +1410,43 @@ func createTestMicroFrontendClass(frontendClassName string, baseUri string) *v1a
 }
 
 func createTestElementSpec(microFrontendName string) generated.ElementSpec {
+	var mfPtr *string
+	if microFrontendName != "" {
+		mfPtr = &microFrontendName
+	}
+	attr := map[string]string{
+		"test-attribute-name": "test-attribute-value",
+	}
+	style := map[string]string{
+		"test-style-name": "test-style-value",
+	}
 	return generated.ElementSpec{
-		Microfrontend: microFrontendName,
+		Microfrontend: mfPtr,
 		TagName:       "test-tag-name",
-		Attributes: map[string]string{
-			"test-attribute-name": "test-attribute-value",
-		},
-		Style: map[string]string{
-			"test-style-name": "test-style-value",
-		},
+		Attributes:    &attr,
+		Style:         &style,
 	}
 }
 
 func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string) generated.MicrofrontendSpec {
-
 	href := "./polyfea/proxy/default/" + microfrontendName + "/test-uri"
 	module := "./polyfea/proxy/default/" + microfrontendName + "/test-module"
-
-	return generated.MicrofrontendSpec{
-		DependsOn: dependsOn,
-		Module:    module,
-		Resources: []generated.MicrofrontendResource{
-			{
-				Kind: "test-type",
-				Href: href,
-				Attributes: map[string]string{
-					"test-attribute-name": "test-attribute-value",
-				},
-				WaitOnLoad: true,
-			},
+	kind := generated.MicrofrontendResourceKind("test-type")
+	attr := map[string]string{
+		"test-attribute-name": "test-attribute-value",
+	}
+	waitOnLoad := true
+	resources := []generated.MicrofrontendResource{
+		{
+			Kind:       &kind,
+			Href:       &href,
+			Attributes: &attr,
+			WaitOnLoad: &waitOnLoad,
 		},
+	}
+	return generated.MicrofrontendSpec{
+		DependsOn: &dependsOn,
+		Module:    &module,
+		Resources: &resources,
 	}
 }

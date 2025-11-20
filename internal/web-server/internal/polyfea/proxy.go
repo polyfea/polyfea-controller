@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/go-logr/logr"
-	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	"go.opentelemetry.io/otel/attribute"
@@ -48,10 +47,9 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	ctx, span := p.startSpan(r.Context(), "polyfea_d.serve_asset", r.Method, r.URL.Path)
 	defer span.End()
 
-	params := mux.Vars(r)
-	nameSpace := params[NamespacePathParamName]
-	nameMicroFrontend := params[MicrofrontendPathParamName]
-	path := params[PathPathParamName]
+	nameSpace := r.PathValue(NamespacePathParamName)
+	nameMicroFrontend := r.PathValue(MicrofrontendPathParamName)
+	path := r.PathValue(PathPathParamName)
 
 	microfrontend, err := p.getMicrofrontend(nameSpace, nameMicroFrontend, logger, span, w, ctx)
 	if err != nil {

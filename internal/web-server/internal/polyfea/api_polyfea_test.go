@@ -236,11 +236,12 @@ func polyfeaApiSetupRouter() http.Handler {
 		&logr.Logger{},
 	)
 
-	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
+	// Create a new mux and add the openapi handler
+	mux := http.NewServeMux()
+	mux.HandleFunc("/openapi", api.HandleOpenApi)
 
-	router := generated.NewRouter(polyfeaAPIController)
-
-	router.HandleFunc("/openapi", api.HandleOpenApi)
+	// Create the polyfea handler with base URL "/polyfea"
+	polyfeaHandler := generated.HandlerFromMuxWithBaseURL(polyfeaAPIService, mux, "/polyfea")
 
 	mfc := createTestMicroFrontendClass("test-frontend-class", "/")
 	mfc.Spec.ExtraHeaders = []v1alpha1.Header{
@@ -250,7 +251,7 @@ func polyfeaApiSetupRouter() http.Handler {
 		},
 	}
 
-	return addDummyMiddleware(router, "/", mfc)
+	return addDummyMiddleware(polyfeaHandler, "/", mfc)
 }
 
 func storeTestWebComponents(repo *repository.InMemoryRepository[*v1alpha1.WebComponent]) {

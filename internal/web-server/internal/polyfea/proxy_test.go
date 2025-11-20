@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/gorilla/mux"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 	"github.com/polyfea/polyfea-controller/internal/web-server/api"
@@ -197,15 +196,10 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 }
 
 func createTestRequest(namespace string, microfrontend string, path string) *http.Request {
-	req, _ := http.NewRequest("GET", "/polyfea/proxy/"+namespace+"/"+microfrontend+"/"+path, io.Reader(nil))
-
-	vars := map[string]string{
-		NamespacePathParamName:     namespace,
-		MicrofrontendPathParamName: microfrontend,
-		PathPathParamName:          path,
-	}
-
-	req = mux.SetURLVars(req, vars)
+	req, _ := http.NewRequest("GET", "/polyfea/proxy/"+namespace+"/"+microfrontend+path, io.Reader(nil))
+	req.SetPathValue(NamespacePathParamName, namespace)
+	req.SetPathValue(MicrofrontendPathParamName, microfrontend)
+	req.SetPathValue(PathPathParamName, path)
 	return req
 }
 
@@ -407,15 +401,16 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 		testMicroFrontendRepository,
 		&logr.Logger{})
 
-	polyfeaAPIController := generated.NewPolyfeaAPIController(polyfeaAPIService)
+	// Create a new mux and add handlers
+	mux := http.NewServeMux()
+	mux.HandleFunc("/openapi", api.HandleOpenApi)
 
-	router := generated.NewRouter(polyfeaAPIController)
-
-	router.HandleFunc("/openapi", api.HandleOpenApi)
+	// Create the polyfea handler with base URL "/polyfea"
+	polyfeaHandler := generated.HandlerFromMuxWithBaseURL(polyfeaAPIService, mux, "/polyfea")
 
 	proxy := NewPolyfeaProxy(testMicroFrontendClassRepository, testMicroFrontendRepository, &http.Client{}, &logr.Logger{})
 
-	router.HandleFunc("/polyfea/proxy/{"+NamespacePathParamName+"}/{"+MicrofrontendPathParamName+"}/{"+PathPathParamName+"}", proxy.HandleProxy)
+	mux.HandleFunc("/polyfea/proxy/{"+NamespacePathParamName+"}/{"+MicrofrontendPathParamName+"}/{"+PathPathParamName+"...}", proxy.HandleProxy)
 
-	return router
+	return polyfeaHandler
 }

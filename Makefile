@@ -157,7 +157,7 @@ lint-config: golangci-lint ## Verify golangci-lint linter configuration
 ##@ Build
 
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
+build: manifests generate openapi boot-package register-package sw-package fmt vet
 	go build -o bin/manager cmd/main.go
 
 .PHONY: run
@@ -168,7 +168,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
-docker-build: ## Build docker image with the manager.
+docker-build: test ## Build docker image with the manager.
 	$(CONTAINER_TOOL) build -t ${IMG} .
 
 .PHONY: docker-push
@@ -385,8 +385,7 @@ catalog-push: ## Push a catalog image.
 LATEST_TAG := $(shell curl -s https://api.github.com/repos/polyfea/browser-api/releases/latest | grep "tag_name" | cut -d : -f 2,3 | tr -d \",' ')
 openapi: ## Download latest openapi spec and generate web api skeleton
 	curl -L "https://raw.githubusercontent.com/polyfea/browser-api/$(LATEST_TAG)/src/openapi/v1alpha1.openapi.yaml" > internal/web-server/api/v1alpha1.openapi.yaml
-	docker run --rm -v $(CURDIR)/internal/web-server/:/local openapitools/openapi-generator-cli:v7.10.0 generate -c /local/scripts/generator-cfg.yaml
-
+	go generate ./...
 
 BOOT_MJS_URL := "https://github.com/polyfea/core/releases/latest/download/boot.mjs"
 BOOT_MJS_FILEPATH := "internal/web-server/internal/polyfea/.resources/boot.mjs"
