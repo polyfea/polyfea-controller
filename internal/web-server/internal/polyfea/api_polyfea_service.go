@@ -105,17 +105,21 @@ func (s *PolyfeaApiService) prepareLogger(functionName, name, path string, take 
 }
 
 func (s *PolyfeaApiService) startSpan(ctx context.Context, spanName, name, path string, take *int) (context.Context, trace.Span) {
-	return telemetry().tracer.Start(ctx, spanName, trace.WithAttributes(
+	attrs := []attribute.KeyValue{
 		attribute.String("context-area", name),
 		attribute.String("path", path),
-		attribute.Int("take", int(*take)),
-	))
+	}
+	if take != nil {
+		attrs = append(attrs, attribute.Int("take", *take))
+	}
+	return telemetry().tracer.Start(ctx, spanName, trace.WithAttributes(attrs...))
 }
 
 func (s *PolyfeaApiService) initializeContextArea() generated.ContextArea {
+	microfrontends := make(map[string]generated.MicrofrontendSpec)
 	return generated.ContextArea{
 		Elements:       []generated.ElementSpec{},
-		Microfrontends: new(map[string]generated.MicrofrontendSpec),
+		Microfrontends: &microfrontends,
 	}
 }
 
@@ -221,16 +225,16 @@ func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1al
 }
 
 func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []*v1alpha1.MicroFrontend) *map[string]generated.MicrofrontendSpec {
-	result := new(map[string]generated.MicrofrontendSpec)
+	result := make(map[string]generated.MicrofrontendSpec)
 	for _, microFrontend := range allMicroFrontends {
-		(*result)[microFrontend.Name] = generated.MicrofrontendSpec{
+		result[microFrontend.Name] = generated.MicrofrontendSpec{
 
 			DependsOn: arrToPtr(microFrontend.Spec.DependsOn),
 			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
 			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources),
 		}
 	}
-	return result
+	return &result
 }
 
 func (s *PolyfeaApiService) finalizeResponse(w http.ResponseWriter, logger logr.Logger, span trace.Span, frontendClass *v1alpha1.MicroFrontendClass, result generated.ContextArea, ctx context.Context) {
@@ -327,27 +331,27 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 }
 
 func convertAttributes(attributes []v1alpha1.Attribute) *map[string]string {
-	result := new(map[string]string)
+	result := make(map[string]string)
 	for _, webcomponentAttribute := range attributes {
 		var value string
 		err := json.Unmarshal(webcomponentAttribute.Value.Raw, &value)
 		if err != nil {
 			value = string(webcomponentAttribute.Value.Raw)
 		}
-		(*result)[webcomponentAttribute.Name] = value
+		result[webcomponentAttribute.Name] = value
 	}
 
-	return result
+	return &result
 }
 
 func convertStyles(styles []v1alpha1.Style) *map[string]string {
-	result := new(map[string]string)
+	result := make(map[string]string)
 
 	for _, style := range styles {
-		(*result)[style.Name] = style.Value
+		result[style.Name] = style.Value
 	}
 
-	return result
+	return &result
 }
 
 func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources) *[]generated.MicrofrontendResource {
