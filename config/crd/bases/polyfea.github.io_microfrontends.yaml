@@ -206,6 +206,10 @@ spec:
                       Should include schema (http:// or https://)
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: Either 'name' or 'uri' must be specified, but not both
+                  rule: (has(self.name) && size(self.name) > 0) != (has(self.uri)
+                    && size(self.uri) > 0)
               staticPaths:
                 description: Relative path to the static files within the service.
                 items:

@@ -157,6 +157,9 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Entry("valid MicroFrontend with in-cluster service", &v1alpha1.ServiceReference{Name: ptr("test-service"), Namespace: ptr("test-namespace"), Port: ptr(int32(80)), Scheme: ptr("http")}, ptr("module.jsm"), true),
 				Entry("valid MicroFrontend with external URI", &v1alpha1.ServiceReference{URI: ptr("https://cdn.example.com")}, ptr("module.jsm"), true),
 				Entry("valid MicroFrontend with HTTP external URI", &v1alpha1.ServiceReference{URI: ptr("http://external-service.com")}, ptr("module.jsm"), true),
+				Entry("invalid: both name and URI specified", &v1alpha1.ServiceReference{Name: ptr("test-service"), URI: ptr("https://cdn.example.com")}, ptr("module.jsm"), false),
+				Entry("invalid: neither name nor URI specified", &v1alpha1.ServiceReference{Namespace: ptr("test-namespace"), Port: ptr(int32(80))}, ptr("module.jsm"), false),
+				Entry("invalid: empty name and empty URI", &v1alpha1.ServiceReference{Name: ptr(""), URI: ptr("")}, ptr("module.jsm"), false),
 			)
 
 			It("Should create with defaults if optional fields are not specified", func() {

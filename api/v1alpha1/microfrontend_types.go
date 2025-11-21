@@ -23,6 +23,7 @@ import (
 )
 
 // ServiceReference defines how to reach the service hosting the micro frontend
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && size(self.name) > 0) != (has(self.uri) && size(self.uri) > 0)",message="Either 'name' or 'uri' must be specified, but not both"
 type ServiceReference struct {
 	// Name of the Kubernetes service (mutually exclusive with URI)
 	// +optional
