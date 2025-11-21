@@ -35,14 +35,14 @@ const (
 	MicroFrontendFinalizer = "polyfea.github.io/finalizer"
 )
 
-func setupMicroFrontend(name string, service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources, cacheOptions *v1alpha1.PWACache) *v1alpha1.MicroFrontend {
+func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
 			Kind:       "MicroFrontend",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      MicroFrontendName,
 			Namespace: MicroFrontendNamespace,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
@@ -52,12 +52,12 @@ func setupMicroFrontend(name string, service *v1alpha1.ServiceReference, moduleP
 			ModulePath:      modulePath,
 			StaticResources: staticResources,
 			FrontendClass:   frontendClass,
-			CacheOptions:    cacheOptions,
+			CacheOptions:    nil,
 		},
 	}
 }
 
-func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+func ensureMicroFrontendDeleted(ctx context.Context) {
 	existingMicroFrontend := &v1alpha1.MicroFrontend{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
 	if err == nil {
@@ -67,7 +67,7 @@ func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, inte
 		// Wait for the resource to be fully deleted
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
-		}, timeout, interval).Should(BeTrue())
+		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 	}
 }
 
@@ -84,10 +84,9 @@ var _ = Describe("MicroFrontend Controller", func() {
 				testCtx := context.Background()
 				proxy := true
 
-				ensureMicroFrontendDeleted(testCtx, timeout, interval)
+				ensureMicroFrontendDeleted(testCtx)
 
 				microFrontend := setupMicroFrontend(
-					MicroFrontendName,
 					&v1alpha1.ServiceReference{
 						Name:      ptr("test-service"),
 						Namespace: ptr("test-namespace"),
@@ -98,7 +97,6 @@ var _ = Describe("MicroFrontend Controller", func() {
 					&proxy,
 					ptr("test-microfrontendclass"),
 					[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
-					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
@@ -135,16 +133,14 @@ var _ = Describe("MicroFrontend Controller", func() {
 					testCtx := context.Background()
 					proxy := true
 
-					ensureMicroFrontendDeleted(testCtx, timeout, interval)
+					ensureMicroFrontendDeleted(testCtx)
 
 					microFrontend := setupMicroFrontend(
-						MicroFrontendName,
 						service,
 						modulePath,
 						&proxy,
 						ptr("test-microfrontendclass"),
 						[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
-						nil,
 					)
 					if shouldSucceed {
 						Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
@@ -166,10 +162,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 				By("Creating a new MicroFrontend with only required fields")
 				testCtx := context.Background()
 
-				ensureMicroFrontendDeleted(testCtx, timeout, interval)
-
+				ensureMicroFrontendDeleted(testCtx)
 				microFrontend := setupMicroFrontend(
-					MicroFrontendName,
 					&v1alpha1.ServiceReference{
 						Name:      ptr("test-service"),
 						Namespace: ptr("test-namespace"),
@@ -177,7 +171,6 @@ var _ = Describe("MicroFrontend Controller", func() {
 						Scheme:    ptr("http"),
 					},
 					ptr("module.jsm"),
-					nil,
 					nil,
 					nil,
 					nil,
@@ -210,10 +203,9 @@ var _ = Describe("MicroFrontend Controller", func() {
 				testCtx := context.Background()
 				proxy := false
 
-				ensureMicroFrontendDeleted(testCtx, timeout, interval)
+				ensureMicroFrontendDeleted(testCtx)
 
 				microFrontend := setupMicroFrontend(
-					MicroFrontendName,
 					&v1alpha1.ServiceReference{
 						URI: ptr("https://cdn.example.com"),
 					},
@@ -221,7 +213,6 @@ var _ = Describe("MicroFrontend Controller", func() {
 					&proxy,
 					ptr("test-microfrontendclass"),
 					[]v1alpha1.StaticResources{{Path: "styles/main.css", Kind: "stylesheet"}},
-					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
