@@ -16,6 +16,9 @@ spec:
     port: 80
     # scheme defaults to http if not specified (options: http, https)
     scheme: "http"
+    # domain defaults to svc.cluster.local if not specified
+    # Customize for different cluster implementations (e.g., svc.cluster.example.com)
+    domain: "svc.cluster.local"
     
     # OR for external services, specify the full URI (mutually exclusive with 'name')
     # uri: "https://cdn.example.com"

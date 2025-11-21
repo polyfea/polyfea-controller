@@ -1367,7 +1367,10 @@ func createTestWebComponent(objecName string, microFrontendName string, displayR
 }
 
 func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
-	serviceURI := "http://test-service.test-namespace.svc.cluster.local"
+	serviceName := "test-service"
+	serviceNamespace := "test-namespace"
+	servicePort := int32(80)
+	serviceScheme := "http"
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      objecName,
@@ -1375,7 +1378,10 @@ func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
 			Service: &v1alpha1.ServiceReference{
-				URI: &serviceURI,
+				Name:      &serviceName,
+				Namespace: &serviceNamespace,
+				Port:      &servicePort,
+				Scheme:    &serviceScheme,
 			},
 			Proxy:         &[]bool{proxy}[0],
 			CacheStrategy: "none",

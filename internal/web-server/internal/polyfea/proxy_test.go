@@ -92,9 +92,15 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	// Arrange
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
-	uri := "http://test-service.default.svc.cluster.local"
+	serviceName := "test-service"
+	serviceNamespace := "default"
+	servicePort := int32(80)
+	serviceScheme := "http"
 	requestedMicroFrontend.Spec.Service = &v1alpha1.ServiceReference{
-		URI: &uri,
+		Name:      &serviceName,
+		Namespace: &serviceNamespace,
+		Port:      &servicePort,
+		Scheme:    &serviceScheme,
 	}
 
 	err := testMicroFrontendRepository.Store(requestedMicroFrontend)

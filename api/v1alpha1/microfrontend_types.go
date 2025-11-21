@@ -55,6 +55,13 @@ type ServiceReference struct {
 	// +kubebuilder:validation:Enum=http;https
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Scheme *string `json:"scheme,omitempty"`
+
+	// Domain is the cluster domain suffix. Defaults to svc.cluster.local if not specified.
+	// Only used when Name is set. Allows customization for different cluster implementations.
+	// +optional
+	// +kubebuilder:default=svc.cluster.local
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Domain *string `json:"domain,omitempty"`
 }
 
 // MicroFrontendSpec defines the desired state of MicroFrontend
@@ -199,9 +206,15 @@ func (sr *ServiceReference) ResolveServiceURL(defaultNamespace string) string {
 			port = *sr.Port
 		}
 
+		// Determine domain (default to svc.cluster.local)
+		domain := "svc.cluster.local"
+		if sr.Domain != nil && *sr.Domain != "" {
+			domain = *sr.Domain
+		}
+
 		// Construct the service URL
-		// Format: scheme://service-name.namespace.svc.cluster.local:port
-		return scheme + "://" + *sr.Name + "." + namespace + ".svc.cluster.local:" + fmt.Sprint(port)
+		// Format: scheme://service-name.namespace.domain:port
+		return scheme + "://" + *sr.Name + "." + namespace + "." + domain + ":" + fmt.Sprint(port)
 	}
 
 	return ""

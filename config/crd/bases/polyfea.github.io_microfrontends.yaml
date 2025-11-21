@@ -169,6 +169,12 @@ spec:
                 description: Reference to a service from which the modules or css
                   would be served.
                 properties:
+                  domain:
+                    default: svc.cluster.local
+                    description: |-
+                      Domain is the cluster domain suffix. Defaults to svc.cluster.local if not specified.
+                      Only used when Name is set. Allows customization for different cluster implementations.
+                    type: string
                   name:
                     description: Name of the Kubernetes service (mutually exclusive
                       with URI)

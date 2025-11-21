@@ -12,6 +12,7 @@ spec:
     namespace: "default"  # Optional: defaults to MicroFrontend's namespace
     port: 8080            # Optional: defaults to 80
     scheme: "http"        # Optional: defaults to http (options: http, https)
+    # domain: "svc.cluster.local"  # Optional: defaults to svc.cluster.local
   
   # Path to the module file
   modulePath: "module.js"
