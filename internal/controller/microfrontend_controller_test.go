@@ -35,14 +35,14 @@ const (
 	MicroFrontendFinalizer = "polyfea.github.io/finalizer"
 )
 
-func setupMicroFrontend(name string, service, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources, cacheOptions *v1alpha1.PWACache) *v1alpha1.MicroFrontend {
+func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
 			Kind:       "MicroFrontend",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
+			Name:      MicroFrontendName,
 			Namespace: MicroFrontendNamespace,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
@@ -52,12 +52,12 @@ func setupMicroFrontend(name string, service, modulePath *string, proxy *bool, f
 			ModulePath:      modulePath,
 			StaticResources: staticResources,
 			FrontendClass:   frontendClass,
-			CacheOptions:    cacheOptions,
+			CacheOptions:    nil,
 		},
 	}
 }
 
-func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+func ensureMicroFrontendDeleted(ctx context.Context) {
 	existingMicroFrontend := &v1alpha1.MicroFrontend{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
 	if err == nil {
@@ -67,7 +67,7 @@ func ensureMicroFrontendDeleted(ctx context.Context, timeout time.Duration, inte
 		// Wait for the resource to be fully deleted
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
-		}, timeout, interval).Should(BeTrue())
+		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 	}
 }
 
@@ -84,16 +84,19 @@ var _ = Describe("MicroFrontend Controller", func() {
 				testCtx := context.Background()
 				proxy := true
 
-				ensureMicroFrontendDeleted(testCtx, timeout, interval)
+				ensureMicroFrontendDeleted(testCtx)
 
 				microFrontend := setupMicroFrontend(
-					MicroFrontendName,
-					ptr("http://test-service.test-namespace.svc.cluster.local"),
+					&v1alpha1.ServiceReference{
+						Name:      ptr("test-service"),
+						Namespace: ptr("test-namespace"),
+						Port:      ptr(int32(80)),
+						Scheme:    ptr("http"),
+					},
 					ptr("module.jsm"),
 					&proxy,
 					ptr("test-microfrontendclass"),
 					[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
-					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
@@ -104,7 +107,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
 				}, timeout, interval).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
+				Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal(ptr("test-service")))
+				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(Equal(ptr("test-namespace")))
 
 				By("Checking the MicroFrontend has finalizer")
 				// Wait for the finalizer to be added
@@ -125,20 +129,18 @@ var _ = Describe("MicroFrontend Controller", func() {
 			})
 
 			DescribeTable("Validation scenarios",
-				func(service, modulePath *string, shouldSucceed bool) {
+				func(service *v1alpha1.ServiceReference, modulePath *string, shouldSucceed bool) {
 					testCtx := context.Background()
 					proxy := true
 
-					ensureMicroFrontendDeleted(testCtx, timeout, interval)
+					ensureMicroFrontendDeleted(testCtx)
 
 					microFrontend := setupMicroFrontend(
-						MicroFrontendName,
 						service,
 						modulePath,
 						&proxy,
 						ptr("test-microfrontendclass"),
 						[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
-						nil,
 					)
 					if shouldSucceed {
 						Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
@@ -147,21 +149,28 @@ var _ = Describe("MicroFrontend Controller", func() {
 					}
 				},
 				Entry("missing service", nil, ptr("module.jsm"), false),
-				Entry("missing modulePath", ptr("http://test-service.test-namespace.svc.cluster.local"), nil, false),
-				Entry("valid MicroFrontend", ptr("http://test-service.test-namespace.svc.cluster.local"), ptr("module.jsm"), true),
+				Entry("missing modulePath", &v1alpha1.ServiceReference{Name: ptr("test-service"), Namespace: ptr("test-namespace"), Port: ptr(int32(80)), Scheme: ptr("http")}, nil, false),
+				Entry("valid MicroFrontend with in-cluster service", &v1alpha1.ServiceReference{Name: ptr("test-service"), Namespace: ptr("test-namespace"), Port: ptr(int32(80)), Scheme: ptr("http")}, ptr("module.jsm"), true),
+				Entry("valid MicroFrontend with external URI", &v1alpha1.ServiceReference{URI: ptr("https://cdn.example.com")}, ptr("module.jsm"), true),
+				Entry("valid MicroFrontend with HTTP external URI", &v1alpha1.ServiceReference{URI: ptr("http://external-service.com")}, ptr("module.jsm"), true),
+				Entry("invalid: both name and URI specified", &v1alpha1.ServiceReference{Name: ptr("test-service"), URI: ptr("https://cdn.example.com")}, ptr("module.jsm"), false),
+				Entry("invalid: neither name nor URI specified", &v1alpha1.ServiceReference{Namespace: ptr("test-namespace"), Port: ptr(int32(80))}, ptr("module.jsm"), false),
+				Entry("invalid: empty name and empty URI", &v1alpha1.ServiceReference{Name: ptr(""), URI: ptr("")}, ptr("module.jsm"), false),
 			)
 
 			It("Should create with defaults if optional fields are not specified", func() {
 				By("Creating a new MicroFrontend with only required fields")
 				testCtx := context.Background()
 
-				ensureMicroFrontendDeleted(testCtx, timeout, interval)
-
+				ensureMicroFrontendDeleted(testCtx)
 				microFrontend := setupMicroFrontend(
-					MicroFrontendName,
-					ptr("http://test-service.test-namespace.svc.cluster.local"),
+					&v1alpha1.ServiceReference{
+						Name:      ptr("test-service"),
+						Namespace: ptr("test-namespace"),
+						Port:      ptr(int32(80)),
+						Scheme:    ptr("http"),
+					},
 					ptr("module.jsm"),
-					nil,
 					nil,
 					nil,
 					nil,
@@ -174,13 +183,51 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
 				}, timeout, interval).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
+				Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal(ptr("test-service")))
+				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(Equal(ptr("test-namespace")))
 				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
 				Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr("polyfea-controller-default")))
 				Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
+
+				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Eventually(func() bool {
+					return errors.IsNotFound(k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend))
+				}, timeout, interval).Should(BeTrue())
+			})
+
+			It("Should create MicroFrontend with external URI service", func() {
+				By("Creating a MicroFrontend with external URI")
+				testCtx := context.Background()
+				proxy := false
+
+				ensureMicroFrontendDeleted(testCtx)
+
+				microFrontend := setupMicroFrontend(
+					&v1alpha1.ServiceReference{
+						URI: ptr("https://cdn.example.com"),
+					},
+					ptr("modules/app.js"),
+					&proxy,
+					ptr("test-microfrontendclass"),
+					[]v1alpha1.StaticResources{{Path: "styles/main.css", Kind: "stylesheet"}},
+				)
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
+
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				createdMicroFrontend := &v1alpha1.MicroFrontend{}
+
+				Eventually(func() bool {
+					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying the URI is set correctly")
+				Expect(createdMicroFrontend.Spec.Service.URI).Should(Equal(ptr("https://cdn.example.com")))
+				Expect(createdMicroFrontend.Spec.Service.Name).Should(BeNil())
+				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(BeNil())
+				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeFalse())
 
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
 				Eventually(func() bool {

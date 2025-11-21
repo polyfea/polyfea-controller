@@ -55,7 +55,10 @@ A MicroFrontend resource includes the following properties:
 * **frontendClass**: The name of the MicroFrontendClass that defines shared configuration (headers, CSP, PWA settings, etc.). Defaults to `polyfea-controller-default`.
 * **modulePath**: The relative path to the microfrontend’s module file within the referenced service.
 * **proxy**: Determines whether the controller proxies the loading of modules and web component resources. Defaults to `true`.
-* **service**: A reference to the service hosting the microfrontend’s module and CSS files. Must follow the format `<scheme>://<service>.<namespace>.<cluster>`.
+* **service**: A reference to the service hosting the microfrontend's module and CSS files. This can be either:
+  * An **in-cluster service** specified using `name`, with optional `namespace` (defaults to the MicroFrontend's namespace), `port` (defaults to 80), `scheme` (defaults to http), and `domain` (defaults to svc.cluster.local).
+  * An **external service** specified using `uri` with the complete URL (e.g., `https://cdn.example.com`).
+  * **Note**: Either `name` or `uri` must be specified, but not both.
 * **staticPaths**: A list of static resources (scripts, stylesheets, or other link-based assets) that must be loaded before the microfrontend. Each entry may specify attributes, load-waiting behavior, and whether the resource should be proxied.
 * **cacheOptions**: Optional PWA-style cache configuration (pre-cache and runtime caching rules).
 

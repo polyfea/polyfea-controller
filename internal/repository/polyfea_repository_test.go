@@ -102,12 +102,21 @@ func assertEqualMicrofrontend(t *testing.T, expected, actual *v1alpha1.MicroFron
 }
 
 func createTestMicrofrontend() *v1alpha1.MicroFrontend {
+	serviceName := "test-service"
+	serviceNamespace := "test-namespace"
+	servicePort := int32(80)
+	serviceScheme := "http"
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       ptr("http://test-service.test-namespace.svc.cluster.local"),
+			Service: &v1alpha1.ServiceReference{
+				Name:      &serviceName,
+				Namespace: &serviceNamespace,
+				Port:      &servicePort,
+				Scheme:    &serviceScheme,
+			},
 			CacheStrategy: "none",
 			CacheControl:  ptr("no-cache"),
 			ModulePath:    ptr("test"),

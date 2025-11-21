@@ -1367,13 +1367,22 @@ func createTestWebComponent(objecName string, microFrontendName string, displayR
 }
 
 func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
+	serviceName := "test-service"
+	serviceNamespace := "test-namespace"
+	servicePort := int32(80)
+	serviceScheme := "http"
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      objecName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+			Service: &v1alpha1.ServiceReference{
+				Name:      &serviceName,
+				Namespace: &serviceNamespace,
+				Port:      &servicePort,
+				Scheme:    &serviceScheme,
+			},
 			Proxy:         &[]bool{proxy}[0],
 			CacheStrategy: "none",
 			CacheControl:  &[]string{"no-cache"}[0],
@@ -1448,5 +1457,106 @@ func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string) g
 		DependsOn: &dependsOn,
 		Module:    &module,
 		Resources: &resources,
+	}
+}
+
+func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T) {
+	// Arrange
+	webComponentRepo, microFrontendRepo := setupRepositories()
+	err := webComponentRepo.Store(createTestWebComponent(
+		"test-name",
+		"external-microfrontend",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path: "test-path",
+					},
+					{
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+
+	if err != nil {
+		t.Fatalf("Failed to store WebComponent in repository: %v", err)
+	}
+
+	// Create a microfrontend with external service and proxy=false
+	externalServiceURI := "https://cdn.example.com"
+	externalMicroFrontend := &v1alpha1.MicroFrontend{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "external-microfrontend",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			Service: &v1alpha1.ServiceReference{
+				URI: &externalServiceURI,
+			},
+			Proxy:         &[]bool{false}[0],
+			CacheStrategy: "none",
+			FrontendClass: &[]string{"test-frontend-class"}[0],
+			DependsOn:     []string{},
+			ModulePath:    &[]string{"modules/app.js"}[0],
+			StaticResources: []v1alpha1.StaticResources{{
+				Kind: "stylesheet",
+				Path: "styles/main.css",
+				Attributes: []v1alpha1.Attribute{
+					{
+						Name:  "rel",
+						Value: runtime.RawExtension{Raw: []byte(`"stylesheet"`)},
+					},
+				},
+				WaitOnLoad: false,
+				Proxy:      &[]bool{false}[0],
+			}},
+		},
+	}
+
+	err = microFrontendRepo.Store(externalMicroFrontend)
+	if err != nil {
+		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
+	}
+
+	polyfeaApiService := NewPolyfeaAPIService(webComponentRepo, microFrontendRepo, &logr.Logger{})
+	ctx := setupContext("/", "test-frontend-class")
+
+	// Act
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/context-area/test-name?path=test-path&take=10", nil)
+	req = req.WithContext(ctx)
+	take := 10
+	polyfeaApiService.GetContextArea(w, req, "test-name", generated.GetContextAreaParams{Path: "test-path", Take: &take})
+
+	// Assert
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", w.Code)
+	}
+
+	var actualContextArea generated.ContextArea
+	if err := json.Unmarshal(w.Body.Bytes(), &actualContextArea); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
+	}
+
+	// Verify that the module path includes the full external service URL
+	microfrontends := *actualContextArea.Microfrontends
+	externalMF := microfrontends["external-microfrontend"]
+
+	expectedModulePath := "https://cdn.example.com/modules/app.js"
+	if externalMF.Module == nil || *externalMF.Module != expectedModulePath {
+		t.Errorf("Expected module path to be %v, got %v", expectedModulePath, *externalMF.Module)
+	}
+
+	// Verify that static resources also include the full external service URL
+	if externalMF.Resources == nil || len(*externalMF.Resources) == 0 {
+		t.Fatal("Expected resources to be present")
+	}
+
+	resources := *externalMF.Resources
+	expectedResourcePath := "https://cdn.example.com/styles/main.css"
+	if resources[0].Href == nil || *resources[0].Href != expectedResourcePath {
+		t.Errorf("Expected resource href to be %v, got %v", expectedResourcePath, *resources[0].Href)
 	}
 }

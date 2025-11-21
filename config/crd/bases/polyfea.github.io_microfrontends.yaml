@@ -166,10 +166,50 @@ spec:
                   should be proxied by the controller.
                 type: boolean
               service:
-                description: |-
-                  Reference to a service from which the modules or css would be served.
-                  Fully qualified name of the service should be specified in the format <schema>://<service-name>.<namespace>.<cluster>.
-                type: string
+                description: Reference to a service from which the modules or css
+                  would be served.
+                properties:
+                  domain:
+                    default: svc.cluster.local
+                    description: |-
+                      Domain is the cluster domain suffix. Defaults to svc.cluster.local if not specified.
+                      Only used when Name is set. Allows customization for different cluster implementations.
+                    type: string
+                  name:
+                    description: Name of the Kubernetes service (mutually exclusive
+                      with URI)
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the service. Defaults to the MicroFrontend's namespace if not specified.
+                      Only used when Name is set.
+                    type: string
+                  port:
+                    default: 80
+                    description: |-
+                      Port of the service. Defaults to 80 if not specified.
+                      Only used when Name is set.
+                    format: int32
+                    type: integer
+                  scheme:
+                    default: http
+                    description: |-
+                      Scheme to use for connection (http or https). Defaults to http.
+                      Only used when Name is set.
+                    enum:
+                    - http
+                    - https
+                    type: string
+                  uri:
+                    description: |-
+                      URI for external services (mutually exclusive with Name)
+                      Should include schema (http:// or https://)
+                    type: string
+                type: object
+                x-kubernetes-validations:
+                - message: Either 'name' or 'uri' must be specified, but not both
+                  rule: (has(self.name) && size(self.name) > 0) != (has(self.uri)
+                    && size(self.uri) > 0)
               staticPaths:
                 description: Relative path to the static files within the service.
                 items:

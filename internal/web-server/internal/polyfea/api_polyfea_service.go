@@ -230,8 +230,8 @@ func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []
 		result[microFrontend.Name] = generated.MicrofrontendSpec{
 
 			DependsOn: arrToPtr(microFrontend.Spec.DependsOn),
-			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy),
-			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources),
+			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, *microFrontend.Spec.Proxy, microFrontend.Spec.Service),
+			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources, microFrontend.Spec.Service),
 		}
 	}
 	return &result
@@ -348,14 +348,14 @@ func convertStyles(styles []v1alpha1.Style) *map[string]string {
 	return &result
 }
 
-func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources) *[]generated.MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference) *[]generated.MicrofrontendResource {
 	result := []generated.MicrofrontendResource{}
 
 	for _, resource := range resources {
 		kind := generated.MicrofrontendResourceKind(resource.Kind)
 		result = append(result, generated.MicrofrontendResource{
 			Kind:       &kind,
-			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, *resource.Proxy),
+			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, *resource.Proxy, service),
 			Attributes: convertAttributes(resource.Attributes),
 			WaitOnLoad: &resource.WaitOnLoad,
 		})
@@ -405,10 +405,22 @@ func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string,
 	return result, nil
 }
 
-func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool) *string {
+func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool, service *v1alpha1.ServiceReference) *string {
 	if proxy {
 		return strToPtr("./polyfea/proxy/" + microFrontendNamespace + "/" + microFrontendName + "/" + path)
 	} else {
+		// For non-proxied services, combine service URL with path
+		if service != nil {
+			baseUrl := service.ResolveServiceURL(microFrontendNamespace)
+			if baseUrl != "" {
+				// Handle URL joining properly
+				if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
+					return strToPtr(baseUrl + "/" + path)
+				}
+				return strToPtr(baseUrl + path)
+			}
+		}
+		// Fallback to just path if service is not provided
 		return strToPtr(path)
 	}
 }

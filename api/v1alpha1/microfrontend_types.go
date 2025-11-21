@@ -17,15 +17,59 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+// ServiceReference defines how to reach the service hosting the micro frontend
+// +kubebuilder:validation:XValidation:rule="(has(self.name) && size(self.name) > 0) != (has(self.uri) && size(self.uri) > 0)",message="Either 'name' or 'uri' must be specified, but not both"
+type ServiceReference struct {
+	// Name of the Kubernetes service (mutually exclusive with URI)
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name *string `json:"name,omitempty"`
+
+	// URI for external services (mutually exclusive with Name)
+	// Should include schema (http:// or https://)
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	URI *string `json:"uri,omitempty"`
+
+	// Namespace of the service. Defaults to the MicroFrontend's namespace if not specified.
+	// Only used when Name is set.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Namespace *string `json:"namespace,omitempty"`
+
+	// Port of the service. Defaults to 80 if not specified.
+	// Only used when Name is set.
+	// +optional
+	// +kubebuilder:default=80
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Port *int32 `json:"port,omitempty"`
+
+	// Scheme to use for connection (http or https). Defaults to http.
+	// Only used when Name is set.
+	// +optional
+	// +kubebuilder:default=http
+	// +kubebuilder:validation:Enum=http;https
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Scheme *string `json:"scheme,omitempty"`
+
+	// Domain is the cluster domain suffix. Defaults to svc.cluster.local if not specified.
+	// Only used when Name is set. Allows customization for different cluster implementations.
+	// +optional
+	// +kubebuilder:default=svc.cluster.local
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Domain *string `json:"domain,omitempty"`
+}
 
 // MicroFrontendSpec defines the desired state of MicroFrontend
 type MicroFrontendSpec struct {
 	// Reference to a service from which the modules or css would be served.
-	// Fully qualified name of the service should be specified in the format <schema>://<service-name>.<namespace>.<cluster>.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Service *string `json:"service"`
+	Service *ServiceReference `json:"service"`
 
 	// This specifies whether the loading of web components should be proxied by the controller.
 	// +kubebuilder:default=true
@@ -128,4 +172,51 @@ type MicroFrontendList struct {
 
 func init() {
 	SchemeBuilder.Register(&MicroFrontend{}, &MicroFrontendList{})
+}
+
+// ResolveServiceURL resolves the ServiceReference to a complete URL
+// For in-cluster services (when Name is set), it constructs the URL from name, namespace, port, and scheme
+// For external services (when URI is set), it returns the URI directly
+func (sr *ServiceReference) ResolveServiceURL(defaultNamespace string) string {
+	if sr == nil {
+		return ""
+	}
+
+	// If URI is specified, use it directly (external service)
+	if sr.URI != nil && *sr.URI != "" {
+		return *sr.URI
+	}
+
+	// If Name is specified, construct in-cluster service URL
+	if sr.Name != nil && *sr.Name != "" {
+		// Determine namespace (use provided or default)
+		namespace := defaultNamespace
+		if sr.Namespace != nil && *sr.Namespace != "" {
+			namespace = *sr.Namespace
+		}
+
+		// Determine scheme (default to http)
+		scheme := "http"
+		if sr.Scheme != nil && *sr.Scheme != "" {
+			scheme = *sr.Scheme
+		}
+
+		// Determine port (default to 80)
+		port := int32(80)
+		if sr.Port != nil {
+			port = *sr.Port
+		}
+
+		// Determine domain (default to svc.cluster.local)
+		domain := "svc.cluster.local"
+		if sr.Domain != nil && *sr.Domain != "" {
+			domain = *sr.Domain
+		}
+
+		// Construct the service URL
+		// Format: scheme://service-name.namespace.domain:port
+		return scheme + "://" + *sr.Name + "." + namespace + "." + domain + ":" + fmt.Sprint(port)
+	}
+
+	return ""
 }
