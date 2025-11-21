@@ -107,7 +107,9 @@ func createTestMicrofrontend() *v1alpha1.MicroFrontend {
 			Name: "test",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       ptr("http://test-service.test-namespace.svc.cluster.local"),
+			Service: &v1alpha1.ServiceReference{
+				URI: ptr("http://test-service.test-namespace.svc.cluster.local"),
+			},
 			CacheStrategy: "none",
 			CacheControl:  ptr("no-cache"),
 			ModulePath:    ptr("test"),

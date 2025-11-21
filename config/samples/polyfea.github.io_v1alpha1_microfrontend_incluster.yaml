@@ -1,0 +1,26 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontend
+metadata:
+  labels:
+    app.kubernetes.io/name: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: microfrontend-incluster-sample
+spec:
+  # In-cluster service reference using service name
+  service:
+    name: "my-microfrontend-service"
+    namespace: "default"  # Optional: defaults to MicroFrontend's namespace
+    port: 8080            # Optional: defaults to 80
+    scheme: "http"        # Optional: defaults to http (options: http, https)
+  
+  # Path to the module file
+  modulePath: "module.js"
+  
+  # Enable proxy mode
+  proxy: true
+  
+  # Frontend class reference (optional)
+  frontendClass: "polyfea-controller-default"
+  
+  # Cache strategy
+  cacheStrategy: "none"

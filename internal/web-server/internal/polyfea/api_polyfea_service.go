@@ -348,7 +348,7 @@ func convertStyles(styles []v1alpha1.Style) *map[string]string {
 	return &result
 }
 
-func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *string) *[]generated.MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference) *[]generated.MicrofrontendResource {
 	result := []generated.MicrofrontendResource{}
 
 	for _, resource := range resources {
@@ -405,18 +405,20 @@ func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string,
 	return result, nil
 }
 
-func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool, service *string) *string {
+func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool, service *v1alpha1.ServiceReference) *string {
 	if proxy {
 		return strToPtr("./polyfea/proxy/" + microFrontendNamespace + "/" + microFrontendName + "/" + path)
 	} else {
 		// For non-proxied services, combine service URL with path
-		if service != nil && *service != "" {
-			baseUrl := *service
-			// Handle URL joining properly
-			if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
-				return strToPtr(baseUrl + "/" + path)
+		if service != nil {
+			baseUrl := service.ResolveServiceURL(microFrontendNamespace)
+			if baseUrl != "" {
+				// Handle URL joining properly
+				if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
+					return strToPtr(baseUrl + "/" + path)
+				}
+				return strToPtr(baseUrl + path)
 			}
-			return strToPtr(baseUrl + path)
 		}
 		// Fallback to just path if service is not provided
 		return strToPtr(path)

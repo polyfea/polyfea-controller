@@ -35,7 +35,7 @@ const (
 	MicroFrontendFinalizer = "polyfea.github.io/finalizer"
 )
 
-func setupMicroFrontend(name string, service, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources, cacheOptions *v1alpha1.PWACache) *v1alpha1.MicroFrontend {
+func setupMicroFrontend(name string, service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources, cacheOptions *v1alpha1.PWACache) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
@@ -88,7 +88,9 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				microFrontend := setupMicroFrontend(
 					MicroFrontendName,
-					ptr("http://test-service.test-namespace.svc.cluster.local"),
+					&v1alpha1.ServiceReference{
+						URI: ptr("http://test-service.test-namespace.svc.cluster.local"),
+					},
 					ptr("module.jsm"),
 					&proxy,
 					ptr("test-microfrontendclass"),
@@ -104,7 +106,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
 				}, timeout, interval).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
+				Expect(createdMicroFrontend.Spec.Service.URI).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
 
 				By("Checking the MicroFrontend has finalizer")
 				// Wait for the finalizer to be added
@@ -125,7 +127,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 			})
 
 			DescribeTable("Validation scenarios",
-				func(service, modulePath *string, shouldSucceed bool) {
+				func(service *v1alpha1.ServiceReference, modulePath *string, shouldSucceed bool) {
 					testCtx := context.Background()
 					proxy := true
 
@@ -147,8 +149,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 					}
 				},
 				Entry("missing service", nil, ptr("module.jsm"), false),
-				Entry("missing modulePath", ptr("http://test-service.test-namespace.svc.cluster.local"), nil, false),
-				Entry("valid MicroFrontend", ptr("http://test-service.test-namespace.svc.cluster.local"), ptr("module.jsm"), true),
+				Entry("missing modulePath", &v1alpha1.ServiceReference{URI: ptr("http://test-service.test-namespace.svc.cluster.local")}, nil, false),
+				Entry("valid MicroFrontend", &v1alpha1.ServiceReference{URI: ptr("http://test-service.test-namespace.svc.cluster.local")}, ptr("module.jsm"), true),
 			)
 
 			It("Should create with defaults if optional fields are not specified", func() {
@@ -159,7 +161,9 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				microFrontend := setupMicroFrontend(
 					MicroFrontendName,
-					ptr("http://test-service.test-namespace.svc.cluster.local"),
+					&v1alpha1.ServiceReference{
+						URI: ptr("http://test-service.test-namespace.svc.cluster.local"),
+					},
 					ptr("module.jsm"),
 					nil,
 					nil,
@@ -174,7 +178,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend) == nil
 				}, timeout, interval).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.Service).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
+				Expect(createdMicroFrontend.Spec.Service.URI).Should(Equal(ptr("http://test-service.test-namespace.svc.cluster.local")))
 				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
 				Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr("polyfea-controller-default")))

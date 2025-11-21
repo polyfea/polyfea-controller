@@ -46,7 +46,9 @@ func TestPolyfeaProxyHandleProxyProxiesTheCallAndReturnsResult(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	requestedMicroFrontend.Spec.Service = &mockServer.URL
+	requestedMicroFrontend.Spec.Service = &v1alpha1.ServiceReference{
+		URI: &mockServer.URL,
+	}
 	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
 	if err != nil {
 		t.Error("Failed to store requested microfrontend")
@@ -90,7 +92,10 @@ func TestPolyfeaProxyHandleProxyReturnsErrorIfServiceIsNotFound(t *testing.T) {
 	// Arrange
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 	requestedMicroFrontend := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
-	requestedMicroFrontend.Spec.Service = &[]string{"http://test-service.default.svc.cluster.local"}[0]
+	uri := "http://test-service.default.svc.cluster.local"
+	requestedMicroFrontend.Spec.Service = &v1alpha1.ServiceReference{
+		URI: &uri,
+	}
 
 	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
 	if err != nil {
@@ -144,7 +149,9 @@ func TestPolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.
 	}))
 	defer mockServer.Close()
 
-	requestedMicroFrontend.Spec.Service = &mockServer.URL
+	requestedMicroFrontend.Spec.Service = &v1alpha1.ServiceReference{
+		URI: &mockServer.URL,
+	}
 	err := testMicroFrontendRepository.Store(requestedMicroFrontend)
 	if err != nil {
 		t.Error("Failed to store requested microfrontend")
@@ -365,7 +372,10 @@ func polyfeaProxyApiSetupRouter() http.Handler {
 	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	mf := createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)
-	mf.Spec.Service = &[]string{"http://localhost:5003"}[0]
+	serviceURI := "http://localhost:5003"
+	mf.Spec.Service = &v1alpha1.ServiceReference{
+		URI: &serviceURI,
+	}
 	err = testMicroFrontendRepository.Store(mf)
 	if err != nil {
 		panic("Failed to store requested microfrontend")

@@ -6,8 +6,19 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: microfrontend-sample
 spec:
-  # Service URL where the microfrontend is hosted
-  service: "http://my-service.default.svc.cluster.local"
+  # Service reference - use either 'name' for in-cluster services or 'uri' for external services
+  service:
+    # For in-cluster services, specify the service name
+    name: "my-service"
+    # namespace defaults to the MicroFrontend's namespace if not specified
+    namespace: "default"
+    # port defaults to 80 if not specified
+    port: 80
+    # scheme defaults to http if not specified (options: http, https)
+    scheme: "http"
+    
+    # OR for external services, specify the full URI (mutually exclusive with 'name')
+    # uri: "https://cdn.example.com"
   
   # Path to the module file
   modulePath: "module.js"

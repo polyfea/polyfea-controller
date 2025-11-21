@@ -61,7 +61,8 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proxyUrl := p.buildProxyUrl(microfrontend.Spec.Service, path)
+	serviceUrl := microfrontend.Spec.Service.ResolveServiceURL(microfrontend.Namespace)
+	proxyUrl := p.buildProxyUrl(serviceUrl, path)
 	resp, err := p.proxyRequest(ctx, proxyUrl, r, logger, w)
 	if err != nil {
 		logger.Error(err, "Error while proxying request.")
@@ -135,11 +136,11 @@ func (p *PolyfeaProxy) getMicrofrontendClass(microfrontend *v1alpha1.MicroFronte
 	return microfrontendClasses[0], nil
 }
 
-func (p *PolyfeaProxy) buildProxyUrl(service *string, path string) string {
-	if (*service)[len(*service)-1] != '/' && path[0] != '/' {
-		return *service + "/" + path
+func (p *PolyfeaProxy) buildProxyUrl(service string, path string) string {
+	if len(service) > 0 && service[len(service)-1] != '/' && len(path) > 0 && path[0] != '/' {
+		return service + "/" + path
 	}
-	return *service + path
+	return service + path
 }
 
 func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *http.Request, logger logr.Logger, w http.ResponseWriter) (*http.Response, error) {

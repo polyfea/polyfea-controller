@@ -1367,13 +1367,16 @@ func createTestWebComponent(objecName string, microFrontendName string, displayR
 }
 
 func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
+	serviceURI := "http://test-service.test-namespace.svc.cluster.local"
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      objecName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       &[]string{"http://test-service.test-namespace.svc.cluster.local"}[0],
+			Service: &v1alpha1.ServiceReference{
+				URI: &serviceURI,
+			},
 			Proxy:         &[]bool{proxy}[0],
 			CacheStrategy: "none",
 			CacheControl:  &[]string{"no-cache"}[0],
@@ -1476,13 +1479,16 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 	}
 
 	// Create a microfrontend with external service and proxy=false
+	externalServiceURI := "https://cdn.example.com"
 	externalMicroFrontend := &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "external-microfrontend",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			Service:       &[]string{"https://cdn.example.com"}[0],
+			Service: &v1alpha1.ServiceReference{
+				URI: &externalServiceURI,
+			},
 			Proxy:         &[]bool{false}[0],
 			CacheStrategy: "none",
 			FrontendClass: &[]string{"test-frontend-class"}[0],

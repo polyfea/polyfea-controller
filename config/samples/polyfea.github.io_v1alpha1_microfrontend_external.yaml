@@ -1,0 +1,23 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontend
+metadata:
+  labels:
+    app.kubernetes.io/name: polyfea-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: microfrontend-external-sample
+spec:
+  # External service reference using URI
+  service:
+    uri: "https://cdn.example.com"
+  
+  # Path to the module file
+  modulePath: "modules/app.js"
+  
+  # Disable proxy mode for external services
+  proxy: false
+  
+  # Frontend class reference (optional)
+  frontendClass: "polyfea-controller-default"
+  
+  # Cache strategy
+  cacheStrategy: "none"
