@@ -19,15 +19,17 @@ package controller
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 )
@@ -169,7 +171,7 @@ func (r *MicroFrontendReconciler) processFrontendClass(ctx context.Context, mf *
 	logger := log.FromContext(ctx)
 	statusUpdated := false
 
-	frontendClassName := "polyfea-controller-default"
+	frontendClassName := DefaultFrontendClassName
 	if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
 		frontendClassName = *mf.Spec.FrontendClass
 	}
@@ -328,5 +330,54 @@ func (r *MicroFrontendReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&polyfeav1alpha1.MicroFrontend{}).
 		Named("microfrontend").
+		Watches(
+			&polyfeav1alpha1.MicroFrontendClass{},
+			handler.EnqueueRequestsFromMapFunc(r.findMicroFrontendsForClass),
+		).
 		Complete(r)
+}
+
+// findMicroFrontendsForClass returns reconcile requests for all MicroFrontends
+// that reference the given MicroFrontendClass.
+func (r *MicroFrontendReconciler) findMicroFrontendsForClass(ctx context.Context, obj client.Object) []reconcile.Request {
+	mfc, ok := obj.(*polyfeav1alpha1.MicroFrontendClass)
+	if !ok {
+		return nil
+	}
+
+	logger := log.FromContext(ctx)
+	logger.Info("MicroFrontendClass changed, finding dependent MicroFrontends", "class", mfc.Name)
+
+	// List all MicroFrontends across all namespaces
+	mfList := &polyfeav1alpha1.MicroFrontendList{}
+	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
+		logger.Error(err, "Failed to list MicroFrontends for class change")
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, mf := range mfList.Items {
+		// Get the frontend class name for this MicroFrontend
+		frontendClassName := DefaultFrontendClassName
+		if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
+			frontendClassName = *mf.Spec.FrontendClass
+		}
+
+		// If this MicroFrontend references the changed class, enqueue it for reconciliation
+		if frontendClassName == mfc.Name {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: client.ObjectKey{
+					Name:      mf.Name,
+					Namespace: mf.Namespace,
+				},
+			})
+			logger.Info("Enqueueing MicroFrontend for reconciliation due to class change",
+				"microfrontend", mf.Name,
+				"namespace", mf.Namespace,
+				"class", mfc.Name)
+		}
+	}
+
+	logger.Info("Enqueued MicroFrontends for reconciliation", "count", len(requests), "class", mfc.Name)
+	return requests
 }

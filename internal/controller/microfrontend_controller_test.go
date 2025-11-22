@@ -191,7 +191,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(Equal(ptr("test-namespace")))
 				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
 				Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
-				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr("polyfea-controller-default")))
+				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr(DefaultFrontendClassName)))
 				Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
@@ -237,6 +237,112 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Eventually(func() bool {
 					return errors.IsNotFound(k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend))
 				}, timeout, interval).Should(BeTrue())
+			})
+
+			It("Should reconcile MicroFrontends when MicroFrontendClass namespace policy changes", func() {
+				By("Creating a MicroFrontendClass with 'All' namespace policy")
+				testCtx := context.Background()
+
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				// Create MicroFrontendClass
+				mfcName := "test-microfrontendclass"
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Test Frontend"),
+						NamespacePolicy: &v1alpha1.NamespacePolicy{
+							From: v1alpha1.NamespaceFromAll,
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed()) // Create MicroFrontend referencing this class
+				proxy := true
+				microFrontend := setupMicroFrontend(
+					&v1alpha1.ServiceReference{
+						URI: ptr("https://example.com"),
+					},
+					ptr("app.js"),
+					&proxy,
+					&mfcName,
+					nil,
+				)
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
+
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				createdMicroFrontend := &v1alpha1.MicroFrontend{}
+
+				By("Verifying MicroFrontend is accepted with 'All' policy")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						createdMicroFrontend.Status.FrontendClassRef.Accepted
+				}, timeout, interval).Should(BeTrue())
+
+				By("Updating MicroFrontendClass to 'Same' namespace policy")
+				mfcLookupKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendNamespace}
+				updatedMfc := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					// Re-fetch to get latest resourceVersion
+					if err := k8sClient.Get(testCtx, mfcLookupKey, updatedMfc); err != nil {
+						return err
+					}
+					updatedMfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+						From: v1alpha1.NamespaceFromSame,
+					}
+					return k8sClient.Update(testCtx, updatedMfc)
+				}, timeout, interval).Should(Succeed())
+
+				By("Verifying MicroFrontend is still accepted (same namespace)")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					// Status should be updated due to the watch triggering reconciliation
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						createdMicroFrontend.Status.FrontendClassRef.Accepted
+				}, timeout, interval).Should(BeTrue())
+
+				By("Updating MicroFrontendClass to specific namespaces (excluding default)")
+				Eventually(func() error {
+					// Re-fetch to get latest resourceVersion
+					if err := k8sClient.Get(testCtx, mfcLookupKey, updatedMfc); err != nil {
+						return err
+					}
+					updatedMfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+						From:       v1alpha1.NamespaceFromNamespaces,
+						Namespaces: []string{"other-namespace"},
+					}
+					return k8sClient.Update(testCtx, updatedMfc)
+				}, timeout, interval).Should(Succeed())
+
+				By("Verifying MicroFrontend is now rejected")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					// Watch should trigger reconciliation and MicroFrontend should be rejected
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseRejected &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						!createdMicroFrontend.Status.FrontendClassRef.Accepted &&
+						createdMicroFrontend.Status.RejectionReason != ""
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
 			})
 		})
 	})

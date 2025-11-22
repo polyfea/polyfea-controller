@@ -127,7 +127,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		for _, mf := range mfList.Items {
 			// Check if this MicroFrontend references this class
-			frontendClassName := "polyfea-controller-default"
+			frontendClassName := DefaultFrontendClassName
 			if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
 				frontendClassName = *mf.Spec.FrontendClass
 			}

@@ -95,6 +95,8 @@ spec:
 
 When a MicroFrontend attempts to bind to a MicroFrontendClass but doesn't satisfy the namespace policy, it will be rejected with a clear status message explaining why.
 
+**Automatic Reconciliation**: When a MicroFrontendClass namespace policy is updated, all MicroFrontends referencing that class are automatically reconciled to reflect the new policy. This ensures namespace restrictions are enforced immediately without manual intervention. See [Namespace Policy Reconciliation](docs/NAMESPACE_POLICY_RECONCILIATION.md) for details.
+
 #### Required Fields
 
 The baseUri and title fields are mandatory for every MicroFrontendClass.
