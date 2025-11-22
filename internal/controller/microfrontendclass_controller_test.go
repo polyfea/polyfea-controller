@@ -58,12 +58,17 @@ func ensureMicroFrontendClassDeleted(ctx context.Context) {
 	existingMicroFrontendClass := &v1alpha1.MicroFrontendClass{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass)
 	if err == nil {
-		// Delete the existing resource
-		Expect(k8sClient.Delete(ctx, existingMicroFrontendClass)).Should(Succeed())
-		// Wait for the resource to be fully deleted
+		// Check if already being deleted
+		if existingMicroFrontendClass.DeletionTimestamp == nil {
+			// Not yet marked for deletion, delete it now
+			Expect(k8sClient.Delete(ctx, existingMicroFrontendClass)).Should(Succeed())
+		}
+		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass))
 		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		// Give extra time for repository cleanup
+		time.Sleep(time.Millisecond * 500)
 	}
 }
 
@@ -184,6 +189,199 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 					StartUrl: ptr("/"), Display: ptr("standalone"),
 				}, true),
 			)
+		})
+
+		Context("Namespace Policy", func() {
+			It("Should default to 'All' namespace policy when not specified", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
+				// No namespace policy specified
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() bool {
+					return k8sClient.Get(testCtx, lookupKey, created) == nil
+				}, timeout, interval).Should(BeTrue())
+
+				// Should allow all namespaces (default behavior)
+				Expect(created.IsNamespaceAllowed("default")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("other-namespace")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("production")).Should(BeTrue())
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should respect 'All' namespace policy", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test All Policy"), ptr("/all"))
+				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+					From: v1alpha1.NamespaceFromAll,
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() bool {
+					return k8sClient.Get(testCtx, lookupKey, created) == nil
+				}, timeout, interval).Should(BeTrue())
+
+				// Should allow all namespaces
+				Expect(created.IsNamespaceAllowed("default")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("team-a")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("team-b")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("production")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("any-namespace")).Should(BeTrue())
+
+				// Verify status is updated
+				Eventually(func() string {
+					err := k8sClient.Get(testCtx, lookupKey, created)
+					if err != nil {
+						return ""
+					}
+					return created.Status.Phase
+				}, timeout, interval).Should(Equal(v1alpha1.MicroFrontendClassPhaseReady))
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should respect 'Same' namespace policy", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test Same Policy"), ptr("/same"))
+				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+					From: v1alpha1.NamespaceFromSame,
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					return k8sClient.Get(testCtx, lookupKey, created)
+				}, timeout, interval).Should(Succeed())
+
+				// Should only allow the same namespace (default)
+				Expect(created.IsNamespaceAllowed("default")).Should(BeTrue())
+
+				// Should reject other namespaces
+				Expect(created.IsNamespaceAllowed("team-a")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("team-b")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("production")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("other-namespace")).Should(BeFalse())
+
+				// Verify status is updated
+				Eventually(func() string {
+					err := k8sClient.Get(testCtx, lookupKey, created)
+					if err != nil {
+						return ""
+					}
+					return created.Status.Phase
+				}, timeout, interval).Should(Equal(v1alpha1.MicroFrontendClassPhaseReady))
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should respect 'FromNamespaces' policy with specific namespaces", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test FromNamespaces Policy"), ptr("/fromnamespaces"))
+				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+					From: v1alpha1.NamespaceFromNamespaces,
+					Namespaces: []string{
+						"team-a",
+						"team-b",
+						"production",
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					return k8sClient.Get(testCtx, lookupKey, created)
+				}, timeout, interval).Should(Succeed())
+
+				// Should allow specified namespaces
+				Expect(created.IsNamespaceAllowed("team-a")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("team-b")).Should(BeTrue())
+				Expect(created.IsNamespaceAllowed("production")).Should(BeTrue())
+
+				// Should reject other namespaces
+				Expect(created.IsNamespaceAllowed("default")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("staging")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("development")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("other-namespace")).Should(BeFalse())
+
+				// Verify status is updated
+				Eventually(func() string {
+					err := k8sClient.Get(testCtx, lookupKey, created)
+					if err != nil {
+						return ""
+					}
+					return created.Status.Phase
+				}, timeout, interval).Should(Equal(v1alpha1.MicroFrontendClassPhaseReady))
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should handle empty namespace list in 'FromNamespaces' policy", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test Empty Namespaces"), ptr("/empty"))
+				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+					From:       v1alpha1.NamespaceFromNamespaces,
+					Namespaces: []string{}, // Empty list
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					return k8sClient.Get(testCtx, lookupKey, created)
+				}, timeout, interval).Should(Succeed())
+
+				// Should reject all namespaces when list is empty
+				Expect(created.IsNamespaceAllowed("default")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("team-a")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("production")).Should(BeFalse())
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should handle 'FromNamespaces' with single namespace", func() {
+				testCtx := context.Background()
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfc := setupMicroFrontendClass(ptr("Test Single Namespace"), ptr("/single"))
+				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+					From:       v1alpha1.NamespaceFromNamespaces,
+					Namespaces: []string{"production"},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
+
+				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				created := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					return k8sClient.Get(testCtx, lookupKey, created)
+				}, timeout, interval).Should(Succeed())
+
+				// Should only allow the single specified namespace
+				Expect(created.IsNamespaceAllowed("production")).Should(BeTrue())
+
+				// Should reject all other namespaces
+				Expect(created.IsNamespaceAllowed("default")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("team-a")).Should(BeFalse())
+				Expect(created.IsNamespaceAllowed("staging")).Should(BeFalse())
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
 		})
 	})
 })

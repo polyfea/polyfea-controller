@@ -143,10 +143,57 @@ type Port struct {
 	Number *int32 `json:"number,omitempty"`
 }
 
+// MicroFrontendClassReference contains information about the MicroFrontendClass binding
+type MicroFrontendClassReference struct {
+	// Name of the MicroFrontendClass
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Name string `json:"name"`
+
+	// Namespace of the MicroFrontendClass
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Namespace string `json:"namespace,omitempty"`
+
+	// Accepted indicates if this MicroFrontend is accepted by the class's namespace policy
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Accepted bool `json:"accepted"`
+}
+
 // MicroFrontendStatus defines the observed state of MicroFrontend
 type MicroFrontendStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Conditions represent the latest available observations of the MicroFrontend's state
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Phase represents the current lifecycle phase of the MicroFrontend
+	// Possible values: Pending, Ready, Failed, Rejected
+	// +optional
+	// +kubebuilder:validation:Enum=Pending;Ready;Failed;Rejected
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Phase string `json:"phase,omitempty"`
+
+	// ResolvedServiceURL is the computed URL where the microfrontend is served from
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ResolvedServiceURL string `json:"resolvedServiceURL,omitempty"`
+
+	// FrontendClassRef indicates which MicroFrontendClass this microfrontend is bound to
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	FrontendClassRef *MicroFrontendClassReference `json:"frontendClassRef,omitempty"`
+
+	// RejectionReason explains why the microfrontend was rejected (namespace policy violation, etc.)
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	RejectionReason string `json:"rejectionReason,omitempty"`
+
+	// ObservedGeneration reflects the generation of the most recently observed MicroFrontend
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

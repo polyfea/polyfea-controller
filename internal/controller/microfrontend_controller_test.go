@@ -61,13 +61,17 @@ func ensureMicroFrontendDeleted(ctx context.Context) {
 	existingMicroFrontend := &v1alpha1.MicroFrontend{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
 	if err == nil {
-		// Delete the existing resource
-		Expect(k8sClient.Delete(ctx, existingMicroFrontend)).To(Succeed())
-
-		// Wait for the resource to be fully deleted
+		// Check if already being deleted
+		if existingMicroFrontend.DeletionTimestamp == nil {
+			// Not yet marked for deletion, delete it now
+			Expect(k8sClient.Delete(ctx, existingMicroFrontend)).To(Succeed())
+		}
+		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
 		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		// Give extra time for repository cleanup
+		time.Sleep(time.Millisecond * 500)
 	}
 }
 

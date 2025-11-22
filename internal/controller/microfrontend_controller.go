@@ -20,12 +20,14 @@ import (
 	"context"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/go-logr/logr"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
 )
@@ -56,48 +58,258 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	logger.Info("Reconciling MicroFrontend", "MicroFrontend", mf)
+	logger.Info("Reconciling MicroFrontend", "MicroFrontend", mf.Name, "Namespace", mf.Namespace)
 
-	// Add finalizer if not present
+	// Handle finalizer
+	if result, err := r.handleFinalizer(ctx, mf, finalizerName); result != nil {
+		return *result, err
+	}
+
+	// Handle deletion
+	if result, err := r.handleDeletion(ctx, req, mf, finalizerName); result != nil {
+		return *result, err
+	}
+
+	// Update status
+	statusUpdated := false
+	originalStatus := mf.Status.DeepCopy()
+
+	// Resolve service URL
+	statusUpdated = r.resolveServiceURL(mf) || statusUpdated
+
+	// Process MicroFrontendClass and namespace policy
+	statusUpdated = r.processFrontendClass(ctx, mf) || statusUpdated
+
+	// Update ObservedGeneration
+	if mf.Status.ObservedGeneration != mf.Generation {
+		mf.Status.ObservedGeneration = mf.Generation
+		statusUpdated = true
+	}
+
+	// Update status if needed
+	if statusUpdated {
+		if err := r.Status().Update(ctx, mf); err != nil {
+			logger.Error(err, "Failed to update MicroFrontend status")
+			mf.Status = *originalStatus
+			return ctrl.Result{Requeue: true}, err
+		}
+		logger.Info("Updated MicroFrontend status", "phase", mf.Status.Phase)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// handleFinalizer adds finalizer if not present.
+func (r *MicroFrontendReconciler) handleFinalizer(ctx context.Context, mf *polyfeav1alpha1.MicroFrontend, finalizerName string) (*ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
 	if !controllerutil.ContainsFinalizer(mf, finalizerName) {
 		logger.Info("Adding finalizer")
 		controllerutil.AddFinalizer(mf, finalizerName)
 		if err := r.Update(ctx, mf); err != nil {
 			logger.Error(err, "Failed to update MicroFrontend with finalizer")
-			return ctrl.Result{Requeue: true}, err
+			return &ctrl.Result{Requeue: true}, err
 		}
-		return ctrl.Result{}, nil
+		return &ctrl.Result{}, nil
+	}
+	return nil, nil
+}
+
+// handleDeletion handles resource deletion and finalizer cleanup.
+func (r *MicroFrontendReconciler) handleDeletion(ctx context.Context, req ctrl.Request, mf *polyfeav1alpha1.MicroFrontend, finalizerName string) (*ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
+	if mf.GetDeletionTimestamp() == nil {
+		return nil, nil
 	}
 
-	// Handle deletion
-	if mf.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(mf, finalizerName) {
-			logger.Info("Running finalizer operations before deletion")
-			if err := r.finalizeMicroFrontend(mf); err != nil {
-				logger.Error(err, "Finalizer operations failed")
-				return ctrl.Result{Requeue: true}, nil
-			}
-			// Re-fetch in case of update
-			if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
-				logger.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
-				return ctrl.Result{Requeue: true}, err
-			}
-			controllerutil.RemoveFinalizer(mf, finalizerName)
-			if err := r.Update(ctx, mf); err != nil {
-				logger.Error(err, "Failed to remove finalizer")
-				return ctrl.Result{Requeue: true}, err
-			}
+	if controllerutil.ContainsFinalizer(mf, finalizerName) {
+		logger.Info("Running finalizer operations before deletion")
+		if err := r.finalizeMicroFrontend(mf); err != nil {
+			logger.Error(err, "Finalizer operations failed")
+			return &ctrl.Result{Requeue: true}, nil
 		}
-		return ctrl.Result{}, nil
+		// Re-fetch in case of update
+		if err := r.Get(ctx, req.NamespacedName, mf); err != nil {
+			logger.Error(err, "Failed to re-fetch MicroFrontend after finalizer")
+			return &ctrl.Result{Requeue: true}, err
+		}
+		controllerutil.RemoveFinalizer(mf, finalizerName)
+		if err := r.Update(ctx, mf); err != nil {
+			logger.Error(err, "Failed to remove finalizer")
+			return &ctrl.Result{Requeue: true}, err
+		}
+	}
+	return &ctrl.Result{}, nil
+}
+
+// resolveServiceURL resolves the service URL and updates status.
+func (r *MicroFrontendReconciler) resolveServiceURL(mf *polyfeav1alpha1.MicroFrontend) bool {
+	statusUpdated := false
+	resolvedURL := mf.Spec.Service.ResolveServiceURL(mf.Namespace)
+
+	if resolvedURL != mf.Status.ResolvedServiceURL {
+		mf.Status.ResolvedServiceURL = resolvedURL
+		statusUpdated = true
 	}
 
-	// Store the MicroFrontend in the repository
+	if resolvedURL != "" {
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeServiceResolved,
+			metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "Service URL resolved successfully")
+	} else {
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeServiceResolved,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "Unable to resolve service URL")
+	}
+
+	return statusUpdated
+}
+
+// processFrontendClass fetches MicroFrontendClass and validates namespace policy.
+func (r *MicroFrontendReconciler) processFrontendClass(ctx context.Context, mf *polyfeav1alpha1.MicroFrontend) bool {
+	logger := log.FromContext(ctx)
+	statusUpdated := false
+
+	frontendClassName := "polyfea-controller-default"
+	if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
+		frontendClassName = *mf.Spec.FrontendClass
+	}
+
+	mfc := &polyfeav1alpha1.MicroFrontendClass{}
+	err := r.Get(ctx, client.ObjectKey{Name: frontendClassName, Namespace: mf.Namespace}, mfc)
+
+	if err != nil {
+		return r.handleFrontendClassNotFound(mf, frontendClassName, err, logger)
+	}
+
+	return r.validateNamespacePolicy(mf, mfc, frontendClassName, logger) || statusUpdated
+}
+
+// handleFrontendClassNotFound handles the case when MicroFrontendClass is not found.
+func (r *MicroFrontendReconciler) handleFrontendClassNotFound(mf *polyfeav1alpha1.MicroFrontend, frontendClassName string, err error, logger logr.Logger) bool {
+	statusUpdated := false
+
+	if !apierrors.IsNotFound(err) {
+		logger.Error(err, "Failed to get MicroFrontendClass", "name", frontendClassName)
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeFrontendClassBound,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontendClass")
+		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
+		statusUpdated = true
+	} else {
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeFrontendClassBound,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonFrontendClassNotFound,
+			"MicroFrontendClass not found in namespace")
+		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
+		statusUpdated = true
+	}
+
+	return statusUpdated
+}
+
+// validateNamespacePolicy validates namespace policy and updates status accordingly.
+func (r *MicroFrontendReconciler) validateNamespacePolicy(mf *polyfeav1alpha1.MicroFrontend, mfc *polyfeav1alpha1.MicroFrontendClass, frontendClassName string, logger logr.Logger) bool {
+	statusUpdated := false
+	accepted := mfc.IsNamespaceAllowed(mf.Namespace)
+
+	// Update FrontendClassRef
+	if r.shouldUpdateFrontendClassRef(mf, frontendClassName, mfc.Namespace, accepted) {
+		mf.Status.FrontendClassRef = &polyfeav1alpha1.MicroFrontendClassReference{
+			Name:      frontendClassName,
+			Namespace: mfc.Namespace,
+			Accepted:  accepted,
+		}
+		statusUpdated = true
+	}
+
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeFrontendClassBound,
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "Bound to MicroFrontendClass")
+
+	if accepted {
+		statusUpdated = r.handleAcceptedMicroFrontend(mf, logger) || statusUpdated
+	} else {
+		statusUpdated = r.handleRejectedMicroFrontend(mf, frontendClassName, logger) || statusUpdated
+	}
+
+	return statusUpdated
+}
+
+// shouldUpdateFrontendClassRef checks if FrontendClassRef needs to be updated.
+func (r *MicroFrontendReconciler) shouldUpdateFrontendClassRef(mf *polyfeav1alpha1.MicroFrontend, name, namespace string, accepted bool) bool {
+	return mf.Status.FrontendClassRef == nil ||
+		mf.Status.FrontendClassRef.Name != name ||
+		mf.Status.FrontendClassRef.Namespace != namespace ||
+		mf.Status.FrontendClassRef.Accepted != accepted
+}
+
+// handleAcceptedMicroFrontend updates status for accepted MicroFrontend.
+func (r *MicroFrontendReconciler) handleAcceptedMicroFrontend(mf *polyfeav1alpha1.MicroFrontend, logger logr.Logger) bool {
+	statusUpdated := false
+
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeNamespacePolicyValid,
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "Namespace is allowed by policy")
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeAccepted,
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontend accepted")
+
+	// Clear rejection reason if previously set
+	if mf.Status.RejectionReason != "" {
+		mf.Status.RejectionReason = ""
+		statusUpdated = true
+	}
+
+	// Determine overall phase
+	if polyfeav1alpha1.IsConditionTrue(mf.Status.Conditions, polyfeav1alpha1.ConditionTypeServiceResolved) {
+		if mf.Status.Phase != polyfeav1alpha1.MicroFrontendPhaseReady {
+			mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseReady
+			statusUpdated = true
+		}
+	} else {
+		if mf.Status.Phase != polyfeav1alpha1.MicroFrontendPhasePending {
+			mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhasePending
+			statusUpdated = true
+		}
+	}
+
+	// Store the MicroFrontend in the repository only if accepted
 	if err := r.Repository.Store(mf); err != nil {
 		logger.Error(err, "Failed to store MicroFrontend in repository")
-		return ctrl.Result{Requeue: true}, err
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Failed to store in repository")
+		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
+		statusUpdated = true
+	} else {
+		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+			metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontend is ready")
 	}
 
-	return ctrl.Result{}, nil
+	return statusUpdated
+}
+
+// handleRejectedMicroFrontend updates status for rejected MicroFrontend.
+func (r *MicroFrontendReconciler) handleRejectedMicroFrontend(mf *polyfeav1alpha1.MicroFrontend, frontendClassName string, logger logr.Logger) bool {
+	statusUpdated := false
+	rejectionMsg := "Namespace not allowed by MicroFrontendClass namespace policy"
+
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeNamespacePolicyValid,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonNamespaceNotAllowed, rejectionMsg)
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeAccepted,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonNamespaceNotAllowed, rejectionMsg)
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonNamespaceNotAllowed, rejectionMsg)
+
+	if mf.Status.RejectionReason != rejectionMsg {
+		mf.Status.RejectionReason = rejectionMsg
+		statusUpdated = true
+	}
+	if mf.Status.Phase != polyfeav1alpha1.MicroFrontendPhaseRejected {
+		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseRejected
+		statusUpdated = true
+	}
+
+	logger.Info("MicroFrontend rejected by namespace policy",
+		"microfrontend", mf.Name,
+		"namespace", mf.Namespace,
+		"frontendClass", frontendClassName)
+
+	return statusUpdated
 }
 
 // finalizeMicroFrontend performs cleanup before deletion.

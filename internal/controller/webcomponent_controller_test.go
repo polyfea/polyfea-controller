@@ -41,12 +41,17 @@ func ensureWebComponentDeleted(ctx context.Context, timeout time.Duration, inter
 	existingWebComponent := &polyfeav1alpha1.WebComponent{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent)
 	if err == nil {
-		// Delete the existing resource
-		Expect(k8sClient.Delete(ctx, existingWebComponent)).Should(Succeed())
-		// Wait for the resource to be fully deleted
+		// Check if already being deleted
+		if existingWebComponent.DeletionTimestamp == nil {
+			// Not yet marked for deletion, delete it now
+			Expect(k8sClient.Delete(ctx, existingWebComponent)).Should(Succeed())
+		}
+		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent))
 		}, timeout, interval).Should(BeTrue())
+		// Give extra time for repository cleanup
+		time.Sleep(time.Millisecond * 500)
 	}
 }
 

@@ -108,10 +108,46 @@ type Matcher struct {
 	Role string `json:"role,omitempty"`
 }
 
+// ObjectReference contains information about a referenced object
+type ObjectReference struct {
+	// Name of the referenced object
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Name string `json:"name"`
+
+	// Namespace of the referenced object
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Namespace string `json:"namespace"`
+
+	// Found indicates if the referenced object was found
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Found bool `json:"found"`
+}
+
 // WebComponentStatus defines the observed state of WebComponent
 type WebComponentStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Conditions represent the latest available observations of the WebComponent's state
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Phase represents the current lifecycle phase of the WebComponent
+	// Possible values: Pending, Ready, Failed, MicroFrontendNotFound
+	// +optional
+	// +kubebuilder:validation:Enum=Pending;Ready;Failed;MicroFrontendNotFound
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Phase string `json:"phase,omitempty"`
+
+	// MicroFrontendRef indicates the resolved MicroFrontend reference
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	MicroFrontendRef *ObjectReference `json:"microFrontendRef,omitempty"`
+
+	// ObservedGeneration reflects the generation of the most recently observed WebComponent
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

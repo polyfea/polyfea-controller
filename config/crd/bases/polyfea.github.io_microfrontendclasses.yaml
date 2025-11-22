@@ -85,6 +85,36 @@ spec:
                   - name
                   type: object
                 type: array
+              namespacePolicy:
+                default:
+                  from: All
+                description: |-
+                  NamespacePolicy defines which namespaces can attach MicroFrontends to this class
+                  Defaults to allowing all namespaces
+                properties:
+                  from:
+                    allOf:
+                    - enum:
+                      - All
+                      - Same
+                      - FromNamespaces
+                    - enum:
+                      - All
+                      - Same
+                      - FromNamespaces
+                    default: All
+                    description: From defines namespace selection behavior
+                    type: string
+                  namespaces:
+                    description: |-
+                      Namespaces is a list of namespaces from which MicroFrontends can be attached
+                      Only used when From is "FromNamespaces"
+                    items:
+                      type: string
+                    type: array
+                required:
+                - from
+                type: object
               progressiveWebApp:
                 description: |-
                   ProgressiveWebApp defines the configuration settings for a Progressive Web Application (PWA).
@@ -287,6 +317,91 @@ spec:
             type: object
           status:
             description: MicroFrontendClassStatus defines the observed state of MicroFrontendClass
+            properties:
+              acceptedMicroFrontends:
+                description: AcceptedMicroFrontends counts how many MicroFrontends
+                  are currently bound to this class
+                format: int32
+                type: integer
+              conditions:
+                description: Conditions represent the latest available observations
+                  of the MicroFrontendClass's state
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed MicroFrontendClass
+                format: int64
+                type: integer
+              phase:
+                description: |-
+                  Phase represents the current lifecycle phase of the MicroFrontendClass
+                  Possible values: Ready, Invalid
+                enum:
+                - Ready
+                - Invalid
+                type: string
+              rejectedMicroFrontends:
+                description: RejectedMicroFrontends counts how many MicroFrontends
+                  were rejected by namespace policy
+                format: int32
+                type: integer
             type: object
         type: object
     served: true

@@ -35,6 +35,66 @@ A MicroFrontendClass supports the following configuration properties:
 - **userHeader**: The header containing the user identifier. Defaults to x-auth-request-user.
 - **progressiveWebApp**: Configures optional Progressive Web App (PWA) capabilities. This includes defining the web app manifest, setting up pre-cache and runtime caching strategies, and specifying how frequently the service worker should reconcile changes. If omitted, PWA support is disabled.
 
+#### Namespace Policy
+
+MicroFrontendClass supports **namespace policies** to control which namespaces can attach MicroFrontends to the class. This feature enables multi-tenancy and security isolation, similar to the Kubernetes Gateway API.
+
+Three policy types are available:
+
+* **All** (default): Allows MicroFrontends from any namespace to bind to this class
+* **Same**: Allows only MicroFrontends from the same namespace as the MicroFrontendClass
+* **FromNamespaces**: Allows MicroFrontends from a specified list of namespaces
+
+Example configurations:
+
+```yaml
+# Allow all namespaces (default)
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: public-frontend
+  namespace: platform
+spec:
+  baseUri: "https://example.com"
+  title: "Public Frontend"
+  namespacePolicy:
+    from: All
+```
+
+```yaml
+# Allow only same namespace
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: isolated-frontend
+  namespace: team-a
+spec:
+  baseUri: "https://team-a.example.com"
+  title: "Team A Frontend"
+  namespacePolicy:
+    from: Same
+```
+
+```yaml
+# Allow specific namespaces
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: multi-tenant-frontend
+  namespace: platform
+spec:
+  baseUri: "https://app.example.com"
+  title: "Multi-tenant Frontend"
+  namespacePolicy:
+    from: FromNamespaces
+    namespaces:
+      - team-a
+      - team-b
+      - production
+```
+
+When a MicroFrontend attempts to bind to a MicroFrontendClass but doesn't satisfy the namespace policy, it will be rejected with a clear status message explaining why.
+
 #### Required Fields
 
 The baseUri and title fields are mandatory for every MicroFrontendClass.
@@ -103,6 +163,184 @@ The following fields must be provided:
 
 * **element**
 * **displayRules**
+
+## Status Handling
+
+All custom resources (MicroFrontend, WebComponent, and MicroFrontendClass) provide comprehensive status information following Kubernetes best practices. Status conditions allow users and operators to understand the current state of resources and diagnose configuration issues.
+
+### Status Fields Overview
+
+#### MicroFrontend Status
+
+The MicroFrontend status includes:
+
+* **conditions**: Standard Kubernetes conditions array with the following condition types:
+  * `Ready` - Overall readiness of the MicroFrontend
+  * `ServiceResolved` - Whether the service reference was successfully resolved
+  * `FrontendClassBound` - Whether the MicroFrontend is bound to a MicroFrontendClass
+  * `NamespacePolicyValid` - Whether the namespace policy requirements are satisfied
+  * `Accepted` - Whether the MicroFrontend is accepted by its class
+* **phase**: Current lifecycle phase (`Pending`, `Ready`, `Failed`, `Rejected`)
+* **resolvedServiceURL**: The computed URL where the microfrontend is served from
+* **frontendClassRef**: Reference to the bound MicroFrontendClass including acceptance status
+* **rejectionReason**: Explanation when rejected by namespace policy
+* **observedGeneration**: The generation most recently observed by the controller
+
+Example status when accepted:
+
+```yaml
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Successful
+      message: "MicroFrontend is ready"
+    - type: ServiceResolved
+      status: "True"
+      reason: Successful
+      message: "Service URL resolved successfully"
+    - type: FrontendClassBound
+      status: "True"
+      reason: Successful
+      message: "Bound to MicroFrontendClass"
+    - type: NamespacePolicyValid
+      status: "True"
+      reason: Successful
+      message: "Namespace is allowed by policy"
+  phase: Ready
+  resolvedServiceURL: "http://my-service.default.svc.cluster.local:80"
+  frontendClassRef:
+    name: polyfea-controller-default
+    namespace: platform
+    accepted: true
+  observedGeneration: 1
+```
+
+Example status when rejected by namespace policy:
+
+```yaml
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: NamespaceNotAllowed
+      message: "Namespace not allowed by MicroFrontendClass namespace policy"
+    - type: NamespacePolicyValid
+      status: "False"
+      reason: NamespaceNotAllowed
+      message: "Namespace not allowed by MicroFrontendClass namespace policy"
+    - type: Accepted
+      status: "False"
+      reason: NamespaceNotAllowed
+      message: "Namespace not allowed by MicroFrontendClass namespace policy"
+  phase: Rejected
+  rejectionReason: "Namespace not allowed by MicroFrontendClass namespace policy"
+  frontendClassRef:
+    name: production-frontend
+    namespace: platform
+    accepted: false
+  observedGeneration: 1
+```
+
+#### WebComponent Status
+
+The WebComponent status includes:
+
+* **conditions**: Condition types:
+  * `Ready` - Overall readiness of the WebComponent
+  * `MicroFrontendResolved` - Whether the referenced MicroFrontend was found
+* **phase**: Current lifecycle phase (`Pending`, `Ready`, `Failed`, `MicroFrontendNotFound`)
+* **microFrontendRef**: Information about the referenced MicroFrontend (name, namespace, found status)
+* **observedGeneration**: The generation most recently observed by the controller
+
+Example status:
+
+```yaml
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Successful
+      message: "WebComponent is ready"
+    - type: MicroFrontendResolved
+      status: "True"
+      reason: Successful
+      message: "MicroFrontend found and resolved"
+  phase: Ready
+  microFrontendRef:
+    name: my-microfrontend
+    namespace: default
+    found: true
+  observedGeneration: 1
+```
+
+**Note**: WebComponents without a `microFrontend` reference (e.g., native HTML elements) will still be stored and can have a `Ready` status, as they don't require a MicroFrontend to function.
+
+#### MicroFrontendClass Status
+
+The MicroFrontendClass status includes:
+
+* **conditions**: Condition types:
+  * `Ready` - Overall readiness of the MicroFrontendClass
+* **phase**: Current lifecycle phase (`Ready`, `Invalid`)
+* **acceptedMicroFrontends**: Count of MicroFrontends successfully bound to this class
+* **rejectedMicroFrontends**: Count of MicroFrontends rejected by namespace policy
+* **observedGeneration**: The generation most recently observed by the controller
+
+Example status:
+
+```yaml
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Successful
+      message: "MicroFrontendClass is ready"
+  phase: Ready
+  acceptedMicroFrontends: 5
+  rejectedMicroFrontends: 2
+  observedGeneration: 1
+```
+
+### Monitoring Resources
+
+You can monitor resource status using standard kubectl commands:
+
+```bash
+# View full status of all MicroFrontends
+kubectl get microfrontends -o yaml
+
+# Check only the phase
+kubectl get microfrontends -o custom-columns=NAME:.metadata.name,PHASE:.status.phase
+
+# Find rejected MicroFrontends
+kubectl get microfrontends -o json | jq '.items[] | select(.status.phase=="Rejected") | {name: .metadata.name, reason: .status.rejectionReason}'
+
+# Check MicroFrontendClass statistics
+kubectl get microfrontendclasses -o custom-columns=NAME:.metadata.name,ACCEPTED:.status.acceptedMicroFrontends,REJECTED:.status.rejectedMicroFrontends
+
+# View conditions for a specific resource
+kubectl describe microfrontend my-microfrontend
+```
+
+### Common Condition Reasons
+
+* **Successful**: Operation completed successfully
+* **InvalidConfiguration**: Configuration is invalid or incomplete
+* **NamespaceNotAllowed**: Namespace is not allowed by the MicroFrontendClass namespace policy
+* **FrontendClassNotFound**: Referenced MicroFrontendClass was not found
+* **ServiceNotFound**: Referenced Service was not found
+* **MicroFrontendNotFound**: Referenced MicroFrontend was not found (for WebComponents)
+* **Reconciling**: Resource is being reconciled
+* **Error**: An error occurred during reconciliation
+
+### Best Practices
+
+1. **Check status conditions** before assuming a resource is ready for production use
+2. **Use namespace policies** to implement multi-tenancy and security boundaries between teams
+3. **Monitor rejection reasons** to quickly identify and fix configuration issues
+4. **Set up alerts** on condition status changes for critical resources
+5. **Verify observedGeneration** matches the current generation to ensure status reflects the latest configuration
 
 ## Getting Started
 
