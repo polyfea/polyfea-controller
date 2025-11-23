@@ -306,6 +306,13 @@ func (r *MicroFrontendReconciler) handleRejectedMicroFrontend(mf *polyfeav1alpha
 		statusUpdated = true
 	}
 
+	// Remove rejected MicroFrontend from repository so it won't be served
+	if err := r.Repository.Delete(mf); err != nil {
+		logger.Error(err, "Failed to delete rejected MicroFrontend from repository")
+	} else {
+		logger.Info("Removed rejected MicroFrontend from repository")
+	}
+
 	logger.Info("MicroFrontend rejected by namespace policy",
 		"microfrontend", mf.Name,
 		"namespace", mf.Namespace,

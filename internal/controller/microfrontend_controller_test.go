@@ -344,6 +344,99 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
 			})
+
+			It("Should remove rejected MicroFrontends from repository", func() {
+				By("Creating a MicroFrontendClass with specific namespaces policy")
+				testCtx := context.Background()
+
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				// Create MicroFrontendClass that only allows 'allowed-namespace'
+				mfcName := "test-microfrontendclass"
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Test Frontend"),
+						NamespacePolicy: &v1alpha1.NamespacePolicy{
+							From:       v1alpha1.NamespaceFromNamespaces,
+							Namespaces: []string{"allowed-namespace"},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
+
+				By("Creating a MicroFrontend in 'default' namespace (not allowed)")
+				proxy := true
+				microFrontend := setupMicroFrontend(
+					&v1alpha1.ServiceReference{
+						URI: ptr("https://example.com"),
+					},
+					ptr("app.js"),
+					&proxy,
+					&mfcName,
+					nil,
+				)
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
+
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				createdMicroFrontend := &v1alpha1.MicroFrontend{}
+
+				By("Verifying MicroFrontend is rejected due to namespace policy")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseRejected &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						!createdMicroFrontend.Status.FrontendClassRef.Accepted
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying rejected MicroFrontend is not in repository")
+				// Try to get the MicroFrontend from repository
+				repoMf, _ := microFrontendRepository.Get(createdMicroFrontend)
+				Expect(repoMf).Should(BeNil()) // Should be nil since it's not in repository
+
+				By("Updating MicroFrontendClass to allow 'default' namespace")
+				mfcLookupKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendNamespace}
+				updatedMfc := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() error {
+					if err := k8sClient.Get(testCtx, mfcLookupKey, updatedMfc); err != nil {
+						return err
+					}
+					updatedMfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
+						From:       v1alpha1.NamespaceFromNamespaces,
+						Namespaces: []string{"allowed-namespace", "default"},
+					}
+					return k8sClient.Update(testCtx, updatedMfc)
+				}, timeout, interval).Should(Succeed())
+
+				By("Verifying MicroFrontend is now accepted and added to repository")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						createdMicroFrontend.Status.FrontendClassRef.Accepted
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying accepted MicroFrontend is now in repository")
+				Eventually(func() bool {
+					repoMf, err := microFrontendRepository.Get(createdMicroFrontend)
+					return err == nil && repoMf != nil
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
+			})
 		})
 	})
 })
