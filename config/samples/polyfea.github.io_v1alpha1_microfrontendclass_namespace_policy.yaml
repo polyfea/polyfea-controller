@@ -1,0 +1,39 @@
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: microfrontendclass-with-namespace-policy
+  namespace: default
+spec:
+  baseUri: "https://example.com"
+  title: "Example Frontend with Namespace Policy"
+  # This namespace policy allows MicroFrontends from specific namespaces only
+  namespacePolicy:
+    from: FromNamespaces
+    namespaces:
+      - default
+      - production
+      - staging
+---
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: microfrontendclass-same-namespace
+  namespace: default
+spec:
+  baseUri: "https://example2.com"
+  title: "Example Frontend - Same Namespace Only"
+  # This namespace policy allows MicroFrontends from the same namespace only
+  namespacePolicy:
+    from: Same
+---
+apiVersion: polyfea.github.io/v1alpha1
+kind: MicroFrontendClass
+metadata:
+  name: microfrontendclass-all-namespaces
+  namespace: default
+spec:
+  baseUri: "https://example3.com"
+  title: "Example Frontend - All Namespaces"
+  # This namespace policy allows MicroFrontends from all namespaces (default)
+  namespacePolicy:
+    from: All

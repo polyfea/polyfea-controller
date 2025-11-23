@@ -157,7 +157,15 @@ func (s *PolyfeaApiService) updateLoggerAndSpanWithRoles(logger logr.Logger, spa
 
 func (s *PolyfeaApiService) getMicroFrontendsForClass(frontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
 	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
-		return *mf.Spec.FrontendClass == frontendClass.Name
+		// Check if the MicroFrontend references this class
+		if *mf.Spec.FrontendClass != frontendClass.Name {
+			return false
+		}
+		// Check if the MicroFrontend is accepted by the namespace policy
+		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
+			return false
+		}
+		return true
 	})
 }
 

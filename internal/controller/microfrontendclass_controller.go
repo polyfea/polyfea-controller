@@ -20,6 +20,7 @@ import (
 	"context"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -100,10 +101,82 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	// Store the MicroFrontendClass in the repository
-	logger.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc)
+	logger.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc.Name)
 	if err := r.Repository.Store(mfc); err != nil {
 		logger.Error(err, "Failed to store MicroFrontendClass in repository")
+		polyfeav1alpha1.SetCondition(&mfc.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Failed to store in repository")
+		mfc.Status.Phase = polyfeav1alpha1.MicroFrontendClassPhaseInvalid
+		if err := r.Status().Update(ctx, mfc); err != nil {
+			logger.Error(err, "Failed to update MicroFrontendClass status")
+		}
 		return ctrl.Result{Requeue: true}, err
+	}
+
+	// Update status
+	statusUpdated := false
+	originalStatus := mfc.Status.DeepCopy()
+
+	// Count accepted and rejected MicroFrontends
+	mfList := &polyfeav1alpha1.MicroFrontendList{}
+	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
+		logger.Error(err, "Failed to list MicroFrontends")
+	} else {
+		acceptedCount := int32(0)
+		rejectedCount := int32(0)
+
+		for _, mf := range mfList.Items {
+			// Check if this MicroFrontend references this class
+			frontendClassName := DefaultFrontendClassName
+			if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
+				frontendClassName = *mf.Spec.FrontendClass
+			}
+
+			if frontendClassName == mfc.Name {
+				if mfc.IsNamespaceAllowed(mf.Namespace) {
+					acceptedCount++
+				} else {
+					rejectedCount++
+				}
+			}
+		}
+
+		if mfc.Status.AcceptedMicroFrontends != acceptedCount {
+			mfc.Status.AcceptedMicroFrontends = acceptedCount
+			statusUpdated = true
+		}
+		if mfc.Status.RejectedMicroFrontends != rejectedCount {
+			mfc.Status.RejectedMicroFrontends = rejectedCount
+			statusUpdated = true
+		}
+	}
+
+	// Set Ready condition
+	polyfeav1alpha1.SetCondition(&mfc.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontendClass is ready")
+
+	if mfc.Status.Phase != polyfeav1alpha1.MicroFrontendClassPhaseReady {
+		mfc.Status.Phase = polyfeav1alpha1.MicroFrontendClassPhaseReady
+		statusUpdated = true
+	}
+
+	// Update ObservedGeneration
+	if mfc.Status.ObservedGeneration != mfc.Generation {
+		mfc.Status.ObservedGeneration = mfc.Generation
+		statusUpdated = true
+	}
+
+	// Update status if needed
+	if statusUpdated {
+		if err := r.Status().Update(ctx, mfc); err != nil {
+			logger.Error(err, "Failed to update MicroFrontendClass status")
+			mfc.Status = *originalStatus
+			return ctrl.Result{Requeue: true}, err
+		}
+		logger.Info("Updated MicroFrontendClass status",
+			"phase", mfc.Status.Phase,
+			"accepted", mfc.Status.AcceptedMicroFrontends,
+			"rejected", mfc.Status.RejectedMicroFrontends)
 	}
 
 	return ctrl.Result{}, nil

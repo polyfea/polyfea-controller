@@ -52,7 +52,7 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfRepositoryContainsMa
 		map[string]generated.MicrofrontendSpec{
 			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}),
 		})
-	ctx := setupContext("/", "test-frontend-class")
+	ctx := setupContext()
 
 	// Act
 	w := httptest.NewRecorder()
@@ -1295,9 +1295,9 @@ func setupRepositories() (repository.Repository[*v1alpha1.WebComponent], reposit
 	return webComponentRepo, microFrontendRepo
 }
 
-func setupContext(basePath string, frontendClassName string) context.Context {
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, basePath)
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass(frontendClassName, basePath))
+func setupContext() context.Context {
+	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
 	return ctx
 }
 
@@ -1401,6 +1401,14 @@ func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass
 				WaitOnLoad: true,
 				Proxy:      &[]bool{proxy}[0],
 			}},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:      frontendClass,
+				Namespace: "default",
+				Accepted:  true,
+			},
+			Phase: v1alpha1.MicroFrontendPhaseReady,
 		},
 	}
 }
@@ -1513,6 +1521,14 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 				Proxy:      &[]bool{false}[0],
 			}},
 		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:      "test-frontend-class",
+				Namespace: "default",
+				Accepted:  true,
+			},
+			Phase: v1alpha1.MicroFrontendPhaseReady,
+		},
 	}
 
 	err = microFrontendRepo.Store(externalMicroFrontend)
@@ -1521,7 +1537,7 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 	}
 
 	polyfeaApiService := NewPolyfeaAPIService(webComponentRepo, microFrontendRepo, &logr.Logger{})
-	ctx := setupContext("/", "test-frontend-class")
+	ctx := setupContext()
 
 	// Act
 	w := httptest.NewRecorder()
@@ -1558,5 +1574,177 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 	expectedResourcePath := "https://cdn.example.com/styles/main.css"
 	if resources[0].Href == nil || *resources[0].Href != expectedResourcePath {
 		t.Errorf("Expected resource href to be %v, got %v", expectedResourcePath, *resources[0].Href)
+	}
+}
+
+func TestPolyfeaApiServiceGetContextAreaExcludesRejectedMicroFrontends(t *testing.T) {
+	// Arrange
+	webComponentRepo, microFrontendRepo := setupRepositories()
+
+	// Create web components referencing both accepted and rejected microfrontends
+	err := webComponentRepo.Store(createTestWebComponent(
+		"accepted-webcomponent",
+		"accepted-microfrontend",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path:        "test-path",
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+	if err != nil {
+		t.Fatalf("Failed to store accepted WebComponent in repository: %v", err)
+	}
+
+	err = webComponentRepo.Store(createTestWebComponent(
+		"rejected-webcomponent",
+		"rejected-microfrontend",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path:        "test-path",
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{2}[0]))
+	if err != nil {
+		t.Fatalf("Failed to store rejected WebComponent in repository: %v", err)
+	}
+
+	// Create accepted microfrontend with status indicating it's accepted
+	acceptedMicroFrontend := createTestMicroFrontend("accepted-microfrontend", []string{}, "test-frontend-class", true)
+	acceptedMicroFrontend.Status = v1alpha1.MicroFrontendStatus{
+		FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+			Name:      "test-frontend-class",
+			Namespace: "default",
+			Accepted:  true,
+		},
+		Phase: v1alpha1.MicroFrontendPhaseReady,
+	}
+	err = microFrontendRepo.Store(acceptedMicroFrontend)
+	if err != nil {
+		t.Fatalf("Failed to store accepted MicroFrontend in repository: %v", err)
+	}
+
+	// Create rejected microfrontend with status indicating it's rejected by namespace policy
+	rejectedMicroFrontend := createTestMicroFrontend("rejected-microfrontend", []string{}, "test-frontend-class", true)
+	rejectedMicroFrontend.Status = v1alpha1.MicroFrontendStatus{
+		FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+			Name:      "test-frontend-class",
+			Namespace: "default",
+			Accepted:  false,
+		},
+		Phase:           v1alpha1.MicroFrontendPhaseRejected,
+		RejectionReason: "Namespace not allowed by MicroFrontendClass namespace policy",
+	}
+	err = microFrontendRepo.Store(rejectedMicroFrontend)
+	if err != nil {
+		t.Fatalf("Failed to store rejected MicroFrontend in repository: %v", err)
+	}
+
+	polyfeaApiService := NewPolyfeaAPIService(webComponentRepo, microFrontendRepo, &logr.Logger{})
+	ctx := setupContext()
+
+	// Expected result should only contain the accepted microfrontend
+	expectedContextArea := createTestContextArea(
+		[]generated.ElementSpec{
+			createTestElementSpec("accepted-microfrontend"),
+		},
+		map[string]generated.MicrofrontendSpec{
+			"accepted-microfrontend": createTestMicroFrontendSpec("accepted-microfrontend", []string{}),
+		})
+
+	// Act
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
+
+	// Assert
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
+	}
+
+	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
+	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
+
+	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+
+	// Verify rejected microfrontend is not in the response
+	if _, exists := (*actualContextArea.Microfrontends)["rejected-microfrontend"]; exists {
+		t.Error("Rejected microfrontend should not be included in the response")
+	}
+
+	// Verify only one element is returned (the accepted one)
+	if len(actualContextArea.Elements) != 1 {
+		t.Errorf("Expected 1 element, got %d", len(actualContextArea.Elements))
+	}
+}
+
+func TestPolyfeaApiServiceGetContextAreaExcludesMicroFrontendsWithoutStatus(t *testing.T) {
+	// Arrange
+	webComponentRepo, microFrontendRepo := setupRepositories()
+
+	err := webComponentRepo.Store(createTestWebComponent(
+		"test-webcomponent",
+		"no-status-microfrontend",
+		[]v1alpha1.DisplayRules{
+			{
+				AllOf: []v1alpha1.Matcher{
+					{
+						Path:        "test-path",
+						ContextName: "test-name",
+					},
+				},
+			},
+		},
+		&[]int32{1}[0]))
+	if err != nil {
+		t.Fatalf("Failed to store WebComponent in repository: %v", err)
+	}
+
+	// Create microfrontend without status (FrontendClassRef is nil)
+	microFrontend := createTestMicroFrontend("no-status-microfrontend", []string{}, "test-frontend-class", true)
+	// Clear the status to simulate a microfrontend that hasn't been reconciled yet
+	microFrontend.Status = v1alpha1.MicroFrontendStatus{}
+	err = microFrontendRepo.Store(microFrontend)
+	if err != nil {
+		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
+	}
+
+	polyfeaApiService := NewPolyfeaAPIService(webComponentRepo, microFrontendRepo, &logr.Logger{})
+	ctx := setupContext()
+
+	// Expected result should be empty since the microfrontend has no status
+	expectedContextArea := createTestContextArea(
+		[]generated.ElementSpec{},
+		map[string]generated.MicrofrontendSpec{})
+
+	// Act
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
+
+	// Assert
+	if statusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %v", statusCode)
+	}
+
+	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
+	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
+
+	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
+		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
+	}
+
+	// Verify no elements are returned
+	if len(actualContextArea.Elements) != 0 {
+		t.Errorf("Expected 0 elements, got %d", len(actualContextArea.Elements))
 	}
 }

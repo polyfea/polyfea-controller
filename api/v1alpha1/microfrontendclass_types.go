@@ -20,6 +20,36 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NamespacePolicyType defines namespace selection behavior
+// +kubebuilder:validation:Enum=All;Same;FromNamespaces
+type NamespacePolicyType string
+
+const (
+	// NamespaceFromAll allows MicroFrontends from all namespaces
+	NamespaceFromAll NamespacePolicyType = "All"
+
+	// NamespaceFromSame allows only MicroFrontends from the same namespace as the MicroFrontendClass
+	NamespaceFromSame NamespacePolicyType = "Same"
+
+	// NamespaceFromNamespaces allows MicroFrontends from specific namespaces listed in Namespaces field
+	NamespaceFromNamespaces NamespacePolicyType = "FromNamespaces"
+)
+
+// NamespacePolicy defines which namespaces can attach MicroFrontends to this class
+type NamespacePolicy struct {
+	// From defines namespace selection behavior
+	// +kubebuilder:validation:Enum=All;Same;FromNamespaces
+	// +kubebuilder:default=All
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	From NamespacePolicyType `json:"from"`
+
+	// Namespaces is a list of namespaces from which MicroFrontends can be attached
+	// Only used when From is "FromNamespaces"
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Namespaces []string `json:"namespaces,omitempty"`
+}
+
 // MicroFrontendClassSpec defines the desired state of MicroFrontendClass
 type MicroFrontendClassSpec struct {
 	// BaseUri for which the frontend class will be used
@@ -29,6 +59,13 @@ type MicroFrontendClassSpec struct {
 	// Title that will be used for the frontend class.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Title *string `json:"title"`
+
+	// NamespacePolicy defines which namespaces can attach MicroFrontends to this class
+	// Defaults to allowing all namespaces
+	// +optional
+	// +kubebuilder:default={from: "All"}
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	NamespacePolicy *NamespacePolicy `json:"namespacePolicy,omitempty"`
 
 	// CspHeader that will be used for the frontend class, a default will be used if not set.
 	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
@@ -214,8 +251,34 @@ type CacheRoute struct {
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass
 type MicroFrontendClassStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Conditions represent the latest available observations of the MicroFrontendClass's state
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	// Phase represents the current lifecycle phase of the MicroFrontendClass
+	// Possible values: Ready, Invalid
+	// +optional
+	// +kubebuilder:validation:Enum=Ready;Invalid
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Phase string `json:"phase,omitempty"`
+
+	// AcceptedMicroFrontends counts how many MicroFrontends are currently bound to this class
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	AcceptedMicroFrontends int32 `json:"acceptedMicroFrontends,omitempty"`
+
+	// RejectedMicroFrontends counts how many MicroFrontends were rejected by namespace policy
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	RejectedMicroFrontends int32 `json:"rejectedMicroFrontends,omitempty"`
+
+	// ObservedGeneration reflects the generation of the most recently observed MicroFrontendClass
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -241,4 +304,29 @@ type MicroFrontendClassList struct {
 
 func init() {
 	SchemeBuilder.Register(&MicroFrontendClass{}, &MicroFrontendClassList{})
+}
+
+// IsNamespaceAllowed checks if a namespace is allowed by the NamespacePolicy
+func (mfc *MicroFrontendClass) IsNamespaceAllowed(namespace string) bool {
+	// If no policy is set, default to allowing all namespaces
+	if mfc.Spec.NamespacePolicy == nil {
+		return true
+	}
+
+	switch mfc.Spec.NamespacePolicy.From {
+	case NamespaceFromAll:
+		return true
+	case NamespaceFromSame:
+		return namespace == mfc.Namespace
+	case NamespaceFromNamespaces:
+		for _, ns := range mfc.Spec.NamespacePolicy.Namespaces {
+			if ns == namespace {
+				return true
+			}
+		}
+		return false
+	default:
+		// Default to All if an unknown value is provided
+		return true
+	}
 }

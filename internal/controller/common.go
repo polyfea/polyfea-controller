@@ -1,7 +1,8 @@
 package controller
 
 const (
-	PortName = "webserver"
+	PortName                 = "webserver"
+	DefaultFrontendClassName = "polyfea-controller-default"
 )
 
 func ptr[T any](v T) *T { return &v }
