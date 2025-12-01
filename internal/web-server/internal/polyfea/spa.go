@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/base64"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -12,13 +13,15 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/internal/repository"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type SingePageApplication struct {
-	logger *logr.Logger
+	logger                  *logr.Logger
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]
 }
 
 type TemplateData struct {
@@ -28,6 +31,7 @@ type TemplateData struct {
 	ExtraMeta         template.HTML
 	EnablePWA         bool
 	ReconcileInterval int32
+	ImportMapJson     template.JS
 }
 
 //go:embed .resources/index.html
@@ -38,9 +42,11 @@ var bootJs []byte
 
 func NewSinglePageApplication(
 	logger *logr.Logger,
+	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
 ) *SingePageApplication {
 	return &SingePageApplication{
-		logger: logger,
+		logger:                  logger,
+		microFrontendRepository: microFrontendRepository,
 	}
 }
 
@@ -90,12 +96,22 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		extraMeta += "<meta name=\"" + metaTag.Name + "\" content=\"" + metaTag.Content + "\" >"
 	}
 
+	// Build merged import map from all accepted microfrontends
+	importMapJson, err := s.buildImportMap(r, microFrontendClass, logger)
+	if err != nil {
+		logger.Error(err, "Error while building import map")
+		span.SetStatus(codes.Error, "import_map_error: "+err.Error())
+		// Continue with empty import map rather than failing
+		importMapJson = "{}"
+	}
+
 	templateVars := TemplateData{
-		BaseUri:   basePath,
-		Title:     *microFrontendClass.Spec.Title,
-		Nonce:     nonce,
-		ExtraMeta: template.HTML(extraMeta),
-		EnablePWA: microFrontendClass.Spec.ProgressiveWebApp != nil,
+		BaseUri:       basePath,
+		Title:         *microFrontendClass.Spec.Title,
+		Nonce:         nonce,
+		ExtraMeta:     template.HTML(extraMeta),
+		EnablePWA:     microFrontendClass.Spec.ProgressiveWebApp != nil,
+		ImportMapJson: template.JS(importMapJson),
 	}
 
 	if microFrontendClass.Spec.ProgressiveWebApp != nil && microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval != nil {
@@ -197,4 +213,102 @@ func generateNonce() (string, error) {
 	nonce := base64.StdEncoding.EncodeToString([]byte(text))
 
 	return nonce, nil
+}
+
+// buildImportMap creates a merged import map from all accepted microfrontends in the class
+// First-registered wins for conflicts (based on creation timestamp)
+func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
+	// Get all microfrontends for this class
+	microfrontends, err := s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
+		// Check if the MicroFrontend references this class
+		if mf.Spec.FrontendClass == nil || *mf.Spec.FrontendClass != microFrontendClass.Name {
+			return false
+		}
+		// Check if the MicroFrontend is accepted by the namespace policy
+		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
+			return false
+		}
+		// Only include if no import map conflicts
+		if len(mf.Status.ImportMapConflicts) > 0 {
+			return false
+		}
+		return true
+	})
+
+	if err != nil {
+		return "{}", err
+	}
+
+	// Sort by creation timestamp to ensure consistent ordering (first-registered wins)
+	// This matches the conflict detection logic in the controller
+	type mfWithTimestamp struct {
+		mf        *v1alpha1.MicroFrontend
+		timestamp int64
+	}
+
+	mfList := make([]mfWithTimestamp, 0, len(microfrontends))
+	for _, mf := range microfrontends {
+		mfList = append(mfList, mfWithTimestamp{
+			mf:        mf,
+			timestamp: mf.CreationTimestamp.Unix(),
+		})
+	}
+
+	// Sort by timestamp (oldest first)
+	for i := 0; i < len(mfList)-1; i++ {
+		for j := i + 1; j < len(mfList); j++ {
+			if mfList[i].timestamp > mfList[j].timestamp {
+				mfList[i], mfList[j] = mfList[j], mfList[i]
+			}
+		}
+	}
+
+	// Build merged import map
+	importMap := make(map[string]interface{})
+	imports := make(map[string]string)
+	scopes := make(map[string]map[string]string)
+
+	for _, item := range mfList {
+		mf := item.mf
+		if mf.Spec.ImportMap == nil {
+			continue
+		}
+
+		// Merge top-level imports (first-registered wins)
+		for specifier, path := range mf.Spec.ImportMap.Imports {
+			if _, exists := imports[specifier]; !exists {
+				imports[specifier] = path
+			}
+		}
+
+		// Merge scoped imports (first-registered wins)
+		for scope, scopeImports := range mf.Spec.ImportMap.Scopes {
+			if scopes[scope] == nil {
+				scopes[scope] = make(map[string]string)
+			}
+			for specifier, path := range scopeImports {
+				if _, exists := scopes[scope][specifier]; !exists {
+					scopes[scope][specifier] = path
+				}
+			}
+		}
+	}
+
+	// Build final import map structure
+	if len(imports) > 0 {
+		importMap["imports"] = imports
+	}
+	if len(scopes) > 0 {
+		importMap["scopes"] = scopes
+	}
+
+	// Convert to JSON
+	jsonBytes, err := json.Marshal(importMap)
+	if err != nil {
+		return "{}", err
+	}
+
+	logger.Info("Built import map", "microfrontendCount", len(mfList), "importsCount", len(imports), "scopesCount", len(scopes))
+
+	return string(jsonBytes), nil
 }

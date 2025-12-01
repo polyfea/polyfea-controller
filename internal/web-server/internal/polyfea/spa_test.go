@@ -8,9 +8,12 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
+	"github.com/polyfea/polyfea-controller/internal/repository"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var spaTestSuite = IntegrationTestSuite{
@@ -132,12 +135,13 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 	}
 	bodyString := string(bodyBytes)
 
-	if strings.Contains(bodyString, "{") {
-		t.Fatalf("expected body to not contain %s", "{")
+	// Check that template placeholders are replaced (not just any braces, since import maps contain JSON)
+	if strings.Contains(bodyString, "{{") {
+		t.Fatalf("expected body to not contain template placeholder %s", "{{")
 	}
 
-	if strings.Contains(bodyString, "}") {
-		t.Fatalf("expected body to not contain %s", "}")
+	if strings.Contains(bodyString, "}}") {
+		t.Fatalf("expected body to not contain template placeholder %s", "}}")
 	}
 
 	if !strings.Contains(bodyString, "webmanifest") {
@@ -218,7 +222,8 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 		},
 	}
 
-	spa := NewSinglePageApplication(&logr.Logger{})
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	spa := NewSinglePageApplication(&logr.Logger{}, microFrontendRepository)
 
 	mux.HandleFunc("/polyfea/simulate-known-route", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -233,4 +238,433 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 	mux.HandleFunc("/", spa.HandleSinglePageApplication)
 
 	return addDummyMiddleware(mux, "/", mfc)
+}
+
+func TestBuildImportMapWithNoMicrofrontends(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-class",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result != "{}" {
+		t.Fatalf("expected empty import map {}, got %s", result)
+	}
+}
+
+func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := "test-class"
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react":     "./react.js",
+					"react-dom": "./react-dom.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !strings.Contains(result, `"react"`) {
+		t.Fatalf("expected import map to contain react, got %s", result)
+	}
+	if !strings.Contains(result, `"react-dom"`) {
+		t.Fatalf("expected import map to contain react-dom, got %s", result)
+	}
+	if !strings.Contains(result, `"./react.js"`) {
+		t.Fatalf("expected import map to contain ./react.js, got %s", result)
+	}
+}
+
+func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := "test-class"
+
+	// First microfrontend (older)
+	now := metav1.Now()
+	mf1 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: now,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react-v18.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	// Second microfrontend (newer) - should not override
+	later := metav1.NewTime(now.Add(time.Minute))
+	mf2 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf2",
+			Namespace:         "default",
+			CreationTimestamp: later,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react-v17.js", // Should be ignored
+					"vue":   "./vue.js",       // Should be included
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf1)
+	_ = microFrontendRepository.Store(mf2)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should use mf1's version (first registered)
+	if !strings.Contains(result, `"./react-v18.js"`) {
+		t.Fatalf("expected import map to contain ./react-v18.js (first registered), got %s", result)
+	}
+
+	// Should NOT contain mf2's conflicting version
+	if strings.Contains(result, `"./react-v17.js"`) {
+		t.Fatalf("expected import map to NOT contain ./react-v17.js (conflicting), got %s", result)
+	}
+
+	// Should include non-conflicting entry from mf2
+	if !strings.Contains(result, `"vue"`) {
+		t.Fatalf("expected import map to contain vue from mf2, got %s", result)
+	}
+}
+
+func TestBuildImportMapWithScopes(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := "test-class"
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react-v18.js",
+				},
+				Scopes: map[string]map[string]string{
+					"/legacy/": {
+						"react": "./react-v16.js",
+					},
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !strings.Contains(result, `"scopes"`) {
+		t.Fatalf("expected import map to contain scopes, got %s", result)
+	}
+	if !strings.Contains(result, `"/legacy/"`) {
+		t.Fatalf("expected import map to contain /legacy/ scope, got %s", result)
+	}
+	if !strings.Contains(result, `"./react-v16.js"`) {
+		t.Fatalf("expected import map to contain ./react-v16.js in scope, got %s", result)
+	}
+}
+
+func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := "test-class"
+
+	// First microfrontend (no conflicts)
+	mf1 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	// Second microfrontend (has conflicts - should be excluded)
+	mf2 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf2",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"vue": "./vue.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+			ImportMapConflicts: []v1alpha1.ImportMapConflict{
+				{
+					Specifier:      "vue",
+					RequestedPath:  "./vue.js",
+					RegisteredPath: "./vue-other.js",
+					RegisteredBy:   "default/other-mf",
+				},
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf1)
+	_ = microFrontendRepository.Store(mf2)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should include mf1
+	if !strings.Contains(result, `"react"`) {
+		t.Fatalf("expected import map to contain react from mf1, got %s", result)
+	}
+
+	// Should NOT include mf2 (has conflicts)
+	if strings.Contains(result, `"vue"`) {
+		t.Fatalf("expected import map to NOT contain vue from conflicted mf2, got %s", result)
+	}
+}
+
+func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := "test-class"
+
+	// Rejected microfrontend
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: false, // Not accepted
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	req, _ := http.NewRequest("GET", "/", nil)
+
+	// Act
+	result, err := spa.buildImportMap(req, mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should be empty since the only MF is not accepted
+	if result != "{}" {
+		t.Fatalf("expected empty import map for rejected MF, got %s", result)
+	}
 }
