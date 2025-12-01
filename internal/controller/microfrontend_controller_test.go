@@ -99,7 +99,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("module.jsm"),
 					&proxy,
-					ptr("test-microfrontendclass"),
+					ptr(MicroFrontendClassName),
 					[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -143,7 +143,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 						service,
 						modulePath,
 						&proxy,
-						ptr("test-microfrontendclass"),
+						ptr(MicroFrontendClassName),
 						[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 					)
 					if shouldSucceed {
@@ -215,7 +215,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("modules/app.js"),
 					&proxy,
-					ptr("test-microfrontendclass"),
+					ptr(MicroFrontendClassName),
 					[]v1alpha1.StaticResources{{Path: "styles/main.css", Kind: "stylesheet"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -247,7 +247,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				// Create MicroFrontendClass
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -353,7 +353,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				// Create MicroFrontendClass that only allows 'allowed-namespace'
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -447,7 +447,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				By("Creating a MicroFrontendClass")
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -510,7 +510,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				By("Creating a MicroFrontendClass")
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -623,7 +623,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				By("Verifying first MicroFrontend is still in repository")
 				repoMf, err := microFrontendRepository.Get(createdFirstMf)
-				Expect(err).Should(BeNil())
+				Expect(err).ShouldNot(HaveOccurred())
 				Expect(repoMf).ShouldNot(BeNil())
 
 				By("Cleaning up")
@@ -639,7 +639,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				By("Creating a MicroFrontendClass")
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,

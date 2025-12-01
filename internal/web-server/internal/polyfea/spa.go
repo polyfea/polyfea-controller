@@ -97,7 +97,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	}
 
 	// Build merged import map from all accepted microfrontends
-	importMapJson, err := s.buildImportMap(r, microFrontendClass, logger)
+	importMapJson, err := s.buildImportMap(microFrontendClass, logger)
 	if err != nil {
 		logger.Error(err, "Error while building import map")
 		span.SetStatus(codes.Error, "import_map_error: "+err.Error())
@@ -217,9 +217,26 @@ func generateNonce() (string, error) {
 
 // buildImportMap creates a merged import map from all accepted microfrontends in the class
 // First-registered wins for conflicts (based on creation timestamp)
-func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
-	// Get all microfrontends for this class
-	microfrontends, err := s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
+func (s *SingePageApplication) buildImportMap(microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
+	// Get all eligible microfrontends for this class
+	microfrontends, err := s.getEligibleMicrofrontends(microFrontendClass)
+	if err != nil {
+		return "{}", err
+	}
+
+	// Sort by creation timestamp (oldest first) for consistent ordering
+	sortedMfs := s.sortMicrofrontendsByTimestamp(microfrontends)
+
+	// Build merged import map with first-registered-wins policy
+	imports, scopes := s.mergeImportMaps(sortedMfs)
+
+	// Convert to JSON
+	return s.buildImportMapJSON(imports, scopes, len(sortedMfs), logger)
+}
+
+// getEligibleMicrofrontends returns all accepted, conflict-free microfrontends for the class
+func (s *SingePageApplication) getEligibleMicrofrontends(microFrontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
+	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		// Check if the MicroFrontend references this class
 		if mf.Spec.FrontendClass == nil || *mf.Spec.FrontendClass != microFrontendClass.Name {
 			return false
@@ -229,23 +246,18 @@ func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClas
 			return false
 		}
 		// Only include if no import map conflicts
-		if len(mf.Status.ImportMapConflicts) > 0 {
-			return false
-		}
-		return true
+		return len(mf.Status.ImportMapConflicts) == 0
 	})
+}
 
-	if err != nil {
-		return "{}", err
-	}
+// mfWithTimestamp is a helper struct for sorting microfrontends by creation time
+type mfWithTimestamp struct {
+	mf        *v1alpha1.MicroFrontend
+	timestamp int64
+}
 
-	// Sort by creation timestamp to ensure consistent ordering (first-registered wins)
-	// This matches the conflict detection logic in the controller
-	type mfWithTimestamp struct {
-		mf        *v1alpha1.MicroFrontend
-		timestamp int64
-	}
-
+// sortMicrofrontendsByTimestamp sorts microfrontends by creation timestamp (oldest first)
+func (s *SingePageApplication) sortMicrofrontendsByTimestamp(microfrontends []*v1alpha1.MicroFrontend) []mfWithTimestamp {
 	mfList := make([]mfWithTimestamp, 0, len(microfrontends))
 	for _, mf := range microfrontends {
 		mfList = append(mfList, mfWithTimestamp{
@@ -254,7 +266,7 @@ func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClas
 		})
 	}
 
-	// Sort by timestamp (oldest first)
+	// Simple bubble sort (sufficient for small lists)
 	for i := 0; i < len(mfList)-1; i++ {
 		for j := i + 1; j < len(mfList); j++ {
 			if mfList[i].timestamp > mfList[j].timestamp {
@@ -263,38 +275,59 @@ func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClas
 		}
 	}
 
-	// Build merged import map
-	importMap := make(map[string]interface{})
+	return mfList
+}
+
+// mergeImportMaps merges import maps from sorted microfrontends with first-registered-wins
+func (s *SingePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map[string]string, map[string]map[string]string) {
 	imports := make(map[string]string)
 	scopes := make(map[string]map[string]string)
 
-	for _, item := range mfList {
+	for _, item := range sortedMfs {
 		mf := item.mf
 		if mf.Spec.ImportMap == nil {
 			continue
 		}
 
-		// Merge top-level imports (first-registered wins)
-		for specifier, path := range mf.Spec.ImportMap.Imports {
-			if _, exists := imports[specifier]; !exists {
-				imports[specifier] = path
-			}
-		}
+		s.mergeTopLevelImports(mf.Spec.ImportMap.Imports, imports)
+		s.mergeScopedImports(mf.Spec.ImportMap.Scopes, scopes)
+	}
 
-		// Merge scoped imports (first-registered wins)
-		for scope, scopeImports := range mf.Spec.ImportMap.Scopes {
-			if scopes[scope] == nil {
-				scopes[scope] = make(map[string]string)
-			}
-			for specifier, path := range scopeImports {
-				if _, exists := scopes[scope][specifier]; !exists {
-					scopes[scope][specifier] = path
-				}
+	return imports, scopes
+}
+
+// mergeTopLevelImports merges top-level imports with first-registered-wins policy
+func (s *SingePageApplication) mergeTopLevelImports(newImports map[string]string, imports map[string]string) {
+	for specifier, path := range newImports {
+		if _, exists := imports[specifier]; !exists {
+			imports[specifier] = path
+		}
+	}
+}
+
+// mergeScopedImports merges scoped imports with first-registered-wins policy
+func (s *SingePageApplication) mergeScopedImports(newScopes map[string]map[string]string, scopes map[string]map[string]string) {
+	for scope, scopeImports := range newScopes {
+		if scopes[scope] == nil {
+			scopes[scope] = make(map[string]string)
+		}
+		for specifier, path := range scopeImports {
+			if _, exists := scopes[scope][specifier]; !exists {
+				scopes[scope][specifier] = path
 			}
 		}
 	}
+}
 
-	// Build final import map structure
+// buildImportMapJSON builds the final JSON representation of the import map
+func (s *SingePageApplication) buildImportMapJSON(
+	imports map[string]string,
+	scopes map[string]map[string]string,
+	microfrontendCount int,
+	logger logr.Logger,
+) (string, error) {
+	importMap := make(map[string]interface{})
+
 	if len(imports) > 0 {
 		importMap["imports"] = imports
 	}
@@ -302,13 +335,15 @@ func (s *SingePageApplication) buildImportMap(r *http.Request, microFrontendClas
 		importMap["scopes"] = scopes
 	}
 
-	// Convert to JSON
 	jsonBytes, err := json.Marshal(importMap)
 	if err != nil {
 		return "{}", err
 	}
 
-	logger.Info("Built import map", "microfrontendCount", len(mfList), "importsCount", len(imports), "scopesCount", len(scopes))
+	logger.Info("Built import map",
+		"microfrontendCount", microfrontendCount,
+		"importsCount", len(imports),
+		"scopesCount", len(scopes))
 
 	return string(jsonBytes), nil
 }

@@ -16,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const TestClassName = "test-class"
+
 var spaTestSuite = IntegrationTestSuite{
 	TestRouter: polyfeaSPAApiSetupRouter(),
 	TestSet: []Test{
@@ -248,7 +250,7 @@ func TestBuildImportMapWithNoMicrofrontends(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-class",
+			Name:      TestClassName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
@@ -257,10 +259,8 @@ func TestBuildImportMapWithNoMicrofrontends(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {
@@ -276,7 +276,7 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	className := "test-class"
+	className := TestClassName
 	mf := &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "mf1",
@@ -316,10 +316,8 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {
@@ -341,7 +339,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	className := "test-class"
+	className := TestClassName
 
 	// First microfrontend (older)
 	now := metav1.Now()
@@ -411,10 +409,8 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {
@@ -442,7 +438,7 @@ func TestBuildImportMapWithScopes(t *testing.T) {
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	className := "test-class"
+	className := TestClassName
 	mf := &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "mf1",
@@ -486,10 +482,8 @@ func TestBuildImportMapWithScopes(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {
@@ -511,7 +505,7 @@ func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	className := "test-class"
+	className := TestClassName
 
 	// First microfrontend (no conflicts)
 	mf1 := &v1alpha1.MicroFrontend{
@@ -586,10 +580,8 @@ func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {
@@ -612,7 +604,7 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	className := "test-class"
+	className := TestClassName
 
 	// Rejected microfrontend
 	mf := &v1alpha1.MicroFrontend{
@@ -653,10 +645,8 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 		},
 	}
 
-	req, _ := http.NewRequest("GET", "/", nil)
-
 	// Act
-	result, err := spa.buildImportMap(req, mfc, logger)
+	result, err := spa.buildImportMap(mfc, logger)
 
 	// Assert
 	if err != nil {

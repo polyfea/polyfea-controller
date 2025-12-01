@@ -23,9 +23,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const TestConst = "test"
+
 func TestAttribute_DeepCopy(t *testing.T) {
 	attr := &Attribute{
-		Name:  "test",
+		Name:  TestConst,
 		Value: runtime.RawExtension{Raw: []byte(`{"key":"value"}`)},
 	}
 	copied := attr.DeepCopy()
@@ -87,7 +89,7 @@ func TestMatcher_DeepCopy(t *testing.T) {
 }
 
 func TestMetaTag_DeepCopy(t *testing.T) {
-	mt := &MetaTag{Name: "description", Content: "test"}
+	mt := &MetaTag{Name: "description", Content: TestConst}
 	if mt.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
 	}
@@ -95,7 +97,7 @@ func TestMetaTag_DeepCopy(t *testing.T) {
 
 func TestMicroFrontend_DeepCopy(t *testing.T) {
 	mf := &MicroFrontend{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		ObjectMeta: metav1.ObjectMeta{Name: TestConst},
 		Spec:       MicroFrontendSpec{},
 		Status:     MicroFrontendStatus{},
 	}
@@ -112,7 +114,7 @@ func TestMicroFrontend_DeepCopy(t *testing.T) {
 
 func TestMicroFrontendClass_DeepCopy(t *testing.T) {
 	mfc := &MicroFrontendClass{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		ObjectMeta: metav1.ObjectMeta{Name: TestConst},
 		Spec:       MicroFrontendClassSpec{},
 		Status:     MicroFrontendClassStatus{},
 	}
@@ -129,7 +131,7 @@ func TestMicroFrontendClass_DeepCopy(t *testing.T) {
 
 func TestMicroFrontendClassList_DeepCopy(t *testing.T) {
 	list := &MicroFrontendClassList{
-		Items: []MicroFrontendClass{{ObjectMeta: metav1.ObjectMeta{Name: "test"}}},
+		Items: []MicroFrontendClass{{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}},
 	}
 	copied := list.DeepCopy()
 	if copied == nil {
@@ -143,7 +145,7 @@ func TestMicroFrontendClassList_DeepCopy(t *testing.T) {
 }
 
 func TestMicroFrontendClassReference_DeepCopy(t *testing.T) {
-	ref := &MicroFrontendClassReference{Name: "test", Accepted: true}
+	ref := &MicroFrontendClassReference{Name: TestConst, Accepted: true}
 	if ref.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
 	}
@@ -152,9 +154,9 @@ func TestMicroFrontendClassReference_DeepCopy(t *testing.T) {
 func TestMicroFrontendClassSpec_DeepCopy(t *testing.T) {
 	spec := &MicroFrontendClassSpec{
 		BaseUri:           ptr("https://example.com"),
-		Title:             ptr("Test"),
+		Title:             ptr(TestConst),
 		NamespacePolicy:   &NamespacePolicy{From: NamespaceFromAll},
-		ExtraMetaTags:     []MetaTag{{Name: "test", Content: "value"}},
+		ExtraMetaTags:     []MetaTag{{Name: TestConst, Content: "value"}},
 		ExtraHeaders:      []Header{{Name: "X-Test", Value: "value"}},
 		ProgressiveWebApp: &ProgressiveWebApp{},
 	}
@@ -174,7 +176,7 @@ func TestMicroFrontendClassStatus_DeepCopy(t *testing.T) {
 
 func TestMicroFrontendList_DeepCopy(t *testing.T) {
 	list := &MicroFrontendList{
-		Items: []MicroFrontend{{ObjectMeta: metav1.ObjectMeta{Name: "test"}}},
+		Items: []MicroFrontend{{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}},
 	}
 	copied := list.DeepCopy()
 	if copied == nil {
@@ -189,7 +191,7 @@ func TestMicroFrontendList_DeepCopy(t *testing.T) {
 
 func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 	spec := &MicroFrontendSpec{
-		Service:         &ServiceReference{Name: ptr("test")},
+		Service:         &ServiceReference{Name: ptr(TestConst)},
 		Proxy:           ptr(true),
 		CacheControl:    ptr("no-cache"),
 		ModulePath:      ptr("/module.js"),
@@ -207,8 +209,8 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 func TestMicroFrontendStatus_DeepCopy(t *testing.T) {
 	status := &MicroFrontendStatus{
 		Conditions:         []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}},
-		FrontendClassRef:   &MicroFrontendClassReference{Name: "test"},
-		ImportMapConflicts: []ImportMapConflict{{Specifier: "test"}},
+		FrontendClassRef:   &MicroFrontendClassReference{Name: TestConst},
+		ImportMapConflicts: []ImportMapConflict{{Specifier: TestConst}},
 	}
 	if status.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
@@ -226,7 +228,7 @@ func TestNamespacePolicy_DeepCopy(t *testing.T) {
 }
 
 func TestObjectReference_DeepCopy(t *testing.T) {
-	ref := &ObjectReference{Name: "test", Namespace: "default", Found: true}
+	ref := &ObjectReference{Name: TestConst, Namespace: "default", Found: true}
 	if ref.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
 	}
@@ -327,7 +329,7 @@ func TestWebAppManifest_DeepCopy(t *testing.T) {
 
 func TestWebComponent_DeepCopy(t *testing.T) {
 	wc := &WebComponent{
-		ObjectMeta: metav1.ObjectMeta{Name: "test"},
+		ObjectMeta: metav1.ObjectMeta{Name: TestConst},
 		Spec:       WebComponentSpec{},
 		Status:     WebComponentStatus{},
 	}
@@ -344,7 +346,7 @@ func TestWebComponent_DeepCopy(t *testing.T) {
 
 func TestWebComponentList_DeepCopy(t *testing.T) {
 	list := &WebComponentList{
-		Items: []WebComponent{{ObjectMeta: metav1.ObjectMeta{Name: "test"}}},
+		Items: []WebComponent{{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}},
 	}
 	copied := list.DeepCopy()
 	if copied == nil {
@@ -361,7 +363,7 @@ func TestWebComponentSpec_DeepCopy(t *testing.T) {
 	spec := &WebComponentSpec{
 		MicroFrontend: ptr("mf"),
 		Element:       ptr("my-element"),
-		Attributes:    []Attribute{{Name: "test", Value: runtime.RawExtension{Raw: []byte(`"value"`)}}},
+		Attributes:    []Attribute{{Name: TestConst, Value: runtime.RawExtension{Raw: []byte(`"value"`)}}},
 		DisplayRules:  []DisplayRules{{AllOf: []Matcher{{Path: "/"}}}},
 		Priority:      ptr(int32(10)),
 		Style:         []Style{{Name: "color", Value: "red"}},
@@ -384,7 +386,7 @@ func TestWebComponentStatus_DeepCopy(t *testing.T) {
 // Test DeepCopyInto methods
 func TestDeepCopyInto(t *testing.T) {
 	t.Run("Attribute", func(t *testing.T) {
-		in := &Attribute{Name: "test", Value: runtime.RawExtension{Raw: []byte(`"value"`)}}
+		in := &Attribute{Name: TestConst, Value: runtime.RawExtension{Raw: []byte(`"value"`)}}
 		out := &Attribute{}
 		in.DeepCopyInto(out)
 		if out.Name != in.Name {
@@ -393,10 +395,10 @@ func TestDeepCopyInto(t *testing.T) {
 	})
 
 	t.Run("CacheRoute", func(t *testing.T) {
-		in := &CacheRoute{Pattern: ptrString("test")}
+		in := &CacheRoute{Pattern: ptrString(TestConst)}
 		out := &CacheRoute{}
 		in.DeepCopyInto(out)
-		if out.Pattern == nil || *out.Pattern != "test" {
+		if out.Pattern == nil || *out.Pattern != TestConst {
 			t.Error("DeepCopyInto failed")
 		}
 	})
@@ -411,28 +413,28 @@ func TestDeepCopyInto(t *testing.T) {
 	})
 
 	t.Run("MicroFrontend", func(t *testing.T) {
-		in := &MicroFrontend{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
+		in := &MicroFrontend{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}
 		out := &MicroFrontend{}
 		in.DeepCopyInto(out)
-		if out.Name != "test" {
+		if out.Name != TestConst {
 			t.Error("DeepCopyInto failed")
 		}
 	})
 
 	t.Run("MicroFrontendClass", func(t *testing.T) {
-		in := &MicroFrontendClass{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
+		in := &MicroFrontendClass{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}
 		out := &MicroFrontendClass{}
 		in.DeepCopyInto(out)
-		if out.Name != "test" {
+		if out.Name != TestConst {
 			t.Error("DeepCopyInto failed")
 		}
 	})
 
 	t.Run("WebComponent", func(t *testing.T) {
-		in := &WebComponent{ObjectMeta: metav1.ObjectMeta{Name: "test"}}
+		in := &WebComponent{ObjectMeta: metav1.ObjectMeta{Name: TestConst}}
 		out := &WebComponent{}
 		in.DeepCopyInto(out)
-		if out.Name != "test" {
+		if out.Name != TestConst {
 			t.Error("DeepCopyInto failed")
 		}
 	})
@@ -563,7 +565,7 @@ func TestImportMap_DeepCopy(t *testing.T) {
 func TestImportMap_DeepCopyInto(t *testing.T) {
 	original := &ImportMap{
 		Imports: map[string]string{
-			"test": "./test.js",
+			TestConst: "./test.js",
 		},
 		Scopes: map[string]map[string]string{
 			"/app/": {

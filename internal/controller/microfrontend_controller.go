@@ -360,165 +360,202 @@ func (r *MicroFrontendReconciler) handleRejectedMicroFrontend(mf *polyfeav1alpha
 // in the same FrontendClass. First-registered wins based on creation timestamp.
 func (r *MicroFrontendReconciler) checkImportMapConflicts(ctx context.Context, mf *polyfeav1alpha1.MicroFrontend) bool {
 	logger := log.FromContext(ctx)
-	statusUpdated := false
 
 	// If no import map, clear any existing conflicts and return
 	if mf.Spec.ImportMap == nil || len(mf.Spec.ImportMap.Imports) == 0 {
-		if len(mf.Status.ImportMapConflicts) > 0 {
-			mf.Status.ImportMapConflicts = nil
-			statusUpdated = true
-		}
-		return statusUpdated
+		return r.clearImportMapConflicts(mf)
 	}
 
-	// Get all MicroFrontends for the same FrontendClass
-	frontendClassName := DefaultFrontendClassName
-	if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
-		frontendClassName = *mf.Spec.FrontendClass
-	}
+	// Get frontend class name
+	frontendClassName := r.getFrontendClassName(mf)
 
+	// List all MicroFrontends
 	mfList := &polyfeav1alpha1.MicroFrontendList{}
 	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
 		logger.Error(err, "Failed to list MicroFrontends for import map conflict check")
-		return statusUpdated
+		return false
 	}
 
 	// Build map of existing import map entries from other accepted MicroFrontends
+	existingImports, existingScopes := r.buildExistingImportMaps(mf, frontendClassName, mfList)
+
+	// Check for conflicts in this MicroFrontend's imports
+	conflicts := r.findImportMapConflicts(mf, existingImports, existingScopes)
+
+	// Update status if conflicts changed
+	return r.updateImportMapConflictStatus(mf, conflicts, logger)
+}
+
+// clearImportMapConflicts clears import map conflicts from status if present
+func (r *MicroFrontendReconciler) clearImportMapConflicts(mf *polyfeav1alpha1.MicroFrontend) bool {
+	if len(mf.Status.ImportMapConflicts) > 0 {
+		mf.Status.ImportMapConflicts = nil
+		return true
+	}
+	return false
+}
+
+// getFrontendClassName returns the frontend class name for the MicroFrontend
+func (r *MicroFrontendReconciler) getFrontendClassName(mf *polyfeav1alpha1.MicroFrontend) string {
+	if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
+		return *mf.Spec.FrontendClass
+	}
+	return DefaultFrontendClassName
+}
+
+// buildExistingImportMaps builds maps of existing import entries from other MicroFrontends
+func (r *MicroFrontendReconciler) buildExistingImportMaps(
+	mf *polyfeav1alpha1.MicroFrontend,
+	frontendClassName string,
+	mfList *polyfeav1alpha1.MicroFrontendList,
+) (map[string]*importMapEntry, map[string]map[string]*importMapEntry) {
 	existingImports := make(map[string]*importMapEntry)
 	existingScopes := make(map[string]map[string]*importMapEntry)
 
 	for i := range mfList.Items {
 		other := &mfList.Items[i]
 
-		// Skip self
-		if other.Namespace == mf.Namespace && other.Name == mf.Name {
+		if !r.shouldProcessMicroFrontend(mf, other, frontendClassName) {
 			continue
 		}
 
-		// Skip if not same frontend class
-		otherFrontendClassName := DefaultFrontendClassName
-		if other.Spec.FrontendClass != nil && *other.Spec.FrontendClass != "" {
-			otherFrontendClassName = *other.Spec.FrontendClass
-		}
-		if otherFrontendClassName != frontendClassName {
-			continue
-		}
-
-		// Skip if not accepted
-		if other.Status.FrontendClassRef == nil || !other.Status.FrontendClassRef.Accepted {
-			continue
-		}
-
-		// Skip if no import map
-		if other.Spec.ImportMap == nil {
-			continue
-		}
-
-		// Process imports
-		for specifier, path := range other.Spec.ImportMap.Imports {
-			if existing, ok := existingImports[specifier]; ok {
-				// Keep the older one (first-registered)
-				if other.CreationTimestamp.Before(&existing.creationTimestamp) {
-					existingImports[specifier] = &importMapEntry{
-						path:              path,
-						namespace:         other.Namespace,
-						name:              other.Name,
-						creationTimestamp: other.CreationTimestamp,
-					}
-				}
-			} else {
-				existingImports[specifier] = &importMapEntry{
-					path:              path,
-					namespace:         other.Namespace,
-					name:              other.Name,
-					creationTimestamp: other.CreationTimestamp,
-				}
-			}
-		}
-
-		// Process scopes
-		for scope, scopeImports := range other.Spec.ImportMap.Scopes {
-			if existingScopes[scope] == nil {
-				existingScopes[scope] = make(map[string]*importMapEntry)
-			}
-			for specifier, path := range scopeImports {
-				if existing, ok := existingScopes[scope][specifier]; ok {
-					// Keep the older one (first-registered)
-					if other.CreationTimestamp.Before(&existing.creationTimestamp) {
-						existingScopes[scope][specifier] = &importMapEntry{
-							path:              path,
-							namespace:         other.Namespace,
-							name:              other.Name,
-							creationTimestamp: other.CreationTimestamp,
-						}
-					}
-				} else {
-					existingScopes[scope][specifier] = &importMapEntry{
-						path:              path,
-						namespace:         other.Namespace,
-						name:              other.Name,
-						creationTimestamp: other.CreationTimestamp,
-					}
-				}
-			}
-		}
+		r.processImportMapEntries(other, existingImports, existingScopes)
 	}
 
-	// Check for conflicts in this MicroFrontend's imports
+	return existingImports, existingScopes
+}
+
+// shouldProcessMicroFrontend checks if a MicroFrontend should be processed for import map conflicts
+func (r *MicroFrontendReconciler) shouldProcessMicroFrontend(
+	mf *polyfeav1alpha1.MicroFrontend,
+	other *polyfeav1alpha1.MicroFrontend,
+	frontendClassName string,
+) bool {
+	// Skip self
+	if other.Namespace == mf.Namespace && other.Name == mf.Name {
+		return false
+	}
+
+	// Skip if not same frontend class
+	otherClassName := r.getFrontendClassName(other)
+	if otherClassName != frontendClassName {
+		return false
+	}
+
+	// Skip if not accepted
+	if other.Status.FrontendClassRef == nil || !other.Status.FrontendClassRef.Accepted {
+		return false
+	}
+
+	// Skip if no import map
+	if other.Spec.ImportMap == nil {
+		return false
+	}
+
+	return true
+}
+
+// processImportMapEntries processes import map entries from a MicroFrontend
+func (r *MicroFrontendReconciler) processImportMapEntries(
+	mf *polyfeav1alpha1.MicroFrontend,
+	existingImports map[string]*importMapEntry,
+	existingScopes map[string]map[string]*importMapEntry,
+) {
+	// Process top-level imports
+	for specifier, path := range mf.Spec.ImportMap.Imports {
+		r.registerImportMapEntry(specifier, path, mf, existingImports)
+	}
+
+	// Process scoped imports
+	for scope, scopeImports := range mf.Spec.ImportMap.Scopes {
+		if existingScopes[scope] == nil {
+			existingScopes[scope] = make(map[string]*importMapEntry)
+		}
+		for specifier, path := range scopeImports {
+			r.registerImportMapEntry(specifier, path, mf, existingScopes[scope])
+		}
+	}
+}
+
+// registerImportMapEntry registers an import map entry, keeping the oldest one
+func (r *MicroFrontendReconciler) registerImportMapEntry(
+	specifier string,
+	path string,
+	mf *polyfeav1alpha1.MicroFrontend,
+	entries map[string]*importMapEntry,
+) {
+	entry := &importMapEntry{
+		path:              path,
+		namespace:         mf.Namespace,
+		name:              mf.Name,
+		creationTimestamp: mf.CreationTimestamp,
+	}
+
+	if existing, ok := entries[specifier]; ok {
+		// Keep the older one (first-registered)
+		if mf.CreationTimestamp.Before(&existing.creationTimestamp) {
+			entries[specifier] = entry
+		}
+	} else {
+		entries[specifier] = entry
+	}
+}
+
+// findImportMapConflicts finds conflicts between requested and existing import map entries
+func (r *MicroFrontendReconciler) findImportMapConflicts(
+	mf *polyfeav1alpha1.MicroFrontend,
+	existingImports map[string]*importMapEntry,
+	existingScopes map[string]map[string]*importMapEntry,
+) []polyfeav1alpha1.ImportMapConflict {
 	var conflicts []polyfeav1alpha1.ImportMapConflict
 
 	// Check top-level imports
-	for specifier, requestedPath := range mf.Spec.ImportMap.Imports {
-		if existing, ok := existingImports[specifier]; ok {
-			// Check if this MicroFrontend is older (registered first)
-			if mf.CreationTimestamp.Before(&existing.creationTimestamp) {
-				// This MicroFrontend wins, no conflict for this entry
-				continue
-			}
+	conflicts = r.checkImportConflicts(mf, mf.Spec.ImportMap.Imports, existingImports, "", conflicts)
 
-			// Conflict: another MicroFrontend registered this specifier first
-			if requestedPath != existing.path {
+	// Check scoped imports
+	for scope, scopeImports := range mf.Spec.ImportMap.Scopes {
+		if existingScopeMap, ok := existingScopes[scope]; ok {
+			conflicts = r.checkImportConflicts(mf, scopeImports, existingScopeMap, scope, conflicts)
+		}
+	}
+
+	return conflicts
+}
+
+// checkImportConflicts checks for conflicts in a set of imports
+func (r *MicroFrontendReconciler) checkImportConflicts(
+	mf *polyfeav1alpha1.MicroFrontend,
+	imports map[string]string,
+	existingEntries map[string]*importMapEntry,
+	scope string,
+	conflicts []polyfeav1alpha1.ImportMapConflict,
+) []polyfeav1alpha1.ImportMapConflict {
+	for specifier, requestedPath := range imports {
+		if existing, ok := existingEntries[specifier]; ok {
+			// Check if this MicroFrontend is older (registered first)
+			if !mf.CreationTimestamp.Before(&existing.creationTimestamp) && requestedPath != existing.path {
+				// Conflict: another MicroFrontend registered this specifier first with different path
 				conflicts = append(conflicts, polyfeav1alpha1.ImportMapConflict{
 					Specifier:      specifier,
 					RequestedPath:  requestedPath,
 					RegisteredPath: existing.path,
 					RegisteredBy:   existing.namespace + "/" + existing.name,
-					Scope:          "",
+					Scope:          scope,
 				})
 			}
 		}
 	}
+	return conflicts
+}
 
-	// Check scoped imports
-	for scope, scopeImports := range mf.Spec.ImportMap.Scopes {
-		for specifier, requestedPath := range scopeImports {
-			if existingScopeMap, ok := existingScopes[scope]; ok {
-				if existing, ok := existingScopeMap[specifier]; ok {
-					// Check if this MicroFrontend is older (registered first)
-					if mf.CreationTimestamp.Before(&existing.creationTimestamp) {
-						// This MicroFrontend wins, no conflict for this entry
-						continue
-					}
-
-					// Conflict: another MicroFrontend registered this specifier first
-					if requestedPath != existing.path {
-						conflicts = append(conflicts, polyfeav1alpha1.ImportMapConflict{
-							Specifier:      specifier,
-							RequestedPath:  requestedPath,
-							RegisteredPath: existing.path,
-							RegisteredBy:   existing.namespace + "/" + existing.name,
-							Scope:          scope,
-						})
-					}
-				}
-			}
-		}
-	}
-
-	// Update status if conflicts changed
+// updateImportMapConflictStatus updates the status if conflicts changed
+func (r *MicroFrontendReconciler) updateImportMapConflictStatus(
+	mf *polyfeav1alpha1.MicroFrontend,
+	conflicts []polyfeav1alpha1.ImportMapConflict,
+	logger logr.Logger,
+) bool {
 	if !importMapConflictsEqual(mf.Status.ImportMapConflicts, conflicts) {
 		mf.Status.ImportMapConflicts = conflicts
-		statusUpdated = true
 
 		if len(conflicts) > 0 {
 			logger.Info("Import map conflicts detected",
@@ -526,9 +563,9 @@ func (r *MicroFrontendReconciler) checkImportMapConflicts(ctx context.Context, m
 				"namespace", mf.Namespace,
 				"conflictCount", len(conflicts))
 		}
+		return true
 	}
-
-	return statusUpdated
+	return false
 }
 
 // importMapEntry tracks an import map entry's registration details
