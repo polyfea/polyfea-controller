@@ -289,34 +289,72 @@ func (s *SingePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map
 			continue
 		}
 
-		s.mergeTopLevelImports(mf.Spec.ImportMap.Imports, imports)
-		s.mergeScopedImports(mf.Spec.ImportMap.Scopes, scopes)
+		s.mergeTopLevelImports(mf, mf.Spec.ImportMap.Imports, imports)
+		s.mergeScopedImports(mf, mf.Spec.ImportMap.Scopes, scopes)
 	}
 
 	return imports, scopes
 }
 
 // mergeTopLevelImports merges top-level imports with first-registered-wins policy
-func (s *SingePageApplication) mergeTopLevelImports(newImports map[string]string, imports map[string]string) {
+func (s *SingePageApplication) mergeTopLevelImports(mf *v1alpha1.MicroFrontend, newImports map[string]string, imports map[string]string) {
 	for specifier, path := range newImports {
 		if _, exists := imports[specifier]; !exists {
-			imports[specifier] = path
+			// Transform relative paths to proxy paths
+			resolvedPath := s.resolveImportMapPath(mf, path)
+			imports[specifier] = resolvedPath
 		}
 	}
 }
 
 // mergeScopedImports merges scoped imports with first-registered-wins policy
-func (s *SingePageApplication) mergeScopedImports(newScopes map[string]map[string]string, scopes map[string]map[string]string) {
+func (s *SingePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, newScopes map[string]map[string]string, scopes map[string]map[string]string) {
 	for scope, scopeImports := range newScopes {
 		if scopes[scope] == nil {
 			scopes[scope] = make(map[string]string)
 		}
 		for specifier, path := range scopeImports {
 			if _, exists := scopes[scope][specifier]; !exists {
-				scopes[scope][specifier] = path
+				// Transform relative paths to proxy paths
+				resolvedPath := s.resolveImportMapPath(mf, path)
+				scopes[scope][specifier] = resolvedPath
 			}
 		}
 	}
+}
+
+// resolveImportMapPath resolves an import map path, converting relative paths to proxy paths
+func (s *SingePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend, path string) string {
+	// If path is already absolute (http:// or https://), return as-is
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+
+	// Check if proxy is enabled (default is true)
+	proxy := true
+	if mf.Spec.Proxy != nil {
+		proxy = *mf.Spec.Proxy
+	}
+
+	if proxy {
+		// Build proxied path
+		return "./polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + path
+	}
+
+	// For non-proxied services, combine service URL with path
+	if mf.Spec.Service != nil {
+		baseUrl := mf.Spec.Service.ResolveServiceURL(mf.Namespace)
+		if baseUrl != "" {
+			// Handle URL joining properly
+			if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
+				return baseUrl + "/" + path
+			}
+			return baseUrl + path
+		}
+	}
+
+	// Fallback to original path
+	return path
 }
 
 // buildImportMapJSON builds the final JSON representation of the import map

@@ -330,8 +330,9 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 	if !strings.Contains(result, `"react-dom"`) {
 		t.Fatalf("expected import map to contain react-dom, got %s", result)
 	}
-	if !strings.Contains(result, `"./react.js"`) {
-		t.Fatalf("expected import map to contain ./react.js, got %s", result)
+	// Paths should be proxied through the controller
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react.js"`) {
+		t.Fatalf("expected import map to contain proxied react.js path, got %s", result)
 	}
 }
 
@@ -418,9 +419,9 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// Should use mf1's version (first registered)
-	if !strings.Contains(result, `"./react-v18.js"`) {
-		t.Fatalf("expected import map to contain ./react-v18.js (first registered), got %s", result)
+	// Should use mf1's version (first registered) with proxy path
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+		t.Fatalf("expected import map to contain proxied react-v18.js (first registered), got %s", result)
 	}
 
 	// Should NOT contain mf2's conflicting version
@@ -496,8 +497,9 @@ func TestBuildImportMapWithScopes(t *testing.T) {
 	if !strings.Contains(result, `"/legacy/"`) {
 		t.Fatalf("expected import map to contain /legacy/ scope, got %s", result)
 	}
-	if !strings.Contains(result, `"./react-v16.js"`) {
-		t.Fatalf("expected import map to contain ./react-v16.js in scope, got %s", result)
+	// Scoped imports should also be proxied
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v16.js"`) {
+		t.Fatalf("expected import map to contain proxied react-v16.js in scope, got %s", result)
 	}
 }
 
@@ -734,8 +736,9 @@ func TestImportMapJSONFormatting(t *testing.T) {
 	if !strings.Contains(result, `"react"`) {
 		t.Fatalf("expected JSON with proper quotes around 'react', got: %s", result)
 	}
-	if !strings.Contains(result, `"./react.js"`) {
-		t.Fatalf("expected JSON with proper quotes around './react.js', got: %s", result)
+	// Paths should be proxied
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react.js"`) {
+		t.Fatalf("expected JSON with proxied react.js path, got: %s", result)
 	}
 
 	// Verify structure
@@ -840,12 +843,13 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 		t.Fatalf("expected HTML to contain importmap script tag")
 	}
 
-	// Verify actual JSON structure with proper quotes
+	// Verify actual JSON structure with proper quotes and proxied paths
 	if !strings.Contains(htmlOutput, `"lit"`) {
 		t.Fatalf("expected HTML to contain properly quoted 'lit' in import map")
 	}
-	if !strings.Contains(htmlOutput, `"./lit.js"`) {
-		t.Fatalf("expected HTML to contain properly quoted './lit.js' in import map")
+	// Paths should be proxied through the controller
+	if !strings.Contains(htmlOutput, `"./polyfea/proxy/default/test-mf/./lit.js"`) {
+		t.Fatalf("expected HTML to contain proxied lit.js path in import map")
 	}
 	if !strings.Contains(htmlOutput, `"imports"`) {
 		t.Fatalf("expected HTML to contain 'imports' key in import map")
@@ -867,5 +871,143 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 	// Verify it looks like valid JSON
 	if !strings.HasPrefix(strings.TrimSpace(importMapJSON), "{") {
 		t.Fatalf("import map JSON should start with {, got: %s", importMapJSON)
+	}
+}
+
+func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf-with-cdn",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react":     "https://cdn.example.com/react.js",     // Absolute URL - should NOT be proxied
+					"react-dom": "https://cdn.example.com/react-dom.js", // Absolute URL - should NOT be proxied
+					"lodash":    "./lodash.js",                          // Relative path - SHOULD be proxied
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Absolute URLs should remain unchanged
+	if !strings.Contains(result, `"https://cdn.example.com/react.js"`) {
+		t.Fatalf("expected absolute URL to remain unchanged, got: %s", result)
+	}
+	if !strings.Contains(result, `"https://cdn.example.com/react-dom.js"`) {
+		t.Fatalf("expected absolute URL to remain unchanged, got: %s", result)
+	}
+
+	// Relative path should be proxied
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf-with-cdn/./lodash.js"`) {
+		t.Fatalf("expected relative path to be proxied, got: %s", result)
+	}
+
+	// Should NOT have proxied the absolute URLs
+	if strings.Contains(result, `"./polyfea/proxy/default/mf-with-cdn/https://`) {
+		t.Fatalf("absolute URLs should not be proxied, got: %s", result)
+	}
+}
+
+func TestImportMapNonProxiedService(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	proxy := false // Explicitly disable proxy
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf-no-proxy",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://external-service.com")},
+			ModulePath:    ptr("app.js"),
+			Proxy:         &proxy,
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react": "./react.js", // Should be resolved against service URL
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Non-proxied service should have paths resolved against service URL
+	if !strings.Contains(result, `"https://external-service.com/./react.js"`) {
+		t.Fatalf("expected path to be resolved against service URL, got: %s", result)
+	}
+
+	// Should NOT be proxied
+	if strings.Contains(result, `"./polyfea/proxy/`) {
+		t.Fatalf("non-proxied service should not use proxy path, got: %s", result)
 	}
 }
