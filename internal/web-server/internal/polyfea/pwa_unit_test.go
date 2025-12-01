@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/go-logr/logr"
@@ -134,6 +135,14 @@ func assertWebAppManifestEqual(t *testing.T, expected, actual *v1alpha1.WebAppMa
 }
 
 func assertProxyConfigEqual(t *testing.T, expected, actual *ProxyConfigResponse) {
+	// Sort both PreCache slices by URL to ensure consistent comparison
+	sort.Slice(expected.PreCache, func(i, j int) bool {
+		return *expected.PreCache[i].URL < *expected.PreCache[j].URL
+	})
+	sort.Slice(actual.PreCache, func(i, j int) bool {
+		return *actual.PreCache[i].URL < *actual.PreCache[j].URL
+	})
+
 	if len(actual.PreCache) != len(expected.PreCache) {
 		t.Errorf("Expected %d, got %d", len(expected.PreCache), len(actual.PreCache))
 	}
@@ -142,6 +151,15 @@ func assertProxyConfigEqual(t *testing.T, expected, actual *ProxyConfigResponse)
 			t.Errorf("Expected %s, got %s", *expected.PreCache[i].URL, *entry.URL)
 		}
 	}
+
+	// Sort both Routes slices by Pattern to ensure consistent comparison
+	sort.Slice(expected.Routes, func(i, j int) bool {
+		return *expected.Routes[i].Pattern < *expected.Routes[j].Pattern
+	})
+	sort.Slice(actual.Routes, func(i, j int) bool {
+		return *actual.Routes[i].Pattern < *actual.Routes[j].Pattern
+	})
+
 	if len(actual.Routes) != len(expected.Routes) {
 		t.Errorf("Expected %d, got %d", len(expected.Routes), len(actual.Routes))
 	}
