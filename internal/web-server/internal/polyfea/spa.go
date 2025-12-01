@@ -31,7 +31,7 @@ type TemplateData struct {
 	ExtraMeta         template.HTML
 	EnablePWA         bool
 	ReconcileInterval int32
-	ImportMapJson     template.JS
+	ImportMapJson     template.HTML
 }
 
 //go:embed .resources/index.html
@@ -111,7 +111,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 		Nonce:         nonce,
 		ExtraMeta:     template.HTML(extraMeta),
 		EnablePWA:     microFrontendClass.Spec.ProgressiveWebApp != nil,
-		ImportMapJson: template.JS(importMapJson),
+		ImportMapJson: template.HTML(importMapJson),
 	}
 
 	if microFrontendClass.Spec.ProgressiveWebApp != nil && microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval != nil {

@@ -1,6 +1,7 @@
 package polyfea
 
 import (
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -656,5 +657,215 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 	// Should be empty since the only MF is not accepted
 	if result != "{}" {
 		t.Fatalf("expected empty import map for rejected MF, got %s", result)
+	}
+}
+
+func TestImportMapJSONFormatting(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"react":     "./react.js",
+					"react-dom": "./react-dom.js",
+					"lodash":    "./lodash.js",
+				},
+				Scopes: map[string]map[string]string{
+					"/legacy/": {
+						"react": "./react-legacy.js",
+					},
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify JSON is valid and not HTML-escaped
+	if strings.Contains(result, "&#34;") {
+		t.Fatalf("expected JSON without HTML entities, but found &#34; (escaped quote) in: %s", result)
+	}
+	if strings.Contains(result, "&quot;") {
+		t.Fatalf("expected JSON without HTML entities, but found &quot; (escaped quote) in: %s", result)
+	}
+	if strings.Contains(result, "&#39;") {
+		t.Fatalf("expected JSON without HTML entities, but found &#39; (escaped apostrophe) in: %s", result)
+	}
+
+	// Verify JSON contains proper double quotes
+	if !strings.Contains(result, `"react"`) {
+		t.Fatalf("expected JSON with proper quotes around 'react', got: %s", result)
+	}
+	if !strings.Contains(result, `"./react.js"`) {
+		t.Fatalf("expected JSON with proper quotes around './react.js', got: %s", result)
+	}
+
+	// Verify structure
+	if !strings.Contains(result, `"imports"`) {
+		t.Fatalf("expected JSON to contain 'imports' key, got: %s", result)
+	}
+	if !strings.Contains(result, `"scopes"`) {
+		t.Fatalf("expected JSON to contain 'scopes' key, got: %s", result)
+	}
+	if !strings.Contains(result, `"/legacy/"`) {
+		t.Fatalf("expected JSON to contain '/legacy/' scope, got: %s", result)
+	}
+
+	// Verify it's valid JSON by checking structure
+	if !strings.HasPrefix(result, "{") || !strings.HasSuffix(result, "}") {
+		t.Fatalf("expected JSON to be wrapped in curly braces, got: %s", result)
+	}
+}
+
+func TestSinglePageApplicationImportMapRendering(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	microFrontendClassRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
+
+	className := TestClassName
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri:   ptr("/"),
+			Title:     ptr("Test App"),
+			CspHeader: "default-src 'self'; script-src 'nonce-{NONCE_VALUE}';",
+		},
+	}
+	_ = microFrontendClassRepository.Store(mfc)
+
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "test-mf",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Imports: map[string]string{
+					"lit":      "./lit.js",
+					"lit-html": "./lit-html.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+	_ = microFrontendRepository.Store(mf)
+
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	// Act
+	templateVars := TemplateData{
+		BaseUri:       "/",
+		Title:         "Test App",
+		Nonce:         "test-nonce-12345",
+		ExtraMeta:     "",
+		EnablePWA:     false,
+		ImportMapJson: "",
+	}
+
+	// Build import map
+	importMapJson, err := spa.buildImportMap(mfc, logger)
+	if err != nil {
+		t.Fatalf("failed to build import map: %v", err)
+	}
+	templateVars.ImportMapJson = template.HTML(importMapJson)
+
+	// Template the HTML
+	htmlOutput, err := templateHtml(html, &templateVars)
+	if err != nil {
+		t.Fatalf("failed to template HTML: %v", err)
+	}
+
+	// Assert
+	// Verify no HTML entity encoding in the rendered HTML
+	if strings.Contains(htmlOutput, "&#34;") {
+		t.Fatalf("HTML contains &#34; (escaped quote), JSON should not be HTML-escaped in: %s", htmlOutput)
+	}
+	if strings.Contains(htmlOutput, "&quot;") {
+		t.Fatalf("HTML contains &quot; (escaped quote), JSON should not be HTML-escaped in: %s", htmlOutput)
+	}
+
+	// Verify the import map script tag exists with proper JSON
+	if !strings.Contains(htmlOutput, `<script type="importmap"`) {
+		t.Fatalf("expected HTML to contain importmap script tag")
+	}
+
+	// Verify actual JSON structure with proper quotes
+	if !strings.Contains(htmlOutput, `"lit"`) {
+		t.Fatalf("expected HTML to contain properly quoted 'lit' in import map")
+	}
+	if !strings.Contains(htmlOutput, `"./lit.js"`) {
+		t.Fatalf("expected HTML to contain properly quoted './lit.js' in import map")
+	}
+	if !strings.Contains(htmlOutput, `"imports"`) {
+		t.Fatalf("expected HTML to contain 'imports' key in import map")
+	}
+
+	// Verify the JSON structure is intact
+	importMapStart := strings.Index(htmlOutput, `<script type="importmap"`)
+	importMapEnd := strings.Index(htmlOutput[importMapStart:], `</script>`)
+	if importMapStart == -1 || importMapEnd == -1 {
+		t.Fatalf("could not find importmap script tag boundaries")
+	}
+
+	importMapSection := htmlOutput[importMapStart : importMapStart+importMapEnd]
+
+	// Extract just the JSON part (after the closing >)
+	jsonStart := strings.Index(importMapSection, ">") + 1
+	importMapJSON := importMapSection[jsonStart:]
+
+	// Verify it looks like valid JSON
+	if !strings.HasPrefix(strings.TrimSpace(importMapJSON), "{") {
+		t.Fatalf("import map JSON should start with {, got: %s", importMapJSON)
 	}
 }
