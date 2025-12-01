@@ -157,6 +157,31 @@ spec:
                 description: FrontendClass is the name of the frontend class that
                   should be used for this micro frontend.
                 type: string
+              importMap:
+                description: |-
+                  ImportMap defines module specifier mappings for this microfrontend.
+                  These entries are merged at the MicroFrontendClass level. In case of conflicts between
+                  microfrontends, first-registered wins (based on creation timestamp).
+                properties:
+                  imports:
+                    additionalProperties:
+                      type: string
+                    description: |-
+                      Imports maps bare module specifiers to paths (relative to this microfrontend's service)
+                      or absolute URLs.
+                      Example: {"angular": "./bundle/angular.mjs", "react": "https://cdn.example.com/react.js"}
+                    type: object
+                  scopes:
+                    additionalProperties:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    description: |-
+                      Scopes allows different module resolutions based on the referrer URL path.
+                      Keys are URL path prefixes, values are import maps that apply within that scope.
+                      Example: {"/legacy/": {"angular": "./old-angular.mjs"}}
+                    type: object
+                type: object
               modulePath:
                 description: Relative path to the module file within the service.
                 type: string
@@ -341,6 +366,39 @@ spec:
                 - accepted
                 - name
                 type: object
+              importMapConflicts:
+                description: |-
+                  ImportMapConflicts lists module specifiers that couldn't be registered
+                  due to conflicts with other microfrontends (first-registered wins)
+                items:
+                  description: ImportMapConflict describes a module specifier conflict
+                    in the import map
+                  properties:
+                    registeredBy:
+                      description: RegisteredBy indicates which microfrontend registered
+                        it first (namespace/name)
+                      type: string
+                    registeredPath:
+                      description: RegisteredPath is what's actually registered (from
+                        another microfrontend)
+                      type: string
+                    requestedPath:
+                      description: RequestedPath is what this microfrontend requested
+                      type: string
+                    scope:
+                      description: Scope is the scope path where the conflict occurred
+                        (empty string for top-level imports)
+                      type: string
+                    specifier:
+                      description: Specifier is the module name that has a conflict
+                      type: string
+                  required:
+                  - registeredBy
+                  - registeredPath
+                  - requestedPath
+                  - specifier
+                  type: object
+                type: array
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed MicroFrontend
