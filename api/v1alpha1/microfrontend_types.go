@@ -108,6 +108,13 @@ type MicroFrontendSpec struct {
 	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
+
+	// ImportMap defines module specifier mappings for this microfrontend.
+	// These entries are merged at the MicroFrontendClass level. In case of conflicts between
+	// microfrontends, first-registered wins (based on creation timestamp).
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ImportMap *ImportMap `json:"importMap,omitempty"`
 }
 
 // StaticResources defines the static resources that should be loaded before this micro frontend.
@@ -130,6 +137,23 @@ type StaticResources struct {
 	// +kubebuilder:default=true
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Proxy *bool `json:"proxy,omitempty"`
+}
+
+// ImportMap defines module resolution mappings following the Import Map specification.
+type ImportMap struct {
+	// Imports maps bare module specifiers to paths (relative to this microfrontend's service)
+	// or absolute URLs.
+	// Example: {"angular": "./bundle/angular.mjs", "react": "https://cdn.example.com/react.js"}
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Imports map[string]string `json:"imports,omitempty"`
+
+	// Scopes allows different module resolutions based on the referrer URL path.
+	// Keys are URL path prefixes, values are import maps that apply within that scope.
+	// Example: {"/legacy/": {"angular": "./old-angular.mjs"}}
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Scopes map[string]map[string]string `json:"scopes,omitempty"`
 }
 
 // Port is the service port being referenced.
@@ -194,6 +218,36 @@ type MicroFrontendStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ImportMapConflicts lists module specifiers that couldn't be registered
+	// due to conflicts with other microfrontends (first-registered wins)
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ImportMapConflicts []ImportMapConflict `json:"importMapConflicts,omitempty"`
+}
+
+// ImportMapConflict describes a module specifier conflict in the import map
+type ImportMapConflict struct {
+	// Specifier is the module name that has a conflict
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Specifier string `json:"specifier"`
+
+	// RequestedPath is what this microfrontend requested
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	RequestedPath string `json:"requestedPath"`
+
+	// RegisteredPath is what's actually registered (from another microfrontend)
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	RegisteredPath string `json:"registeredPath"`
+
+	// RegisteredBy indicates which microfrontend registered it first (namespace/name)
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	RegisteredBy string `json:"registeredBy"`
+
+	// Scope is the scope path where the conflict occurred (empty string for top-level imports)
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	Scope string `json:"scope,omitempty"`
 }
 
 // +kubebuilder:object:root=true

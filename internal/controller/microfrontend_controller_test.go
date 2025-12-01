@@ -99,7 +99,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("module.jsm"),
 					&proxy,
-					ptr("test-microfrontendclass"),
+					ptr(MicroFrontendClassName),
 					[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -143,7 +143,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 						service,
 						modulePath,
 						&proxy,
-						ptr("test-microfrontendclass"),
+						ptr(MicroFrontendClassName),
 						[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 					)
 					if shouldSucceed {
@@ -215,7 +215,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("modules/app.js"),
 					&proxy,
-					ptr("test-microfrontendclass"),
+					ptr(MicroFrontendClassName),
 					[]v1alpha1.StaticResources{{Path: "styles/main.css", Kind: "stylesheet"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -247,7 +247,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				// Create MicroFrontendClass
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -353,7 +353,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				// Create MicroFrontendClass that only allows 'allowed-namespace'
-				mfcName := "test-microfrontendclass"
+				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      mfcName,
@@ -436,6 +436,338 @@ var _ = Describe("MicroFrontend Controller", func() {
 				By("Cleaning up")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
+			})
+		})
+
+		Context("When handling import map conflicts", func() {
+			It("Should allow MicroFrontend without conflicts", func() {
+				By("Setting up test context")
+				testCtx := context.Background()
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				By("Creating a MicroFrontendClass")
+				mfcName := MicroFrontendClassName
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Test Frontend"),
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
+
+				By("Creating a MicroFrontend with import map")
+				proxy := true
+				microFrontend := setupMicroFrontend(
+					&v1alpha1.ServiceReference{
+						URI: ptr("https://example.com"),
+					},
+					ptr("app.js"),
+					&proxy,
+					&mfcName,
+					nil,
+				)
+				microFrontend.Spec.ImportMap = &v1alpha1.ImportMap{
+					Imports: map[string]string{
+						"react":     "./react.js",
+						"react-dom": "./react-dom.js",
+					},
+				}
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
+
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				createdMicroFrontend := &v1alpha1.MicroFrontend{}
+
+				By("Verifying MicroFrontend is ready with no conflicts")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						len(createdMicroFrontend.Status.ImportMapConflicts) == 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying MicroFrontend is in repository")
+				Eventually(func() bool {
+					repoMf, err := microFrontendRepository.Get(createdMicroFrontend)
+					return err == nil && repoMf != nil
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
+			})
+
+			It("Should detect conflict when second MicroFrontend has conflicting import", func() {
+				By("Setting up test context")
+				testCtx := context.Background()
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				By("Creating a MicroFrontendClass")
+				mfcName := MicroFrontendClassName
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Test Frontend"),
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
+
+				By("Creating first MicroFrontend with import map")
+				proxy := true
+				firstMicroFrontend := &v1alpha1.MicroFrontend{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "polyfea.github.io/v1alpha1",
+						Kind:       "MicroFrontend",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "first-microfrontend",
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendSpec{
+						Service: &v1alpha1.ServiceReference{
+							URI: ptr("https://first.example.com"),
+						},
+						Proxy:         &proxy,
+						CacheStrategy: "none",
+						ModulePath:    ptr("app.js"),
+						FrontendClass: &mfcName,
+						ImportMap: &v1alpha1.ImportMap{
+							Imports: map[string]string{
+								"react":     "./react-v18.js",
+								"react-dom": "./react-dom-v18.js",
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, firstMicroFrontend)).To(Succeed())
+
+				firstMfLookupKey := types.NamespacedName{Name: "first-microfrontend", Namespace: MicroFrontendNamespace}
+				createdFirstMf := &v1alpha1.MicroFrontend{}
+
+				By("Verifying first MicroFrontend is ready with no conflicts")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, firstMfLookupKey, createdFirstMf)
+					if err != nil {
+						return false
+					}
+					return createdFirstMf.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						len(createdFirstMf.Status.ImportMapConflicts) == 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Creating second MicroFrontend with conflicting import map")
+				// Sleep to ensure second MicroFrontend has a later creation timestamp
+				time.Sleep(time.Millisecond * 100)
+
+				secondMicroFrontend := &v1alpha1.MicroFrontend{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "polyfea.github.io/v1alpha1",
+						Kind:       "MicroFrontend",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "second-microfrontend",
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendSpec{
+						Service: &v1alpha1.ServiceReference{
+							URI: ptr("https://second.example.com"),
+						},
+						Proxy:         &proxy,
+						CacheStrategy: "none",
+						ModulePath:    ptr("app.js"),
+						FrontendClass: &mfcName,
+						ImportMap: &v1alpha1.ImportMap{
+							Imports: map[string]string{
+								"react":   "./react-v17.js", // Conflicts with first
+								"angular": "./angular.js",   // No conflict
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, secondMicroFrontend)).To(Succeed())
+
+				secondMfLookupKey := types.NamespacedName{Name: "second-microfrontend", Namespace: MicroFrontendNamespace}
+				createdSecondMf := &v1alpha1.MicroFrontend{}
+
+				By("Verifying second MicroFrontend has conflict and is not ready")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, secondMfLookupKey, createdSecondMf)
+					if err != nil {
+						return false
+					}
+					return createdSecondMf.Status.Phase == v1alpha1.MicroFrontendPhaseFailed &&
+						len(createdSecondMf.Status.ImportMapConflicts) > 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying conflict details")
+				Expect(createdSecondMf.Status.ImportMapConflicts).Should(HaveLen(1))
+				conflict := createdSecondMf.Status.ImportMapConflicts[0]
+				Expect(conflict.Specifier).Should(Equal("react"))
+				Expect(conflict.RequestedPath).Should(Equal("./react-v17.js"))
+				Expect(conflict.RegisteredPath).Should(Equal("./react-v18.js"))
+				Expect(conflict.RegisteredBy).Should(Equal("default/first-microfrontend"))
+
+				By("Verifying second MicroFrontend is NOT in repository")
+				repoMf, _ := microFrontendRepository.Get(createdSecondMf)
+				Expect(repoMf).Should(BeNil())
+
+				By("Verifying first MicroFrontend is still in repository")
+				repoMf, err := microFrontendRepository.Get(createdFirstMf)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(repoMf).ShouldNot(BeNil())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdSecondMf)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, createdFirstMf)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
+			})
+
+			It("Should resolve conflict when first MicroFrontend is deleted", func() {
+				By("Setting up test context")
+				testCtx := context.Background()
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				By("Creating a MicroFrontendClass")
+				mfcName := MicroFrontendClassName
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Test Frontend"),
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
+
+				By("Creating first MicroFrontend")
+				proxy := true
+				firstMicroFrontend := &v1alpha1.MicroFrontend{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "polyfea.github.io/v1alpha1",
+						Kind:       "MicroFrontend",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "first-microfrontend",
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendSpec{
+						Service: &v1alpha1.ServiceReference{
+							URI: ptr("https://first.example.com"),
+						},
+						Proxy:         &proxy,
+						CacheStrategy: "none",
+						ModulePath:    ptr("app.js"),
+						FrontendClass: &mfcName,
+						ImportMap: &v1alpha1.ImportMap{
+							Imports: map[string]string{
+								"vue": "./vue-v3.js",
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, firstMicroFrontend)).To(Succeed())
+
+				firstMfLookupKey := types.NamespacedName{Name: "first-microfrontend", Namespace: MicroFrontendNamespace}
+				createdFirstMf := &v1alpha1.MicroFrontend{}
+
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, firstMfLookupKey, createdFirstMf)
+					return err == nil && createdFirstMf.Status.Phase == v1alpha1.MicroFrontendPhaseReady
+				}, timeout, interval).Should(BeTrue())
+
+				By("Creating second MicroFrontend with conflicting import")
+				time.Sleep(time.Millisecond * 100)
+
+				secondMicroFrontend := &v1alpha1.MicroFrontend{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "polyfea.github.io/v1alpha1",
+						Kind:       "MicroFrontend",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "second-microfrontend",
+						Namespace: MicroFrontendNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendSpec{
+						Service: &v1alpha1.ServiceReference{
+							URI: ptr("https://second.example.com"),
+						},
+						Proxy:         &proxy,
+						CacheStrategy: "none",
+						ModulePath:    ptr("app.js"),
+						FrontendClass: &mfcName,
+						ImportMap: &v1alpha1.ImportMap{
+							Imports: map[string]string{
+								"vue": "./vue-v2.js", // Conflicts
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, secondMicroFrontend)).To(Succeed())
+
+				secondMfLookupKey := types.NamespacedName{Name: "second-microfrontend", Namespace: MicroFrontendNamespace}
+				createdSecondMf := &v1alpha1.MicroFrontend{}
+
+				By("Verifying second MicroFrontend has conflict")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, secondMfLookupKey, createdSecondMf)
+					if err != nil {
+						return false
+					}
+					return createdSecondMf.Status.Phase == v1alpha1.MicroFrontendPhaseFailed &&
+						len(createdSecondMf.Status.ImportMapConflicts) > 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Deleting first MicroFrontend")
+				Expect(k8sClient.Delete(testCtx, createdFirstMf)).Should(Succeed())
+				Eventually(func() bool {
+					return errors.IsNotFound(k8sClient.Get(testCtx, firstMfLookupKey, createdFirstMf))
+				}, timeout, interval).Should(BeTrue())
+
+				By("Triggering reconciliation of second MicroFrontend by updating it")
+				Eventually(func() error {
+					err := k8sClient.Get(testCtx, secondMfLookupKey, createdSecondMf)
+					if err != nil {
+						return err
+					}
+					if createdSecondMf.Annotations == nil {
+						createdSecondMf.Annotations = make(map[string]string)
+					}
+					createdSecondMf.Annotations["reconcile"] = "trigger"
+					return k8sClient.Update(testCtx, createdSecondMf)
+				}, timeout, interval).Should(Succeed())
+
+				By("Verifying second MicroFrontend conflict is resolved and is now ready")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, secondMfLookupKey, createdSecondMf)
+					if err != nil {
+						return false
+					}
+					return createdSecondMf.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						len(createdSecondMf.Status.ImportMapConflicts) == 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying second MicroFrontend is now in repository")
+				Eventually(func() bool {
+					repoMf, err := microFrontendRepository.Get(createdSecondMf)
+					return err == nil && repoMf != nil
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdSecondMf)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
 			})
 		})
 	})

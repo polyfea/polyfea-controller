@@ -35,7 +35,7 @@ func SetupRouter(
 
 	mux.HandleFunc("/polyfea/proxy/{"+polyfea.NamespacePathParamName+"}/{"+polyfea.MicrofrontendPathParamName+"}/{"+polyfea.PathPathParamName+"...}", proxy.HandleProxy)
 
-	spa := polyfea.NewSinglePageApplication(logger)
+	spa := polyfea.NewSinglePageApplication(logger, microFrontendRepository)
 	pwa := polyfea.NewProgressiveWebApplication(logger, microFrontendRepository)
 
 	mux.HandleFunc("/polyfea/boot.mjs", spa.HandleBootJs)

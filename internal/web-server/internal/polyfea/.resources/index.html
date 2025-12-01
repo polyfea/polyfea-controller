@@ -5,6 +5,9 @@
   <title>{{.Title}}</title>
   <meta name="csp-nonce" content="{{.Nonce}}">
   {{.ExtraMeta}}
+  {{if .ImportMapJson}}
+  <script type="importmap" nonce="{{.Nonce}}">{{.ImportMapJson}}</script>
+  {{end}}
   <script type="module" nonce="{{.Nonce}}" src="./polyfea/boot.mjs"></script>
   {{if .EnablePWA}}
   <link rel="manifest" nonce="{{.Nonce}}" href="./polyfea/app.webmanifest">
