@@ -20,7 +20,7 @@ spec:
   # Display rules that determine when this component should be loaded
   displayRules:
     - allOf:
-        - contextArea: "main"
+        - context-name: "shell"
   
   # Priority for ordering (higher numbers = higher priority)
   priority: 0

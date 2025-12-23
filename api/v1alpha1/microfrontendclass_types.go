@@ -68,7 +68,7 @@ type MicroFrontendClassSpec struct {
 	NamespacePolicy *NamespacePolicy `json:"namespacePolicy,omitempty"`
 
 	// CspHeader that will be used for the frontend class, a default will be used if not set.
-	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
+	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CspHeader string `json:"cspHeader,omitempty"`
 
