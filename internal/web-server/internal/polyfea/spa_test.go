@@ -121,7 +121,7 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	nonceRegex := regexp.MustCompile(`'nonce-[^']*'`)
 
-	expectedWithoutNonce := nonceRegex.ReplaceAllString("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'")
+	expectedWithoutNonce := nonceRegex.ReplaceAllString("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'")
 	gotWithoutNonce := nonceRegex.ReplaceAllString(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'")
 
 	if expectedWithoutNonce != gotWithoutNonce {
