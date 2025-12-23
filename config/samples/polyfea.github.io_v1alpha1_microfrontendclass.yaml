@@ -13,7 +13,7 @@ spec:
   title: "Sample Application"
   
   # Content Security Policy header (optional)
-  cspHeader: "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
+  cspHeader: "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
   
   # Extra meta tags to include in the HTML head (optional)
   extraMetaTags:

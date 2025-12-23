@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: microfrontend-sample
 spec:
+  frontendClass: "microfrontendclass-sample"
   # Service reference - use either 'name' for in-cluster services or 'uri' for external services
   service:
     # For in-cluster services, specify the service name
@@ -28,9 +29,6 @@ spec:
   
   # Enable proxy mode
   proxy: true
-  
-  # Frontend class reference (optional)
-  frontendClass: "polyfea-controller-default"
   
   # Cache strategy
   cacheStrategy: "none"
