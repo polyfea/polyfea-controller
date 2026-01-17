@@ -121,11 +121,11 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	nonceRegex := regexp.MustCompile(`'nonce-[^']*'`)
 
-	expectedWithoutNonce := nonceRegex.ReplaceAllString("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'")
+	expectedWithoutNonce := nonceRegex.ReplaceAllString("default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", "'nonce-NONCE'")
 	gotWithoutNonce := nonceRegex.ReplaceAllString(response.Header.Get("Content-Security-Policy"), "'nonce-NONCE'")
 
 	if expectedWithoutNonce != gotWithoutNonce {
-		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))
+		t.Fatalf("expected content security policy %s, got %s", "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-"+nonce+"'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-"+nonce+"'; style-src-attr 'self' 'unsafe-inline';", response.Header.Get("Content-Security-Policy"))
 	}
 
 	if response.Header.Get("test-header") != TestHeaderValue {
@@ -206,7 +206,7 @@ func polyfeaSPAApiSetupRouter() http.Handler {
 		},
 	}
 	mfc.Spec.Title = &[]string{"Polyfea"}[0]
-	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'strict-dynamic' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
+	mfc.Spec.CspHeader = "default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';"
 
 	mux := http.NewServeMux()
 
