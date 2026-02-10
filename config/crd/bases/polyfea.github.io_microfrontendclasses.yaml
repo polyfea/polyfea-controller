@@ -46,7 +46,8 @@ spec:
               cspHeader:
                 default: default-src 'self'; font-src 'self'; script-src 'strict-dynamic'
                   'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src
-                  'self' 'nonce-{NONCE_VALUE}'; style-src-attr 'self' 'unsafe-inline';
+                  'self' 'unsafe-inline'; style-src-attr 'self' 'unsafe-inline'; img-src
+                  *; connect-src *;
                 description: CspHeader that will be used for the frontend class, a
                   default will be used if not set.
                 type: string
