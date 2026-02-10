@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -343,6 +344,71 @@ var _ = Describe("MicroFrontend Controller", func() {
 				By("Cleaning up")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
+			})
+
+			It("Should accept MicroFrontend when MicroFrontendClass is in different namespace and allows 'All' policy", func() {
+				By("Creating a MicroFrontendClass in a different namespace with 'All' policy")
+				testCtx := context.Background()
+
+				ensureMicroFrontendDeleted(testCtx)
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfcName := MicroFrontendClassName
+				otherNamespace := "other-namespace"
+
+				// Ensure the target namespace exists for the test
+				ns := &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: otherNamespace},
+				}
+				Expect(k8sClient.Create(testCtx, ns)).To(Succeed())
+
+				mfc := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      mfcName,
+						Namespace: otherNamespace,
+					},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://test.example.com"),
+						Title:   ptr("Cross-NS Frontend"),
+						NamespacePolicy: &v1alpha1.NamespacePolicy{
+							From: v1alpha1.NamespaceFromAll,
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
+
+				proxy := true
+				microFrontend := setupMicroFrontend(
+					&v1alpha1.ServiceReference{
+						URI: ptr("https://example.com"),
+					},
+					ptr("app.js"),
+					&proxy,
+					&mfcName,
+					nil,
+				)
+				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
+
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				createdMicroFrontend := &v1alpha1.MicroFrontend{}
+
+				By("Verifying MicroFrontend is accepted despite class being in different namespace")
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
+					if err != nil {
+						return false
+					}
+					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
+						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						createdMicroFrontend.Status.FrontendClassRef.Accepted
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
+				// Remove the test namespace
+				nsObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: otherNamespace}}
+				Expect(k8sClient.Delete(testCtx, nsObj)).Should(Succeed())
 			})
 
 			It("Should remove rejected MicroFrontends from repository", func() {

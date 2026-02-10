@@ -188,7 +188,27 @@ func (r *MicroFrontendReconciler) processFrontendClass(ctx context.Context, mf *
 	err := r.Get(ctx, client.ObjectKey{Name: frontendClassName, Namespace: mf.Namespace}, mfc)
 
 	if err != nil {
-		return r.handleFrontendClassNotFound(mf, frontendClassName, err, logger)
+		// If not found in the MicroFrontend's namespace, search across all namespaces
+		if apierrors.IsNotFound(err) {
+			mfcList := &polyfeav1alpha1.MicroFrontendClassList{}
+			if listErr := r.List(ctx, mfcList, client.InNamespace("")); listErr != nil {
+				logger.Error(listErr, "Failed to list MicroFrontendClasses across namespaces")
+				return r.handleFrontendClassNotFound(mf, frontendClassName, listErr, logger)
+			}
+			found := false
+			for i := range mfcList.Items {
+				if mfcList.Items[i].Name == frontendClassName {
+					*mfc = mfcList.Items[i]
+					found = true
+					break
+				}
+			}
+			if !found {
+				return r.handleFrontendClassNotFound(mf, frontendClassName, err, logger)
+			}
+		} else {
+			return r.handleFrontendClassNotFound(mf, frontendClassName, err, logger)
+		}
 	}
 
 	return r.validateNamespacePolicy(mf, mfc, frontendClassName, logger) || statusUpdated
