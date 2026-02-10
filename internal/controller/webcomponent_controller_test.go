@@ -38,7 +38,7 @@ const (
 )
 
 // Ensure the WebComponent resource does not already exist
-func ensureWebComponentDeleted(ctx context.Context, timeout time.Duration, interval time.Duration) {
+func ensureWebComponentDeleted(ctx context.Context) {
 	existingWebComponent := &polyfeav1alpha1.WebComponent{}
 	err := k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent)
 	if err == nil {
@@ -50,7 +50,7 @@ func ensureWebComponentDeleted(ctx context.Context, timeout time.Duration, inter
 		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
 		Eventually(func() bool {
 			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}, existingWebComponent))
-		}, timeout, interval).Should(BeTrue())
+		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
 		// Give extra time for repository cleanup
 		time.Sleep(time.Millisecond * 500)
 	}
@@ -66,7 +66,7 @@ var _ = Describe("WebComponent Controller", func() {
 		DescribeTable("Validation scenarios",
 			func(spec polyfeav1alpha1.WebComponentSpec, shouldSucceed bool) {
 				testCtx := context.Background()
-				ensureWebComponentDeleted(testCtx, timeout, interval)
+				ensureWebComponentDeleted(testCtx)
 				webComponent := &polyfeav1alpha1.WebComponent{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "polyfea.github.io/v1alpha1",
@@ -114,7 +114,7 @@ var _ = Describe("WebComponent Controller", func() {
 
 		It("Should create with defaults when optional fields are missing", func() {
 			testCtx := context.Background()
-			ensureWebComponentDeleted(testCtx, timeout, interval)
+			ensureWebComponentDeleted(testCtx)
 
 			webComponent := &polyfeav1alpha1.WebComponent{
 				TypeMeta: metav1.TypeMeta{
@@ -154,7 +154,7 @@ var _ = Describe("WebComponent Controller", func() {
 
 		It("Should add and remove finalizer", func() {
 			testCtx := context.Background()
-			ensureWebComponentDeleted(testCtx, timeout, interval)
+			ensureWebComponentDeleted(testCtx)
 			webComponent := &polyfeav1alpha1.WebComponent{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "polyfea.github.io/v1alpha1",
@@ -209,7 +209,7 @@ var _ = Describe("WebComponent Controller", func() {
 
 		It("Should handle MicroFrontend in a different namespace", func() {
 			testCtx := context.Background()
-			ensureWebComponentDeleted(testCtx, timeout, interval)
+			ensureWebComponentDeleted(testCtx)
 
 			// Create a namespace for the MicroFrontend
 			mfNamespace := "microfrontend-ns"
@@ -273,7 +273,10 @@ var _ = Describe("WebComponent Controller", func() {
 
 			// WebComponent should have MicroFrontendRef set with the correct namespace and Found=true
 			Eventually(func() bool {
-				k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent)
+				err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent)
+				if err != nil {
+					return false
+				}
 				return createdWebComponent.Status.MicroFrontendRef != nil &&
 					createdWebComponent.Status.MicroFrontendRef.Name == microFrontendName &&
 					createdWebComponent.Status.MicroFrontendRef.Namespace == mfNamespace &&
@@ -282,7 +285,10 @@ var _ = Describe("WebComponent Controller", func() {
 
 			// Verify the condition indicates MicroFrontend was found and resolved
 			Eventually(func() bool {
-				k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent)
+				err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent)
+				if err != nil {
+					return false
+				}
 				condition := polyfeav1alpha1.GetCondition(createdWebComponent.Status.Conditions,
 					polyfeav1alpha1.ConditionTypeMicroFrontendResolved)
 				return condition != nil && condition.Status == metav1.ConditionTrue &&

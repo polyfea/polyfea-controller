@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -89,6 +90,31 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// Update status
 	statusUpdated := false
 	originalStatus := webComponent.Status.DeepCopy()
+
+	// Reconcile MicroFrontend reference
+	statusUpdated = r.reconcileMicroFrontendReference(ctx, webComponent, logger)
+
+	// Update ObservedGeneration
+	if webComponent.Status.ObservedGeneration != webComponent.Generation {
+		webComponent.Status.ObservedGeneration = webComponent.Generation
+		statusUpdated = true
+	}
+
+	// Update status if needed
+	if statusUpdated {
+		if err := r.Status().Update(ctx, webComponent); err != nil {
+			logger.Error(err, "Failed to update WebComponent status")
+			webComponent.Status = *originalStatus
+			return ctrl.Result{Requeue: true}, err
+		}
+		logger.Info("Updated WebComponent status", "phase", webComponent.Status.Phase)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Context, webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
+	statusUpdated := false
 
 	// Check if MicroFrontend reference exists
 	if webComponent.Spec.MicroFrontend != nil && *webComponent.Spec.MicroFrontend != "" {
@@ -204,23 +230,7 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// Update ObservedGeneration
-	if webComponent.Status.ObservedGeneration != webComponent.Generation {
-		webComponent.Status.ObservedGeneration = webComponent.Generation
-		statusUpdated = true
-	}
-
-	// Update status if needed
-	if statusUpdated {
-		if err := r.Status().Update(ctx, webComponent); err != nil {
-			logger.Error(err, "Failed to update WebComponent status")
-			webComponent.Status = *originalStatus
-			return ctrl.Result{Requeue: true}, err
-		}
-		logger.Info("Updated WebComponent status", "phase", webComponent.Status.Phase)
-	}
-
-	return ctrl.Result{}, nil
+	return statusUpdated
 }
 
 func (r *WebComponentReconciler) finalizeOperationsForWebComponent(webComponent *polyfeav1alpha1.WebComponent) error {
