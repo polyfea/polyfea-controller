@@ -41,6 +41,7 @@ type WebComponentReconciler struct {
 // +kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=polyfea.github.io,resources=webcomponents/finalizers,verbs=update
+// +kubebuilder:rbac:groups=polyfea.github.io,resources=microfrontends,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -94,10 +95,31 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		mfName := *webComponent.Spec.MicroFrontend
 		mf := &polyfeav1alpha1.MicroFrontend{}
 
-		// Look for MicroFrontend in the same namespace
+		// Look for MicroFrontend in the same namespace first
 		mfFound := false
+		mfNamespace := webComponent.Namespace
 		if err := r.Get(ctx, client.ObjectKey{Name: mfName, Namespace: webComponent.Namespace}, mf); err == nil {
 			mfFound = true
+		} else if apierrors.IsNotFound(err) {
+			// If not found in the same namespace, search across all namespaces
+			mfList := &polyfeav1alpha1.MicroFrontendList{}
+			if err := r.List(ctx, mfList); err != nil {
+				logger.Error(err, "Failed to list MicroFrontends", "name", mfName)
+				polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
+					metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontend")
+				webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+				statusUpdated = true
+			} else {
+				// Search for MicroFrontend with matching name
+				for _, item := range mfList.Items {
+					if item.Name == mfName {
+						mf = &item
+						mfFound = true
+						mfNamespace = item.Namespace
+						break
+					}
+				}
+			}
 		} else if !apierrors.IsNotFound(err) {
 			logger.Error(err, "Failed to get MicroFrontend", "name", mfName)
 			polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
@@ -109,11 +131,11 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// Update MicroFrontendRef
 		if webComponent.Status.MicroFrontendRef == nil ||
 			webComponent.Status.MicroFrontendRef.Name != mfName ||
-			webComponent.Status.MicroFrontendRef.Namespace != webComponent.Namespace ||
+			webComponent.Status.MicroFrontendRef.Namespace != mfNamespace ||
 			webComponent.Status.MicroFrontendRef.Found != mfFound {
 			webComponent.Status.MicroFrontendRef = &polyfeav1alpha1.ObjectReference{
 				Name:      mfName,
-				Namespace: webComponent.Namespace,
+				Namespace: mfNamespace,
 				Found:     mfFound,
 			}
 			statusUpdated = true
