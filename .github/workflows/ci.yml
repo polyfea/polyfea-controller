@@ -33,7 +33,7 @@ jobs:
     - name: Run linter
       uses: golangci/golangci-lint-action@v8
       with:
-        version: v2
+        version: v2.11
 
     - name: Build Go project
       run: make build
