@@ -112,7 +112,7 @@ func convertStyles(styles []v1alpha1.Style) *map[string]string {
 
 // convertMicrofrontendResources converts API resources to the response format.
 func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference) *[]generated.MicrofrontendResource {
-	result := []generated.MicrofrontendResource{}
+	result := make([]generated.MicrofrontendResource, 0, len(resources))
 
 	for _, resource := range resources {
 		kind := generated.MicrofrontendResourceKind(resource.Kind)

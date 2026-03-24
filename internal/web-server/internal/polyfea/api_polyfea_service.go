@@ -169,7 +169,7 @@ func (s *PolyfeaApiService) getMicroFrontendsForClass(frontendClass *v1alpha1.Mi
 }
 
 func (s *PolyfeaApiService) getWebComponents(name, path string, userRoles []string, microFrontendsForClass []*v1alpha1.MicroFrontend) ([]*v1alpha1.WebComponent, error) {
-	microFrontendsNamesForClass := []string{}
+	microFrontendsNamesForClass := make([]string, 0, len(microFrontendsForClass))
 	for _, mf := range microFrontendsForClass {
 		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
 	}
@@ -214,7 +214,7 @@ func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComp
 }
 
 func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1alpha1.WebComponent, microFrontendsToLoad *[]string) []generated.ElementSpec {
-	result := []generated.ElementSpec{}
+	result := make([]generated.ElementSpec, 0, len(webComponents))
 	for _, webComponent := range webComponents {
 		var microfrontendName string
 		if webComponent.Spec.MicroFrontend != nil {
