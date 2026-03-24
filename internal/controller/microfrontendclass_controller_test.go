@@ -34,7 +34,6 @@ import (
 const (
 	MicroFrontendClassName      = "test-microfrontendclass"
 	MicroFrontendClassNamespace = "default"
-	MicroFrontendClassFinalizer = "polyfea.github.io/finalizer"
 )
 
 func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClass {
@@ -55,21 +54,7 @@ func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClas
 }
 
 func ensureMicroFrontendClassDeleted(ctx context.Context) {
-	existingMicroFrontendClass := &v1alpha1.MicroFrontendClass{}
-	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass)
-	if err == nil {
-		// Check if already being deleted
-		if existingMicroFrontendClass.DeletionTimestamp == nil {
-			// Not yet marked for deletion, delete it now
-			Expect(k8sClient.Delete(ctx, existingMicroFrontendClass)).Should(Succeed())
-		}
-		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
-		Eventually(func() bool {
-			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}, existingMicroFrontendClass))
-		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-		// Give extra time for repository cleanup
-		time.Sleep(time.Millisecond * 500)
-	}
+	ensureResourceDeleted(ctx, &v1alpha1.MicroFrontendClass{}, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace})
 }
 
 var _ = Describe("MicroFrontendClass Controller", func() {

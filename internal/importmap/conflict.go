@@ -177,6 +177,10 @@ func findConflicts(
 	existingImports map[string]*entry,
 	existingScopes map[string]map[string]*entry,
 ) []polyfeav1alpha1.ImportMapConflict {
+	if mf.Spec.ImportMap == nil {
+		return nil
+	}
+
 	var conflicts []polyfeav1alpha1.ImportMapConflict
 
 	// Check top-level imports
