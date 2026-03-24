@@ -534,7 +534,7 @@ make undeploy
 You’ll need the following tools:
 
 * WSL, Linux, or macOS environment
-* [Go](https://golang.org/doc/install) **1.24+**
+* [Go](https://golang.org/doc/install) **1.26+**
 * [Docker](https://docs.docker.com/get-docker/)
 * [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Make](https://www.gnu.org/software/make/)
