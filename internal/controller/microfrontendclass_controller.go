@@ -52,7 +52,6 @@ const (
 
 // Reconcile moves the current state of the cluster closer to the desired state.
 func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	const finalizerName = "polyfea.github.io/finalizer"
 	logger := log.FromContext(ctx)
 
 	mfc := &polyfeav1alpha1.MicroFrontendClass{}
@@ -68,9 +67,9 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 	logger.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
 
 	// Add finalizer if not present
-	if !controllerutil.ContainsFinalizer(mfc, finalizerName) {
+	if !controllerutil.ContainsFinalizer(mfc, FinalizerName) {
 		logger.Info("Adding Finalizer for MicroFrontendClass")
-		controllerutil.AddFinalizer(mfc, finalizerName)
+		controllerutil.AddFinalizer(mfc, FinalizerName)
 		if err := r.Update(ctx, mfc); err != nil {
 			logger.Error(err, "Failed to update custom resource to add finalizer")
 			return ctrl.Result{Requeue: true}, err
@@ -80,7 +79,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// Handle deletion
 	if mfc.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(mfc, finalizerName) {
+		if controllerutil.ContainsFinalizer(mfc, FinalizerName) {
 			logger.Info("Performing finalizer operations before deletion")
 			if err := r.finalizeOperationsForMicroFrontendClass(mfc); err != nil {
 				logger.Error(err, "Failed to perform finalizer operations")
@@ -91,7 +90,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 				return ctrl.Result{Requeue: true}, err
 			}
 			logger.Info("Removing Finalizer for MicroFrontendClass after successful operations")
-			controllerutil.RemoveFinalizer(mfc, finalizerName)
+			controllerutil.RemoveFinalizer(mfc, FinalizerName)
 			if err := r.Update(ctx, mfc); err != nil {
 				logger.Error(err, "Failed to remove finalizer")
 				return ctrl.Result{Requeue: true}, err
@@ -128,12 +127,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		for _, mf := range mfList.Items {
 			// Check if this MicroFrontend references this class
-			frontendClassName := DefaultFrontendClassName
-			if mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass != "" {
-				frontendClassName = *mf.Spec.FrontendClass
-			}
-
-			if frontendClassName == mfc.Name {
+			if GetFrontendClassName(mf.Spec.FrontendClass) == mfc.Name {
 				if mfc.IsNamespaceAllowed(mf.Namespace) {
 					acceptedCount++
 				} else {

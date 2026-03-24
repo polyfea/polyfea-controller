@@ -137,10 +137,7 @@ func (p *PolyfeaProxy) getMicrofrontendClass(microfrontend *v1alpha1.MicroFronte
 }
 
 func (p *PolyfeaProxy) buildProxyUrl(service string, path string) string {
-	if len(service) > 0 && service[len(service)-1] != '/' && len(path) > 0 && path[0] != '/' {
-		return service + "/" + path
-	}
-	return service + path
+	return joinURL(service, path)
 }
 
 func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *http.Request, logger logr.Logger, w http.ResponseWriter) (*http.Response, error) {
@@ -166,7 +163,7 @@ func (p *PolyfeaProxy) proxyRequest(ctx context.Context, proxyUrl string, r *htt
 
 func (p *PolyfeaProxy) finalizeResponse(w http.ResponseWriter, resp *http.Response, extraHeaders []v1alpha1.Header, ctx context.Context, span trace.Span, logger logr.Logger) {
 	copyHeaders(w.Header(), resp.Header)
-	copyExtraHeaders(w.Header(), extraHeaders)
+	addExtraHeaders(w, extraHeaders)
 
 	w.WriteHeader(resp.StatusCode)
 	_, err := io.Copy(w, resp.Body)
@@ -182,11 +179,5 @@ func copyHeaders(dst, src http.Header) {
 		for _, value := range values {
 			dst.Add(key, value)
 		}
-	}
-}
-
-func copyExtraHeaders(dst http.Header, extraHeaders []v1alpha1.Header) {
-	for _, extraHeader := range extraHeaders {
-		dst.Add(extraHeader.Name, extraHeader.Value)
 	}
 }

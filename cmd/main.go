@@ -20,16 +20,12 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
-	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,24 +35,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/go-logr/logr"
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
-	"github.com/polyfea/polyfea-controller/internal/controller"
-	"github.com/polyfea/polyfea-controller/internal/repository"
-	webserver "github.com/polyfea/polyfea-controller/internal/web-server"
-	"github.com/polyfea/polyfea-controller/internal/web-server/configuration"
-
 	// +kubebuilder:scaffold:imports
-
-	"go.opentelemetry.io/contrib/exporters/autoexport"
-	metricsdk "go.opentelemetry.io/otel/sdk/metric"
-
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 )
 
 var (
@@ -112,89 +95,27 @@ func main() {
 	// Rapid Reset CVEs. For more information see:
 	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
 	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
 	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-
-	// Create watchers for metrics and webhooks certificates
-	var metricsCertWatcher, webhookCertWatcher *certwatcher.CertWatcher
-
-	// Initial webhook TLS options
-	webhookTLSOpts := tlsOpts
-
-	if len(webhookCertPath) > 0 {
-		setupLog.Info("Initializing webhook certificate watcher using provided certificates",
-			"webhook-cert-path", webhookCertPath, "webhook-cert-name", webhookCertName, "webhook-cert-key", webhookCertKey)
-
-		var err error
-		webhookCertWatcher, err = certwatcher.New(
-			filepath.Join(webhookCertPath, webhookCertName),
-			filepath.Join(webhookCertPath, webhookCertKey),
-		)
-		if err != nil {
-			setupLog.Error(err, "Failed to initialize webhook certificate watcher")
-			os.Exit(1)
-		}
-
-		webhookTLSOpts = append(webhookTLSOpts, func(config *tls.Config) {
-			config.GetCertificate = webhookCertWatcher.GetCertificate
+		tlsOpts = append(tlsOpts, func(c *tls.Config) {
+			setupLog.Info("disabling http/2")
+			c.NextProtos = []string{"http/1.1"}
 		})
 	}
 
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: webhookTLSOpts,
-	})
+	// Configure TLS for webhooks and metrics
+	webhookServer, webhookCertWatcher := configureTLS(
+		tlsOpts, webhookCertPath, webhookCertName, webhookCertKey,
+	)
 
-	// Metrics endpoint is enabled in 'config/default/kustomization.yaml'. The Metrics options configure the server.
-	// More info:
-	// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/server
-	// - https://book.kubebuilder.io/reference/metrics.html
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:   metricsAddr,
 		SecureServing: secureMetrics,
 		TLSOpts:       tlsOpts,
 	}
 
-	// if secureMetrics {
-	// FilterProvider is used to protect the metrics endpoint with authn/authz.
-	// These configurations ensure that only authorized users and service accounts
-	// can access the metrics endpoint. The RBAC are configured in 'config/rbac/kustomization.yaml'. More info:
-	// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
-	// metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
-	// }
+	metricsCertWatcher := configureMetricsTLS(&metricsServerOptions, metricsCertPath, metricsCertName, metricsCertKey)
 
-	// If the certificate is not specified, controller-runtime will automatically
-	// generate self-signed certificates for the metrics server. While convenient for development and testing,
-	// this setup is not recommended for production.
-	//
-	// TODO(user): If you enable certManager, uncomment the following lines:
-	// - [METRICS-WITH-CERTS] at config/default/kustomization.yaml to generate and use certificates
-	// managed by cert-manager for the metrics server.
-	// - [PROMETHEUS-WITH-CERTS] at config/prometheus/kustomization.yaml for TLS certification.
-	if len(metricsCertPath) > 0 {
-		setupLog.Info("Initializing metrics certificate watcher using provided certificates",
-			"metrics-cert-path", metricsCertPath, "metrics-cert-name", metricsCertName, "metrics-cert-key", metricsCertKey)
-
-		var err error
-		metricsCertWatcher, err = certwatcher.New(
-			filepath.Join(metricsCertPath, metricsCertName),
-			filepath.Join(metricsCertPath, metricsCertKey),
-		)
-		if err != nil {
-			setupLog.Error(err, "to initialize metrics certificate watcher", "error", err)
-			os.Exit(1)
-		}
-
-		metricsServerOptions.TLSOpts = append(metricsServerOptions.TLSOpts, func(config *tls.Config) {
-			config.GetCertificate = metricsCertWatcher.GetCertificate
-		})
-	}
-
+	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -202,69 +123,21 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "a2eec30c.polyfea.github.io",
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
-		os.Exit(1)
+		exitWithError()
 	}
 
-	microFrontendRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontend]()
-	microFrontendClassRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.MicroFrontendClass]()
-	webComponentRepository := repository.NewInMemoryRepository[*polyfeav1alpha1.WebComponent]()
-
-	if err = (&controller.MicroFrontendReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Repository: microFrontendRepository,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontend")
-		os.Exit(1)
-	}
-	if err = (&controller.WebComponentReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Repository: webComponentRepository,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "WebComponent")
-		os.Exit(1)
-	}
-	if err = (&controller.MicroFrontendClassReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		Repository: microFrontendClassRepository,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "MicroFrontendClass")
-		os.Exit(1)
-	}
+	// Register controllers and create repositories
+	microFrontendClassRepository, microFrontendRepository, webComponentRepository := registerControllers(mgr)
 	// +kubebuilder:scaffold:builder
 
-	if metricsCertWatcher != nil {
-		setupLog.Info("Adding metrics certificate watcher to manager")
-		if err := mgr.Add(metricsCertWatcher); err != nil {
-			setupLog.Error(err, "unable to add metrics certificate watcher to manager")
-			os.Exit(1)
-		}
-	}
+	// Add cert watchers to manager
+	addCertWatcherToManager(mgr, metricsCertWatcher, "metrics")
+	addCertWatcherToManager(mgr, webhookCertWatcher, "webhook")
 
-	if webhookCertWatcher != nil {
-		setupLog.Info("Adding webhook certificate watcher to manager")
-		if err := mgr.Add(webhookCertWatcher); err != nil {
-			setupLog.Error(err, "unable to add webhook certificate watcher to manager")
-			os.Exit(1)
-		}
-	}
-
+	// Initialize telemetry
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -279,18 +152,20 @@ func main() {
 
 	if err != nil {
 		setupLog.Error(err, "unable to initialize telemetry")
-		os.Exit(1)
+		exitWithError()
 	}
 
+	// Health checks
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
-		os.Exit(1)
+		exitWithError()
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
+		exitWithError()
 	}
 
+	// Start manager and HTTP server
 	wg.Add(1)
 	go startManager(cancel, mgr)
 
@@ -302,79 +177,77 @@ func main() {
 	wg.Wait()
 }
 
-func startManager(cancel context.CancelFunc, mgr manager.Manager) {
-	defer wg.Done()
-	defer cancel()
-
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
-	}
+func exitWithError() {
+	os.Exit(1)
 }
 
-func startHTTPServer(
-	ctx context.Context,
-	cancel context.CancelFunc,
-	microFrontendClassRepository repository.Repository[*polyfeav1alpha1.MicroFrontendClass],
-	microFrontendRepository repository.Repository[*polyfeav1alpha1.MicroFrontend],
-	webComponentRepository repository.Repository[*polyfeav1alpha1.WebComponent],
-	logger *logr.Logger) {
+// configureTLS sets up webhook TLS certificate watcher and server.
+func configureTLS(
+	tlsOpts []func(*tls.Config),
+	webhookCertPath, webhookCertName, webhookCertKey string,
+) (webhook.Server, *certwatcher.CertWatcher) {
+	var webhookCertWatcher *certwatcher.CertWatcher
 
-	defer wg.Done()
-	defer cancel()
+	webhookTLSOpts := tlsOpts
+	if len(webhookCertPath) > 0 {
+		setupLog.Info("Initializing webhook certificate watcher using provided certificates",
+			"webhook-cert-path", webhookCertPath, "webhook-cert-name", webhookCertName, "webhook-cert-key", webhookCertKey)
 
-	server := &http.Server{
-		Addr: ":" + configuration.GetConfigurationValueOrDefault("POLYFEA_WEB_SERVER_PORT", "8082"),
-		Handler: otelhttp.NewHandler(
-			webserver.SetupRouter(microFrontendClassRepository, microFrontendRepository, webComponentRepository, logger),
-			"polyfea-web-server",
-		),
-	}
-
-	go func() {
-		<-ctx.Done()
-		err := server.Shutdown(context.Background())
+		var err error
+		webhookCertWatcher, err = certwatcher.New(
+			filepath.Join(webhookCertPath, webhookCertName),
+			filepath.Join(webhookCertPath, webhookCertKey),
+		)
 		if err != nil {
-			setupLog.Error(err, "problem shutting down server")
+			setupLog.Error(err, "Failed to initialize webhook certificate watcher")
+			exitWithError()
 		}
-	}()
 
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		setupLog.Error(err, "problem running server")
+		webhookTLSOpts = append(webhookTLSOpts, func(config *tls.Config) {
+			config.GetCertificate = webhookCertWatcher.GetCertificate
+		})
 	}
+
+	webhookServer := webhook.NewServer(webhook.Options{
+		TLSOpts: webhookTLSOpts,
+	})
+
+	return webhookServer, webhookCertWatcher
 }
 
-func initTelemetry(ctx context.Context) (shutdown func(context.Context) error, err error) {
-	// prometheus exporter will be in conflict with kubebuilder metrics server
-	metricReader, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	metricProvider :=
-		metricsdk.NewMeterProvider(metricsdk.WithReader(metricReader))
-	otel.SetMeterProvider(metricProvider)
-
-	traceExporter, err := autoexport.NewSpanExporter(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	traceProvider := tracesdk.NewTracerProvider(
-		tracesdk.WithSyncer(traceExporter))
-
-	otel.SetTracerProvider(traceProvider)
-	otel.SetTextMapPropagator(propagation.TraceContext{})
-
-	shutdown = func(context.Context) error {
-		errMetric := metricProvider.Shutdown(ctx)
-		errTrace := traceProvider.Shutdown(ctx)
-
-		if errMetric != nil || errTrace != nil {
-			return fmt.Errorf("error shutting down telemetry: %v, %v", errMetric, errTrace)
-		}
+// configureMetricsTLS sets up metrics TLS certificate watcher if configured.
+func configureMetricsTLS(options *metricsserver.Options, certPath, certName, certKey string) *certwatcher.CertWatcher {
+	if len(certPath) == 0 {
 		return nil
 	}
 
-	return shutdown, nil
+	setupLog.Info("Initializing metrics certificate watcher using provided certificates",
+		"metrics-cert-path", certPath, "metrics-cert-name", certName, "metrics-cert-key", certKey)
+
+	metricsCertWatcher, err := certwatcher.New(
+		filepath.Join(certPath, certName),
+		filepath.Join(certPath, certKey),
+	)
+	if err != nil {
+		setupLog.Error(err, "to initialize metrics certificate watcher", "error", err)
+		exitWithError()
+	}
+
+	options.TLSOpts = append(options.TLSOpts, func(config *tls.Config) {
+		config.GetCertificate = metricsCertWatcher.GetCertificate
+	})
+
+	return metricsCertWatcher
+}
+
+// addCertWatcherToManager adds a certificate watcher to the manager if non-nil.
+func addCertWatcherToManager(mgr ctrl.Manager, watcher *certwatcher.CertWatcher, name string) {
+	if watcher == nil {
+		return
+	}
+	setupLog.Info("Adding " + name + " certificate watcher to manager")
+	if err := mgr.Add(watcher); err != nil {
+		setupLog.Error(err, "unable to add "+name+" certificate watcher to manager")
+		exitWithError()
+	}
 }

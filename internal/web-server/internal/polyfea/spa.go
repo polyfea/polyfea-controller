@@ -19,7 +19,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-type SingePageApplication struct {
+type SinglePageApplication struct {
 	logger                  *logr.Logger
 	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend]
 }
@@ -43,14 +43,14 @@ var bootJs []byte
 func NewSinglePageApplication(
 	logger *logr.Logger,
 	microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend],
-) *SingePageApplication {
-	return &SingePageApplication{
+) *SinglePageApplication {
+	return &SinglePageApplication{
 		logger:                  logger,
 		microFrontendRepository: microFrontendRepository,
 	}
 }
 
-func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter, r *http.Request) {
+func (s *SinglePageApplication) HandleSinglePageApplication(w http.ResponseWriter, r *http.Request) {
 	logger := s.logger.WithValues("function", "HandleSinglePageApplication", "method", r.Method, "path", r.URL.Path)
 
 	_, span := telemetry().tracer.Start(
@@ -145,7 +145,7 @@ func (s *SingePageApplication) HandleSinglePageApplication(w http.ResponseWriter
 	span.SetStatus(codes.Ok, "served")
 }
 
-func (s *SingePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Request) {
+func (s *SinglePageApplication) HandleBootJs(w http.ResponseWriter, r *http.Request) {
 	logger := s.logger.WithValues("function", "HandleBootJs", "method", r.Method, "path", r.URL.Path)
 
 	_, span := telemetry().tracer.Start(
@@ -217,7 +217,7 @@ func generateNonce() (string, error) {
 
 // buildImportMap creates a merged import map from all accepted microfrontends in the class
 // First-registered wins for conflicts (based on creation timestamp)
-func (s *SingePageApplication) buildImportMap(microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
+func (s *SinglePageApplication) buildImportMap(microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
 	// Get all eligible microfrontends for this class
 	microfrontends, err := s.getEligibleMicrofrontends(microFrontendClass)
 	if err != nil {
@@ -235,7 +235,7 @@ func (s *SingePageApplication) buildImportMap(microFrontendClass *v1alpha1.Micro
 }
 
 // getEligibleMicrofrontends returns all accepted, conflict-free microfrontends for the class
-func (s *SingePageApplication) getEligibleMicrofrontends(microFrontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
+func (s *SinglePageApplication) getEligibleMicrofrontends(microFrontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
 	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		// Check if the MicroFrontend references this class
 		if mf.Spec.FrontendClass == nil || *mf.Spec.FrontendClass != microFrontendClass.Name {
@@ -257,7 +257,7 @@ type mfWithTimestamp struct {
 }
 
 // sortMicrofrontendsByTimestamp sorts microfrontends by creation timestamp (oldest first)
-func (s *SingePageApplication) sortMicrofrontendsByTimestamp(microfrontends []*v1alpha1.MicroFrontend) []mfWithTimestamp {
+func (s *SinglePageApplication) sortMicrofrontendsByTimestamp(microfrontends []*v1alpha1.MicroFrontend) []mfWithTimestamp {
 	mfList := make([]mfWithTimestamp, 0, len(microfrontends))
 	for _, mf := range microfrontends {
 		mfList = append(mfList, mfWithTimestamp{
@@ -279,7 +279,7 @@ func (s *SingePageApplication) sortMicrofrontendsByTimestamp(microfrontends []*v
 }
 
 // mergeImportMaps merges import maps from sorted microfrontends with first-registered-wins
-func (s *SingePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map[string]string, map[string]map[string]string) {
+func (s *SinglePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map[string]string, map[string]map[string]string) {
 	imports := make(map[string]string)
 	scopes := make(map[string]map[string]string)
 
@@ -297,7 +297,7 @@ func (s *SingePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map
 }
 
 // mergeTopLevelImports merges top-level imports with first-registered-wins policy
-func (s *SingePageApplication) mergeTopLevelImports(mf *v1alpha1.MicroFrontend, newImports map[string]string, imports map[string]string) {
+func (s *SinglePageApplication) mergeTopLevelImports(mf *v1alpha1.MicroFrontend, newImports map[string]string, imports map[string]string) {
 	for specifier, path := range newImports {
 		if _, exists := imports[specifier]; !exists {
 			// Transform relative paths to proxy paths
@@ -308,7 +308,7 @@ func (s *SingePageApplication) mergeTopLevelImports(mf *v1alpha1.MicroFrontend, 
 }
 
 // mergeScopedImports merges scoped imports with first-registered-wins policy
-func (s *SingePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, newScopes map[string]map[string]string, scopes map[string]map[string]string) {
+func (s *SinglePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, newScopes map[string]map[string]string, scopes map[string]map[string]string) {
 	for scope, scopeImports := range newScopes {
 		if scopes[scope] == nil {
 			scopes[scope] = make(map[string]string)
@@ -324,7 +324,7 @@ func (s *SingePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, ne
 }
 
 // resolveImportMapPath resolves an import map path, converting relative paths to proxy paths
-func (s *SingePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend, path string) string {
+func (s *SinglePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend, path string) string {
 	// If path is already absolute (http:// or https://), return as-is
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path
@@ -337,19 +337,14 @@ func (s *SingePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend, 
 	}
 
 	if proxy {
-		// Build proxied path
-		return "./polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + path
+		return buildProxyPath(mf.Namespace, mf.Name, path)
 	}
 
 	// For non-proxied services, combine service URL with path
 	if mf.Spec.Service != nil {
-		baseUrl := mf.Spec.Service.ResolveServiceURL(mf.Namespace)
-		if baseUrl != "" {
-			// Handle URL joining properly
-			if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
-				return baseUrl + "/" + path
-			}
-			return baseUrl + path
+		baseURL := mf.Spec.Service.ResolveServiceURL(mf.Namespace)
+		if baseURL != "" {
+			return joinURL(baseURL, path)
 		}
 	}
 
@@ -358,7 +353,7 @@ func (s *SingePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend, 
 }
 
 // buildImportMapJSON builds the final JSON representation of the import map
-func (s *SingePageApplication) buildImportMapJSON(
+func (s *SinglePageApplication) buildImportMapJSON(
 	imports map[string]string,
 	scopes map[string]map[string]string,
 	microfrontendCount int,
