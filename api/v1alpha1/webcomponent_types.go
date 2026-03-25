@@ -24,20 +24,25 @@ import (
 // WebComponentSpec defines the desired state of WebComponent
 type WebComponentSpec struct {
 	// Reference to a microfrontend from which the webcomponent would be served.
+	// +optional
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	MicroFrontend *string `json:"microFrontend,omitempty"`
 
 	// The HTML element tag name to be used when the matcher is matched.
 	// +kubebuilder:example="my-menu-item"
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Element *string `json:"element"`
 
 	// This is a list of key-value pairs that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Attributes []Attribute `json:"attributes,omitempty"`
 
 	// DisplayRules defines the conditions under which the web component should be loaded.
 	// There is an or opperation between the elements of the DisplayRules list. If any of the DisplayRules is matched, the web component will be loaded.
+	// +kubebuilder:validation:MaxItems=32
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DisplayRules []DisplayRules `json:"displayRules"`
 
@@ -47,6 +52,7 @@ type WebComponentSpec struct {
 	Priority *int32 `json:"priority,omitempty"`
 
 	// Styles defines the styles that should be applied to the webcomponent.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Style []Style `json:"style,omitempty"`
 }
@@ -54,6 +60,7 @@ type WebComponentSpec struct {
 // Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
 type Attribute struct {
 	// The name of the attribute.
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`
 
@@ -67,10 +74,12 @@ type Attribute struct {
 // Style defines the styles that should be applied to the webcomponent.
 type Style struct {
 	// The name of the style.
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`
 
 	// The value of the style.
+	// +kubebuilder:validation:MaxLength=4096
 	Value string `json:"value"`
 }
 
@@ -78,14 +87,17 @@ type Style struct {
 // There is an and opperation between AllOf, AnyOf and NoneOf lists.
 type DisplayRules struct {
 	// If all of the matchers in this list are matched, the web component will be loaded.
+	// +kubebuilder:validation:MaxItems=16
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AllOf []Matcher `json:"allOf,omitempty"`
 
 	// If any of the matchers in this list are matched, the web component will be loaded.
+	// +kubebuilder:validation:MaxItems=16
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AnyOf []Matcher `json:"anyOf,omitempty"`
 
 	// If none of the matchers in this list are matched, the web component will be loaded.
+	// +kubebuilder:validation:MaxItems=16
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	NoneOf []Matcher `json:"noneOf,omitempty"`
 }
@@ -94,16 +106,19 @@ type DisplayRules struct {
 // +kubebuilder:validation:MaxProperties=1
 type Matcher struct {
 	// This is a list of context names in which this element is intended to be shown.
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ContextName string `json:"context-name,omitempty"`
 
 	// The list of paths in which this element is intended to be shown.
 	// +kubebuilder:example="/my-menu-item"
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Path string `json:"path,omitempty"`
 
 	// The list of roles for which this element is intended to be shown.
 	// +kubebuilder:example="admin"
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Role string `json:"role,omitempty"`
 }
@@ -111,10 +126,12 @@ type Matcher struct {
 // ObjectReference contains information about a referenced object
 type ObjectReference struct {
 	// Name of the referenced object
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Name string `json:"name"`
 
 	// Namespace of the referenced object
+	// +kubebuilder:validation:MaxLength=63
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Namespace string `json:"namespace"`
 

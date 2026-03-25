@@ -46,6 +46,7 @@ type NamespacePolicy struct {
 	// Namespaces is a list of namespaces from which MicroFrontends can be attached
 	// Only used when From is "FromNamespaces"
 	// +optional
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Namespaces []string `json:"namespaces,omitempty"`
 }
@@ -53,10 +54,12 @@ type NamespacePolicy struct {
 // MicroFrontendClassSpec defines the desired state of MicroFrontendClass
 type MicroFrontendClassSpec struct {
 	// BaseUri for which the frontend class will be used
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	BaseUri *string `json:"baseUri"`
 
 	// Title that will be used for the frontend class.
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Title *string `json:"title"`
 
@@ -69,24 +72,29 @@ type MicroFrontendClassSpec struct {
 
 	// CspHeader that will be used for the frontend class, a default will be used if not set.
 	// +kubebuilder:default="default-src 'self'; font-src 'self'; script-src 'strict-dynamic' 'nonce-{NONCE_VALUE}'; worker-src 'self'; manifest-src 'self'; style-src 'self' 'unsafe-inline'; style-src-attr 'self' 'unsafe-inline'; img-src *; connect-src *;"
+	// +kubebuilder:validation:MaxLength=4096
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CspHeader string `json:"cspHeader,omitempty"`
 
 	// ExtraMetaTags that will be used for the frontend class, none if not set.
+	// +kubebuilder:validation:MaxItems=32
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExtraMetaTags []MetaTag `json:"extraMetaTags,omitempty"`
 
 	// ExtraHeaders that will be used for the frontend class, none if not set.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ExtraHeaders []Header `json:"extraHeaders,omitempty"`
 
 	// UserRolesHeader is the name of the header that contains the roles of the user. Defaults to 'x-auth-request-roles'.
 	// +kubebuilder:default=x-auth-request-roles
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserRolesHeader string `json:"rolesHeader,omitempty"`
 
 	// UserHeader is the name of the header that contains the user id. Defaults to 'x-auth-request-user'.
 	// +kubebuilder:default=x-auth-request-user
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	UserHeader string `json:"userHeader,omitempty"`
 
@@ -100,10 +108,12 @@ type MicroFrontendClassSpec struct {
 // MetaTag defines the meta tag of the frontend class
 type MetaTag struct {
 	// Name of the meta tag
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`
 
 	// Content of the meta tag
+	// +kubebuilder:validation:MaxLength=4096
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Content string `json:"content"`
 }
@@ -111,10 +121,12 @@ type MetaTag struct {
 // Header defines the header of the frontend class
 type Header struct {
 	// Name of the header
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`
 
 	// Value of the header
+	// +kubebuilder:validation:MaxLength=4096
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Value string `json:"value"`
 }
@@ -140,23 +152,28 @@ type ProgressiveWebApp struct {
 // WebAppManifest represents the web app manifest file for the PWA.
 type WebAppManifest struct {
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/name
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name *string `json:"name"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
+	// +kubebuilder:validation:MaxItems=48
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Icons []PWAIcon `json:"icons"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/start_url
 	// URL needs to be relative to the base URL of the frontend class.
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	StartUrl *string `json:"start_url"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display
+	// +kubebuilder:validation:MaxLength=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Display *string `json:"display"`
 
 	// Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/display_override
+	// +kubebuilder:validation:MaxItems=8
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DisplayOverride []string `json:"display_override,omitempty"`
 }
@@ -164,14 +181,17 @@ type WebAppManifest struct {
 // Read more here: https://developer.mozilla.org/en-US/docs/Web/Manifest/icons
 type PWAIcon struct {
 	// A string containing space-separated image dimensions using the same syntax as the sizes attribute.
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Sizes *string `json:"sizes"`
 
 	// The path to the image file. If src is a relative URL, the base URL will be the URL of the manifest.
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Src *string `json:"src"`
 
 	// A hint as to the media type of the image. The purpose of this member is to allow a user agent to quickly ignore images with media types it does not support.
+	// +kubebuilder:validation:MaxLength=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Type *string `json:"type"`
 
@@ -189,10 +209,12 @@ type PWAIcon struct {
 // This struct includes configurations for both pre-caching and runtime caching strategies, which are essential for improving the performance and offline capabilities of the PWA.
 type PWACache struct {
 	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
+	// +kubebuilder:validation:MaxItems=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	PreCache []PreCacheEntry `json:"preCache,omitempty"`
 
 	// CacheRoutes specifies the caching strategies for different URL patterns.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
 }
@@ -202,11 +224,14 @@ type PWACache struct {
 type PreCacheEntry struct {
 	// URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
 	// URL needs to be relative to the base URL of the frontend class.
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	URL *string `json:"url"`
 
 	// Revision is an optional field that specifies a revision identifier for the resource.
 	// The revision helps in cache management by allowing the service worker to recognize and update cached assets when their content changes. This ensures users always have access to the most up-to-date resources.
+	// +optional
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Revision *string `json:"revision,omitempty"`
 }
@@ -215,11 +240,14 @@ type PreCacheEntry struct {
 // This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
 type CacheRoute struct {
 	// Pattern is the URL pattern to which this caching strategy applies.
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Pattern *string `json:"pattern"`
 
 	// Destination is the optional destination URL for this caching strategy.
 	// You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+	// +optional
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Destination *string `json:"destination,omitempty"`
 
@@ -245,6 +273,7 @@ type CacheRoute struct {
 
 	// Statuses lists the HTTP status codes to be cached. It defaults to [0, 200, 201, 202, 204].
 	// +kubebuilder:default={0,200,201,202,204}
+	// +kubebuilder:validation:MaxItems=20
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Statuses []int32 `json:"statuses,omitempty"`
 }

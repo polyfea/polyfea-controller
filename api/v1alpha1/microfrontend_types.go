@@ -27,18 +27,21 @@ import (
 type ServiceReference struct {
 	// Name of the Kubernetes service (mutually exclusive with URI)
 	// +optional
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name *string `json:"name,omitempty"`
 
 	// URI for external services (mutually exclusive with Name)
 	// Should include schema (http:// or https://)
 	// +optional
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	URI *string `json:"uri,omitempty"`
 
 	// Namespace of the service. Defaults to the MicroFrontend's namespace if not specified.
 	// Only used when Name is set.
 	// +optional
+	// +kubebuilder:validation:MaxLength=63
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Namespace *string `json:"namespace,omitempty"`
 
@@ -54,6 +57,7 @@ type ServiceReference struct {
 	// +optional
 	// +kubebuilder:default=http
 	// +kubebuilder:validation:Enum=http;https
+	// +kubebuilder:validation:MaxLength=5
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Scheme *string `json:"scheme,omitempty"`
 
@@ -61,6 +65,7 @@ type ServiceReference struct {
 	// Only used when Name is set. Allows customization for different cluster implementations.
 	// +optional
 	// +kubebuilder:default=svc.cluster.local
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Domain *string `json:"domain,omitempty"`
 }
@@ -85,23 +90,29 @@ type MicroFrontendSpec struct {
 
 	// TODO: Make this work
 	// CacheControl defines the cache control header for the micro frontend. This is only used if the caching strategy is set to 'cache'.
+	// +optional
+	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheControl *string `json:"cacheControl,omitempty"`
 
 	// Relative path to the module file within the service.
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ModulePath *string `json:"modulePath"`
 
 	// Relative path to the static files within the service.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	StaticResources []StaticResources `json:"staticPaths,omitempty"`
 
 	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
 	// +kubebuilder:default=polyfea-controller-default
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	FrontendClass *string `json:"frontendClass"`
 
 	// List of dependencies that should be loaded before this micro frontend.
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DependsOn []string `json:"dependsOn,omitempty"`
 
@@ -120,12 +131,15 @@ type MicroFrontendSpec struct {
 // StaticResources defines the static resources that should be loaded before this micro frontend.
 type StaticResources struct {
 	// Kind defines the kind of the static resource can be script, stylesheet, or any other `link` element.
+	// +kubebuilder:validation:MaxLength=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Kind string `json:"kind"`
 
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Path string `json:"path"`
 
+	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Attributes []Attribute `json:"attributes,omitempty"`
 
@@ -145,6 +159,7 @@ type ImportMap struct {
 	// or absolute URLs.
 	// Example: {"angular": "./bundle/angular.mjs", "react": "https://cdn.example.com/react.js"}
 	// +optional
+	// +kubebuilder:validation:MaxProperties=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Imports map[string]string `json:"imports,omitempty"`
 
@@ -152,6 +167,7 @@ type ImportMap struct {
 	// Keys are URL path prefixes, values are import maps that apply within that scope.
 	// Example: {"/legacy/": {"angular": "./old-angular.mjs"}}
 	// +optional
+	// +kubebuilder:validation:MaxProperties=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Scopes map[string]map[string]string `json:"scopes,omitempty"`
 }
@@ -170,11 +186,13 @@ type Port struct {
 // MicroFrontendClassReference contains information about the MicroFrontendClass binding
 type MicroFrontendClassReference struct {
 	// Name of the MicroFrontendClass
+	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Name string `json:"name"`
 
 	// Namespace of the MicroFrontendClass
 	// +optional
+	// +kubebuilder:validation:MaxLength=63
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Namespace string `json:"namespace,omitempty"`
 
@@ -201,6 +219,7 @@ type MicroFrontendStatus struct {
 
 	// ResolvedServiceURL is the computed URL where the microfrontend is served from
 	// +optional
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	ResolvedServiceURL string `json:"resolvedServiceURL,omitempty"`
 
@@ -211,6 +230,7 @@ type MicroFrontendStatus struct {
 
 	// RejectionReason explains why the microfrontend was rejected (namespace policy violation, etc.)
 	// +optional
+	// +kubebuilder:validation:MaxLength=1024
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	RejectionReason string `json:"rejectionReason,omitempty"`
 
@@ -222,6 +242,7 @@ type MicroFrontendStatus struct {
 	// ImportMapConflicts lists module specifiers that couldn't be registered
 	// due to conflicts with other microfrontends (first-registered wins)
 	// +optional
+	// +kubebuilder:validation:MaxItems=256
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	ImportMapConflicts []ImportMapConflict `json:"importMapConflicts,omitempty"`
 }
@@ -229,23 +250,28 @@ type MicroFrontendStatus struct {
 // ImportMapConflict describes a module specifier conflict in the import map
 type ImportMapConflict struct {
 	// Specifier is the module name that has a conflict
+	// +kubebuilder:validation:MaxLength=512
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Specifier string `json:"specifier"`
 
 	// RequestedPath is what this microfrontend requested
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	RequestedPath string `json:"requestedPath"`
 
 	// RegisteredPath is what's actually registered (from another microfrontend)
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	RegisteredPath string `json:"registeredPath"`
 
 	// RegisteredBy indicates which microfrontend registered it first (namespace/name)
+	// +kubebuilder:validation:MaxLength=517
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	RegisteredBy string `json:"registeredBy"`
 
 	// Scope is the scope path where the conflict occurred (empty string for top-level imports)
 	// +optional
+	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Scope string `json:"scope,omitempty"`
 }

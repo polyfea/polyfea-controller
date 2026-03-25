@@ -43,6 +43,7 @@ spec:
                 description: CacheControl defines the cache control header for the
                   micro frontend. This is only used if the caching strategy is set
                   to 'cache'.
+                maxLength: 256
                 type: string
               cacheOptions:
                 description: CacheOptions specifies the cache settings for the PWA,
@@ -60,6 +61,7 @@ spec:
                           description: |-
                             Destination is the optional destination URL for this caching strategy.
                             You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+                          maxLength: 256
                           type: string
                         maxAgeSeconds:
                           description: MaxAgeSeconds specifies the maximum age (in
@@ -81,6 +83,7 @@ spec:
                         pattern:
                           description: Pattern is the URL pattern to which this caching
                             strategy applies.
+                          maxLength: 2048
                           type: string
                         statuses:
                           default:
@@ -94,6 +97,7 @@ spec:
                           items:
                             format: int32
                             type: integer
+                          maxItems: 20
                           type: array
                         strategy:
                           default: cache-first
@@ -114,6 +118,7 @@ spec:
                       required:
                       - pattern
                       type: object
+                    maxItems: 64
                     type: array
                   preCache:
                     description: PreCache lists the URLs or resources to be pre-cached
@@ -127,15 +132,18 @@ spec:
                           description: |-
                             Revision is an optional field that specifies a revision identifier for the resource.
                             The revision helps in cache management by allowing the service worker to recognize and update cached assets when their content changes. This ensures users always have access to the most up-to-date resources.
+                          maxLength: 256
                           type: string
                         url:
                           description: |-
                             URL specifies the resource URL that should be pre-cached. This URL points to the asset that needs to be available offline, ensuring it is cached during the installation of the PWA.
                             URL needs to be relative to the base URL of the frontend class.
+                          maxLength: 2048
                           type: string
                       required:
                       - url
                       type: object
+                    maxItems: 256
                     type: array
                 type: object
               cacheStrategy:
@@ -151,11 +159,13 @@ spec:
                   micro frontend.
                 items:
                   type: string
+                maxItems: 64
                 type: array
               frontendClass:
                 default: polyfea-controller-default
                 description: FrontendClass is the name of the frontend class that
                   should be used for this micro frontend.
+                maxLength: 253
                 type: string
               importMap:
                 description: |-
@@ -170,6 +180,7 @@ spec:
                       Imports maps bare module specifiers to paths (relative to this microfrontend's service)
                       or absolute URLs.
                       Example: {"angular": "./bundle/angular.mjs", "react": "https://cdn.example.com/react.js"}
+                    maxProperties: 256
                     type: object
                   scopes:
                     additionalProperties:
@@ -180,10 +191,12 @@ spec:
                       Scopes allows different module resolutions based on the referrer URL path.
                       Keys are URL path prefixes, values are import maps that apply within that scope.
                       Example: {"/legacy/": {"angular": "./old-angular.mjs"}}
+                    maxProperties: 64
                     type: object
                 type: object
               modulePath:
                 description: Relative path to the module file within the service.
+                maxLength: 2048
                 type: string
               proxy:
                 default: true
@@ -199,15 +212,18 @@ spec:
                     description: |-
                       Domain is the cluster domain suffix. Defaults to svc.cluster.local if not specified.
                       Only used when Name is set. Allows customization for different cluster implementations.
+                    maxLength: 253
                     type: string
                   name:
                     description: Name of the Kubernetes service (mutually exclusive
                       with URI)
+                    maxLength: 253
                     type: string
                   namespace:
                     description: |-
                       Namespace of the service. Defaults to the MicroFrontend's namespace if not specified.
                       Only used when Name is set.
+                    maxLength: 63
                     type: string
                   port:
                     default: 80
@@ -224,11 +240,13 @@ spec:
                     enum:
                     - http
                     - https
+                    maxLength: 5
                     type: string
                   uri:
                     description: |-
                       URI for external services (mutually exclusive with Name)
                       Should include schema (http:// or https://)
+                    maxLength: 2048
                     type: string
                 type: object
                 x-kubernetes-validations:
@@ -250,6 +268,7 @@ spec:
                         properties:
                           name:
                             description: The name of the attribute.
+                            maxLength: 256
                             type: string
                           value:
                             description: The value of the attribute.
@@ -258,12 +277,15 @@ spec:
                         - name
                         - value
                         type: object
+                      maxItems: 64
                       type: array
                     kind:
                       description: Kind defines the kind of the static resource can
                         be script, stylesheet, or any other `link` element.
+                      maxLength: 64
                       type: string
                     path:
+                      maxLength: 2048
                       type: string
                     proxy:
                       default: true
@@ -278,6 +300,7 @@ spec:
                   - kind
                   - path
                   type: object
+                maxItems: 64
                 type: array
             required:
             - frontendClass
@@ -358,9 +381,11 @@ spec:
                     type: boolean
                   name:
                     description: Name of the MicroFrontendClass
+                    maxLength: 253
                     type: string
                   namespace:
                     description: Namespace of the MicroFrontendClass
+                    maxLength: 63
                     type: string
                 required:
                 - accepted
@@ -377,20 +402,25 @@ spec:
                     registeredBy:
                       description: RegisteredBy indicates which microfrontend registered
                         it first (namespace/name)
+                      maxLength: 517
                       type: string
                     registeredPath:
                       description: RegisteredPath is what's actually registered (from
                         another microfrontend)
+                      maxLength: 2048
                       type: string
                     requestedPath:
                       description: RequestedPath is what this microfrontend requested
+                      maxLength: 2048
                       type: string
                     scope:
                       description: Scope is the scope path where the conflict occurred
                         (empty string for top-level imports)
+                      maxLength: 2048
                       type: string
                     specifier:
                       description: Specifier is the module name that has a conflict
+                      maxLength: 512
                       type: string
                   required:
                   - registeredBy
@@ -398,6 +428,7 @@ spec:
                   - requestedPath
                   - specifier
                   type: object
+                maxItems: 256
                 type: array
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
@@ -417,10 +448,12 @@ spec:
               rejectionReason:
                 description: RejectionReason explains why the microfrontend was rejected
                   (namespace policy violation, etc.)
+                maxLength: 1024
                 type: string
               resolvedServiceURL:
                 description: ResolvedServiceURL is the computed URL where the microfrontend
                   is served from
+                maxLength: 2048
                 type: string
             type: object
         type: object
