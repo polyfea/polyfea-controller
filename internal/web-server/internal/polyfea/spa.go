@@ -232,7 +232,7 @@ func (s *SinglePageApplication) buildImportMap(microFrontendClass *v1alpha1.Micr
 	return s.buildImportMapJSON(imports, scopes, len(sortedMfs), logger)
 }
 
-// getEligibleMicrofrontends returns all accepted, conflict-free microfrontends for the class
+// getEligibleMicrofrontends returns all accepted microfrontends for the class
 func (s *SinglePageApplication) getEligibleMicrofrontends(microFrontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
 	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		// Check if the MicroFrontend references this class
@@ -243,8 +243,7 @@ func (s *SinglePageApplication) getEligibleMicrofrontends(microFrontendClass *v1
 		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
 			return false
 		}
-		// Only include if no import map conflicts
-		return len(mf.Status.ImportMapConflicts) == 0
+		return true
 	})
 }
 
@@ -276,7 +275,9 @@ func (s *SinglePageApplication) sortMicrofrontendsByTimestamp(microfrontends []*
 	return mfList
 }
 
-// mergeImportMaps merges import maps from sorted microfrontends with first-registered-wins
+// mergeImportMaps merges import maps from sorted microfrontends.
+// Optional entries go to the global imports (first-registered-wins).
+// Scoped entries go under the MF-specific scope key.
 func (s *SinglePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (map[string]string, map[string]map[string]string) {
 	imports := make(map[string]string)
 	scopes := make(map[string]map[string]string)
@@ -287,36 +288,38 @@ func (s *SinglePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (ma
 			continue
 		}
 
-		s.mergeTopLevelImports(mf, mf.Spec.ImportMap.Imports, imports)
-		s.mergeScopedImports(mf, mf.Spec.ImportMap.Scopes, scopes)
+		// Optional entries → global imports (first-registered-wins)
+		s.mergeOptionalImports(mf, mf.Spec.ImportMap.Optional, imports)
+
+		// Scoped entries → under MF-specific scope
+		if len(mf.Spec.ImportMap.Scoped) > 0 {
+			scopeKey := buildProxyPath(mf.Namespace, mf.Name, "")
+			s.mergeScopedImports(mf, mf.Spec.ImportMap.Scoped, scopeKey, scopes)
+		}
 	}
 
 	return imports, scopes
 }
 
-// mergeTopLevelImports merges top-level imports with first-registered-wins policy
-func (s *SinglePageApplication) mergeTopLevelImports(mf *v1alpha1.MicroFrontend, newImports map[string]string, imports map[string]string) {
-	for specifier, path := range newImports {
+// mergeOptionalImports merges optional imports into the global import map with first-registered-wins policy
+func (s *SinglePageApplication) mergeOptionalImports(mf *v1alpha1.MicroFrontend, optionalImports map[string]string, imports map[string]string) {
+	for specifier, path := range optionalImports {
 		if _, exists := imports[specifier]; !exists {
-			// Transform relative paths to proxy paths
 			resolvedPath := s.resolveImportMapPath(mf, path)
 			imports[specifier] = resolvedPath
 		}
 	}
 }
 
-// mergeScopedImports merges scoped imports with first-registered-wins policy
-func (s *SinglePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, newScopes map[string]map[string]string, scopes map[string]map[string]string) {
-	for scope, scopeImports := range newScopes {
-		if scopes[scope] == nil {
-			scopes[scope] = make(map[string]string)
-		}
-		for specifier, path := range scopeImports {
-			if _, exists := scopes[scope][specifier]; !exists {
-				// Transform relative paths to proxy paths
-				resolvedPath := s.resolveImportMapPath(mf, path)
-				scopes[scope][specifier] = resolvedPath
-			}
+// mergeScopedImports merges scoped imports under the given scope key
+func (s *SinglePageApplication) mergeScopedImports(mf *v1alpha1.MicroFrontend, scopedImports map[string]string, scopeKey string, scopes map[string]map[string]string) {
+	if scopes[scopeKey] == nil {
+		scopes[scopeKey] = make(map[string]string)
+	}
+	for specifier, path := range scopedImports {
+		if _, exists := scopes[scopeKey][specifier]; !exists {
+			resolvedPath := s.resolveImportMapPath(mf, path)
+			scopes[scopeKey][specifier] = resolvedPath
 		}
 	}
 }

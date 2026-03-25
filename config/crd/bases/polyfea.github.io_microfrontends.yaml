@@ -170,28 +170,29 @@ spec:
               importMap:
                 description: |-
                   ImportMap defines module specifier mappings for this microfrontend.
-                  These entries are merged at the MicroFrontendClass level. In case of conflicts between
-                  microfrontends, first-registered wins (based on creation timestamp).
+                  Entries are merged at the MicroFrontendClass level using optional (global, skip-if-exists)
+                  and scoped (isolated per microfrontend) strategies.
                 properties:
-                  imports:
+                  optional:
                     additionalProperties:
                       type: string
                     description: |-
-                      Imports maps bare module specifiers to paths (relative to this microfrontend's service)
-                      or absolute URLs.
-                      Example: {"angular": "./bundle/angular.mjs", "react": "https://cdn.example.com/react.js"}
+                      Optional maps bare module specifiers to paths (relative to this microfrontend's service)
+                      or absolute URLs. Entries are added to the global import map. If a specifier is already
+                      registered by another MicroFrontend, it is silently skipped (first-registered-wins).
+                      Example: {"react": "./react.js", "lodash": "https://cdn.example.com/lodash.js"}
                     maxProperties: 256
                     type: object
-                  scopes:
+                  scoped:
                     additionalProperties:
-                      additionalProperties:
-                        type: string
-                      type: object
+                      type: string
                     description: |-
-                      Scopes allows different module resolutions based on the referrer URL path.
-                      Keys are URL path prefixes, values are import maps that apply within that scope.
-                      Example: {"/legacy/": {"angular": "./old-angular.mjs"}}
-                    maxProperties: 64
+                      Scoped maps bare module specifiers to paths (relative to this microfrontend's service)
+                      or absolute URLs. Entries are placed under this MicroFrontend's scope (derived from its
+                      proxy path), ensuring isolation. When scripts loaded from this MicroFrontend import a
+                      specifier, the scoped entry is used instead of the global one.
+                      Example: {"react": "./react-v17.js"}
+                    maxProperties: 256
                     type: object
                 type: object
               modulePath:
@@ -391,45 +392,6 @@ spec:
                 - accepted
                 - name
                 type: object
-              importMapConflicts:
-                description: |-
-                  ImportMapConflicts lists module specifiers that couldn't be registered
-                  due to conflicts with other microfrontends (first-registered wins)
-                items:
-                  description: ImportMapConflict describes a module specifier conflict
-                    in the import map
-                  properties:
-                    registeredBy:
-                      description: RegisteredBy indicates which microfrontend registered
-                        it first (namespace/name)
-                      maxLength: 517
-                      type: string
-                    registeredPath:
-                      description: RegisteredPath is what's actually registered (from
-                        another microfrontend)
-                      maxLength: 2048
-                      type: string
-                    requestedPath:
-                      description: RequestedPath is what this microfrontend requested
-                      maxLength: 2048
-                      type: string
-                    scope:
-                      description: Scope is the scope path where the conflict occurred
-                        (empty string for top-level imports)
-                      maxLength: 2048
-                      type: string
-                    specifier:
-                      description: Specifier is the module name that has a conflict
-                      maxLength: 512
-                      type: string
-                  required:
-                  - registeredBy
-                  - registeredPath
-                  - requestedPath
-                  - specifier
-                  type: object
-                maxItems: 256
-                type: array
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed MicroFrontend

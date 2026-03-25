@@ -123,88 +123,68 @@ A MicroFrontend resource includes the following properties:
   * **Note**: Either `name` or `uri` must be specified, but not both.
 * **staticPaths**: A list of static resources (scripts, stylesheets, or other link-based assets) that must be loaded before the microfrontend. Each entry may specify attributes, load-waiting behavior, and whether the resource should be proxied.
 * **cacheOptions**: Optional PWA-style cache configuration (pre-cache and runtime caching rules).
-* **importMap**: Defines module specifier mappings for JavaScript module resolution. Allows microfrontends to specify how bare module specifiers (e.g., `"react"`) should be resolved to actual URLs. These entries are merged at the MicroFrontendClass level with conflict detection.
+* **importMap**: Defines module specifier mappings for JavaScript module resolution. Allows microfrontends to specify how bare module specifiers (e.g., `"react"`) should be resolved to actual URLs. Entries are merged at the MicroFrontendClass level using optional (global) and scoped (isolated) strategies.
 
 #### Import Maps
 
 The `importMap` field enables fine-grained control over JavaScript module resolution in microfrontends, following the [Import Maps specification](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/script/type/importmap). This allows you to:
 
 * Map bare specifiers to specific module URLs (e.g., `"react"` → `"./react-v18.js"`)
-* Share common dependencies across microfrontends
-* Override module resolution for different scopes
+* Share common dependencies across microfrontends via `optional` entries
+* Isolate dependencies per microfrontend via `scoped` entries
 
 **Structure:**
 
 ```yaml
 importMap:
-  imports:
+  # Optional: added to global import map, silently skipped if already registered
+  optional:
     react: "./vendor/react.js"
     react-dom: "./vendor/react-dom.js"
-  scopes:
-    "/legacy/":
-      react: "./vendor/react-legacy.js"
+  # Scoped: isolated under this microfrontend's proxy path scope
+  scoped:
+    lodash: "./vendor/lodash-custom.js"
 ```
 
-**Conflict Detection:**
+**Registration Strategies:**
 
-When multiple MicroFrontends in the same MicroFrontendClass define the same import specifier with different paths:
+* **`optional`**: Entries are added to the global import map. If a specifier is already registered by another MicroFrontend (first-registered-wins based on creation timestamp), the entry is silently skipped. The MicroFrontend remains Ready regardless.
+* **`scoped`**: Entries are placed under the MicroFrontend's proxy path scope (e.g., `./polyfea/proxy/{namespace}/{name}/`). This ensures isolation — when scripts loaded from this MicroFrontend import a specifier, the scoped entry is used. No conflicts are possible with other MicroFrontends.
 
-1. **First-registered wins**: The MicroFrontend with the earliest creation timestamp takes precedence
-2. **Later registrations are blocked**: Conflicting MicroFrontends enter `Failed` phase and are NOT served
-3. **Status provides details**: The `importMapConflicts` field lists all conflicts with details about which MicroFrontend registered first
-4. **Automatic resolution**: When the blocking MicroFrontend is deleted or updated, conflicted MicroFrontends are automatically reconciled (within 5 minutes) and can become ready
-
-**Example Conflict Scenario:**
+**Example:**
 
 ```yaml
-# MicroFrontend A (created first) - wins
+# MicroFrontend A — shared react via optional
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontend
 metadata:
   name: microfrontend-a
 spec:
   importMap:
-    imports:
+    optional:
       react: "./react-v18.js"
   # ... other fields
 
 ---
-# MicroFrontend B (created later) - conflicts
+# MicroFrontend B — also declares react (silently skipped) + isolated lodash
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontend
 metadata:
   name: microfrontend-b
 spec:
   importMap:
-    imports:
-      react: "./react-v17.js"  # Conflicts with microfrontend-a
+    optional:
+      react: "./react-v17.js"  # Silently skipped, microfrontend-a's version is used
+    scoped:
+      lodash: "./lodash-v3.js"  # Only used by scripts from microfrontend-b
   # ... other fields
-```
-
-MicroFrontend B will show status:
-
-```yaml
-status:
-  phase: Failed
-  conditions:
-    - type: Ready
-      status: "False"
-      reason: Error
-      message: "Import map conflicts detected"
-  importMapConflicts:
-    - specifier: "react"
-      requestedPath: "./react-v17.js"
-      registeredPath: "./react-v18.js"
-      registeredBy: "default/microfrontend-a"
-      scope: ""
 ```
 
 **Best Practices:**
 
-* Coordinate import map entries across teams to avoid conflicts
-* Use consistent dependency versions within a MicroFrontendClass
-* Monitor `importMapConflicts` status field to detect issues
-* Consider using scopes for namespace-specific overrides
+* Use `optional` for shared libraries where any version is acceptable (e.g., React, Vue)
+* Use `scoped` when a microfrontend needs its own isolated version of a dependency
+* Use consistent dependency versions within a MicroFrontendClass for better compatibility
 
 #### Required Fields
 
@@ -268,7 +248,6 @@ The MicroFrontend status includes:
 * **resolvedServiceURL**: The computed URL where the microfrontend is served from
 * **frontendClassRef**: Reference to the bound MicroFrontendClass including acceptance status
 * **rejectionReason**: Explanation when rejected by namespace policy
-* **importMapConflicts**: List of module specifiers that couldn't be registered due to conflicts with other microfrontends (first-registered wins)
 * **observedGeneration**: The generation most recently observed by the controller
 
 Example status when accepted:
@@ -324,43 +303,6 @@ status:
     name: production-frontend
     namespace: platform
     accepted: false
-  observedGeneration: 1
-```
-
-Example status with import map conflicts:
-
-```yaml
-status:
-  conditions:
-    - type: Ready
-      status: "False"
-      reason: Error
-      message: "Import map conflicts detected"
-    - type: ServiceResolved
-      status: "True"
-      reason: Successful
-      message: "Service URL resolved successfully"
-    - type: Accepted
-      status: "True"
-      reason: Successful
-      message: "MicroFrontend accepted"
-  phase: Failed
-  resolvedServiceURL: "http://my-service.default.svc.cluster.local:80"
-  frontendClassRef:
-    name: polyfea-controller-default
-    namespace: platform
-    accepted: true
-  importMapConflicts:
-    - specifier: "react"
-      requestedPath: "./react-v17.js"
-      registeredPath: "./react-v18.js"
-      registeredBy: "default/other-microfrontend"
-      scope: ""
-    - specifier: "lodash"
-      requestedPath: "./lodash-v3.js"
-      registeredPath: "./lodash-v4.js"
-      registeredBy: "team-a/shared-libs"
-      scope: "/legacy/"
   observedGeneration: 1
 ```
 
@@ -438,8 +380,8 @@ kubectl get microfrontends -o custom-columns=NAME:.metadata.name,PHASE:.status.p
 # Find rejected MicroFrontends
 kubectl get microfrontends -o json | jq '.items[] | select(.status.phase=="Rejected") | {name: .metadata.name, reason: .status.rejectionReason}'
 
-# Find MicroFrontends with import map conflicts
-kubectl get microfrontends -o json | jq '.items[] | select(.status.importMapConflicts | length > 0) | {name: .metadata.name, namespace: .metadata.namespace, conflicts: .status.importMapConflicts}'
+# List MicroFrontends with import maps
+kubectl get microfrontends -o json | jq '.items[] | select(.spec.importMap != null) | {name: .metadata.name, namespace: .metadata.namespace, importMap: .spec.importMap}'
 
 # Check MicroFrontendClass statistics
 kubectl get microfrontendclasses -o custom-columns=NAME:.metadata.name,ACCEPTED:.status.acceptedMicroFrontends,REJECTED:.status.rejectedMicroFrontends
@@ -466,9 +408,8 @@ kubectl describe microfrontend my-microfrontend
 3. **Monitor rejection reasons** to quickly identify and fix configuration issues
 4. **Set up alerts** on condition status changes for critical resources
 5. **Verify observedGeneration** matches the current generation to ensure status reflects the latest configuration
-6. **Coordinate import map entries** across teams within the same MicroFrontendClass to avoid conflicts
-7. **Monitor importMapConflicts** regularly to detect and resolve module resolution issues
-8. **Use consistent dependency versions** across microfrontends in the same class for better compatibility
+6. **Use `optional`** for shared libraries and `scoped` for isolated dependencies in import maps
+7. **Use consistent dependency versions** across microfrontends in the same class for better compatibility
 
 ## Getting Started
 
