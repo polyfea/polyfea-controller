@@ -86,20 +86,16 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// Update status
 	statusUpdated := false
 	originalStatus := webComponent.Status.DeepCopy()
 
-	// Reconcile MicroFrontend reference
 	statusUpdated = r.reconcileMicroFrontendReference(ctx, webComponent, logger)
 
-	// Update ObservedGeneration
 	if webComponent.Status.ObservedGeneration != webComponent.Generation {
 		webComponent.Status.ObservedGeneration = webComponent.Generation
 		statusUpdated = true
 	}
 
-	// Update status if needed
 	if statusUpdated {
 		if err := r.Status().Update(ctx, webComponent); err != nil {
 			logger.Error(err, "Failed to update WebComponent status")
@@ -115,7 +111,6 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Context, webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
 	statusUpdated := false
 
-	// No MicroFrontend reference specified
 	if webComponent.Spec.MicroFrontend == nil || *webComponent.Spec.MicroFrontend == "" {
 		statusUpdated = r.handleNoMicroFrontendRef(webComponent, logger)
 		return statusUpdated
@@ -123,7 +118,6 @@ func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Con
 
 	mfName := *webComponent.Spec.MicroFrontend
 
-	// Resolve MicroFrontend reference
 	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, webComponent.Namespace)
 	mfFound := err == nil
 	mfNamespace := webComponent.Namespace
@@ -137,7 +131,6 @@ func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Con
 		statusUpdated = true
 	}
 
-	// Update MicroFrontendRef
 	statusUpdated = r.updateMicroFrontendRef(webComponent, mfName, mfNamespace, mfFound) || statusUpdated
 
 	if mfFound {

@@ -105,13 +105,12 @@ func SetCondition(conditions *[]metav1.Condition, conditionType string, status m
 	newCondition := metav1.Condition{
 		Type:               conditionType,
 		Status:             status,
-		ObservedGeneration: 0, // This should be set by the caller if needed
+		ObservedGeneration: 0,
 		LastTransitionTime: now,
 		Reason:             reason,
 		Message:            message,
 	}
 
-	// Find if the condition already exists
 	for i, condition := range *conditions {
 		if condition.Type == conditionType {
 			// Only update if the status has changed
@@ -125,7 +124,6 @@ func SetCondition(conditions *[]metav1.Condition, conditionType string, status m
 		}
 	}
 
-	// Condition doesn't exist, append it
 	*conditions = append(*conditions, newCondition)
 }
 

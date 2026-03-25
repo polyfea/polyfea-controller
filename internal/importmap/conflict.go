@@ -98,12 +98,10 @@ func shouldProcess(
 	other *polyfeav1alpha1.MicroFrontend,
 	frontendClassName string,
 ) bool {
-	// Skip self
 	if other.Namespace == mf.Namespace && other.Name == mf.Name {
 		return false
 	}
 
-	// Skip if not same frontend class
 	otherClassName := DefaultFrontendClassName
 	if other.Spec.FrontendClass != nil && *other.Spec.FrontendClass != "" {
 		otherClassName = *other.Spec.FrontendClass
@@ -112,12 +110,10 @@ func shouldProcess(
 		return false
 	}
 
-	// Skip if not accepted
 	if other.Status.FrontendClassRef == nil || !other.Status.FrontendClassRef.Accepted {
 		return false
 	}
 
-	// Skip if no import map
 	if other.Spec.ImportMap == nil {
 		return false
 	}

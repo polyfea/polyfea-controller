@@ -63,24 +63,18 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	logger.Info("Reconciling MicroFrontend", "MicroFrontend", mf.Name, "Namespace", mf.Namespace)
 
-	// Handle finalizer
 	if result, err := r.handleFinalizer(ctx, mf); result != nil {
 		return *result, err
 	}
 
-	// Handle deletion
 	if result, err := r.handleDeletion(ctx, req, mf); result != nil {
 		return *result, err
 	}
 
-	// Update status
 	statusUpdated := false
 	originalStatus := mf.Status.DeepCopy()
 
-	// Resolve service URL
 	statusUpdated = r.resolveServiceURL(mf) || statusUpdated
-
-	// Process MicroFrontendClass and namespace policy
 	statusUpdated = r.processFrontendClass(ctx, mf) || statusUpdated
 
 	// Check for import map conflicts if accepted and has import map
@@ -88,13 +82,11 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		statusUpdated = r.checkImportMapConflicts(ctx, mf) || statusUpdated
 	}
 
-	// Update ObservedGeneration
 	if mf.Status.ObservedGeneration != mf.Generation {
 		mf.Status.ObservedGeneration = mf.Generation
 		statusUpdated = true
 	}
 
-	// Update status if needed
 	if statusUpdated {
 		if err := r.Status().Update(ctx, mf); err != nil {
 			logger.Error(err, "Failed to update MicroFrontend status")
@@ -214,7 +206,6 @@ func (r *MicroFrontendReconciler) validateNamespacePolicy(mf *polyfeav1alpha1.Mi
 	statusUpdated := false
 	accepted := mfc.IsNamespaceAllowed(mf.Namespace)
 
-	// Update FrontendClassRef
 	if r.shouldUpdateFrontendClassRef(mf, frontendClassName, mfc.Namespace, accepted) {
 		mf.Status.FrontendClassRef = &polyfeav1alpha1.MicroFrontendClassReference{
 			Name:      frontendClassName,
@@ -253,20 +244,15 @@ func (r *MicroFrontendReconciler) handleAcceptedMicroFrontend(mf *polyfeav1alpha
 	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeAccepted,
 		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontend accepted")
 
-	// Clear rejection reason if previously set
 	if mf.Status.RejectionReason != "" {
 		mf.Status.RejectionReason = ""
 		statusUpdated = true
 	}
 
-	// Check if there are import map conflicts
 	hasImportMapConflicts := len(mf.Status.ImportMapConflicts) > 0
-
-	// Determine overall phase and readiness
 	serviceResolved := polyfeav1alpha1.IsConditionTrue(mf.Status.Conditions, polyfeav1alpha1.ConditionTypeServiceResolved)
 
 	if hasImportMapConflicts {
-		// MicroFrontend has import map conflicts - not ready
 		if mf.Status.Phase != polyfeav1alpha1.MicroFrontendPhaseFailed {
 			mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
 			statusUpdated = true
@@ -366,17 +352,14 @@ func (r *MicroFrontendReconciler) checkImportMapConflicts(ctx context.Context, m
 
 	frontendClassName := GetFrontendClassName(mf.Spec.FrontendClass)
 
-	// List all MicroFrontends
 	mfList := &polyfeav1alpha1.MicroFrontendList{}
 	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
 		logger.Error(err, "Failed to list MicroFrontends for import map conflict check")
 		return false
 	}
 
-	// Detect conflicts using the importmap package
 	conflicts := importmap.DetectConflicts(mf, mfList.Items, frontendClassName)
 
-	// Update status if conflicts changed
 	if !importmap.ConflictsEqual(mf.Status.ImportMapConflicts, conflicts) {
 		mf.Status.ImportMapConflicts = conflicts
 		if len(conflicts) > 0 {
@@ -424,7 +407,6 @@ func (r *MicroFrontendReconciler) findMicroFrontendsForClass(ctx context.Context
 	logger := log.FromContext(ctx)
 	logger.Info("MicroFrontendClass changed, finding dependent MicroFrontends", "class", mfc.Name)
 
-	// List all MicroFrontends across all namespaces
 	mfList := &polyfeav1alpha1.MicroFrontendList{}
 	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
 		logger.Error(err, "Failed to list MicroFrontends for class change")
@@ -433,7 +415,6 @@ func (r *MicroFrontendReconciler) findMicroFrontendsForClass(ctx context.Context
 
 	var requests []reconcile.Request
 	for _, mf := range mfList.Items {
-		// If this MicroFrontend references the changed class, enqueue it for reconciliation
 		if GetFrontendClassName(mf.Spec.FrontendClass) == mfc.Name {
 			requests = append(requests, reconcile.Request{
 				NamespacedName: client.ObjectKey{

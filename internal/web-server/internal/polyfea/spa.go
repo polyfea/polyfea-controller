@@ -218,7 +218,6 @@ func generateNonce() (string, error) {
 // buildImportMap creates a merged import map from all accepted microfrontends in the class
 // First-registered wins for conflicts (based on creation timestamp)
 func (s *SinglePageApplication) buildImportMap(microFrontendClass *v1alpha1.MicroFrontendClass, logger logr.Logger) (string, error) {
-	// Get all eligible microfrontends for this class
 	microfrontends, err := s.getEligibleMicrofrontends(microFrontendClass)
 	if err != nil {
 		return "{}", err
@@ -230,7 +229,6 @@ func (s *SinglePageApplication) buildImportMap(microFrontendClass *v1alpha1.Micr
 	// Build merged import map with first-registered-wins policy
 	imports, scopes := s.mergeImportMaps(sortedMfs)
 
-	// Convert to JSON
 	return s.buildImportMapJSON(imports, scopes, len(sortedMfs), logger)
 }
 

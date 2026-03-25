@@ -66,7 +66,6 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	logger.Info("Reconciling MicroFrontendClass", "MicroFrontendClass", mfc)
 
-	// Add finalizer if not present
 	if !controllerutil.ContainsFinalizer(mfc, FinalizerName) {
 		logger.Info("Adding Finalizer for MicroFrontendClass")
 		controllerutil.AddFinalizer(mfc, FinalizerName)
@@ -77,7 +76,6 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	// Handle deletion
 	if mfc.GetDeletionTimestamp() != nil {
 		if controllerutil.ContainsFinalizer(mfc, FinalizerName) {
 			logger.Info("Performing finalizer operations before deletion")
@@ -100,7 +98,6 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	// Store the MicroFrontendClass in the repository
 	logger.Info("Storing MicroFrontendClass in repository", "MicroFrontendClass", mfc.Name)
 	if err := r.Repository.Store(mfc); err != nil {
 		logger.Error(err, "Failed to store MicroFrontendClass in repository")
@@ -113,11 +110,9 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// Update status
 	statusUpdated := false
 	originalStatus := mfc.Status.DeepCopy()
 
-	// Count accepted and rejected MicroFrontends
 	mfList := &polyfeav1alpha1.MicroFrontendList{}
 	if err := r.List(ctx, mfList, client.InNamespace("")); err != nil {
 		logger.Error(err, "Failed to list MicroFrontends")
@@ -146,7 +141,6 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}
 
-	// Set Ready condition
 	polyfeav1alpha1.SetCondition(&mfc.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
 		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontendClass is ready")
 
@@ -155,13 +149,11 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		statusUpdated = true
 	}
 
-	// Update ObservedGeneration
 	if mfc.Status.ObservedGeneration != mfc.Generation {
 		mfc.Status.ObservedGeneration = mfc.Generation
 		statusUpdated = true
 	}
 
-	// Update status if needed
 	if statusUpdated {
 		if err := r.Status().Update(ctx, mfc); err != nil {
 			logger.Error(err, "Failed to update MicroFrontendClass status")

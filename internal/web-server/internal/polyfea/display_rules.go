@@ -12,7 +12,6 @@ import (
 
 // selectMatchingWebComponents checks if a WebComponent matches the given display criteria.
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
-	// Check if any of display rules matches
 	for _, displayRule := range webComponent.Spec.DisplayRules {
 		var pathRegex *regexp.Regexp
 		selectCurrent := true
@@ -75,7 +74,6 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 			}
 		}
 
-		// If any of display rules matches, we can evaluate to true
 		if selectCurrent {
 			return true
 		}

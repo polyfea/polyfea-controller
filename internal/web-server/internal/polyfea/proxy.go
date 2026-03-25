@@ -80,7 +80,6 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	p.finalizeResponse(w, resp, microfrontendClass.Spec.ExtraHeaders, ctx, span, logger)
 }
 
-// Helper methods for HandleProxy
 func (p *PolyfeaProxy) prepareLogger(functionName, method, path string) logr.Logger {
 	return p.logger.WithValues("function", functionName, "method", method, "path", path)
 }

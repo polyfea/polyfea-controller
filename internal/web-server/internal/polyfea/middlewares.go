@@ -50,7 +50,6 @@ func BasePathStrippingMiddleware(next http.Handler, microFrontendClassRepository
 	})
 }
 
-// Helper function to extract base path
 func extractBasePath(originalPath string, r *http.Request) string {
 	if polyfeaIndex := strings.Index(originalPath, "/polyfea"); polyfeaIndex != -1 {
 		// Consider everything before /polyfea as basePath
@@ -62,7 +61,6 @@ func extractBasePath(originalPath string, r *http.Request) string {
 	return originalPath
 }
 
-// Helper function to adjust specific paths
 func adjustSpecialPaths(r *http.Request, originalPath string) {
 	if strings.Contains(originalPath, "/sw.mjs") {
 		r.URL.Path = "/sw.mjs"

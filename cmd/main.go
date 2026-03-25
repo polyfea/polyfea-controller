@@ -102,7 +102,6 @@ func main() {
 		})
 	}
 
-	// Configure TLS for webhooks and metrics
 	webhookServer, webhookCertWatcher := configureTLS(
 		tlsOpts, webhookCertPath, webhookCertName, webhookCertKey,
 	)
@@ -115,7 +114,6 @@ func main() {
 
 	metricsCertWatcher := configureMetricsTLS(&metricsServerOptions, metricsCertPath, metricsCertName, metricsCertKey)
 
-	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -129,15 +127,12 @@ func main() {
 		exitWithError()
 	}
 
-	// Register controllers and create repositories
 	microFrontendClassRepository, microFrontendRepository, webComponentRepository := registerControllers(mgr)
 	// +kubebuilder:scaffold:builder
 
-	// Add cert watchers to manager
 	addCertWatcherToManager(mgr, metricsCertWatcher, "metrics")
 	addCertWatcherToManager(mgr, webhookCertWatcher, "webhook")
 
-	// Initialize telemetry
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -155,7 +150,6 @@ func main() {
 		exitWithError()
 	}
 
-	// Health checks
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		exitWithError()
@@ -165,7 +159,6 @@ func main() {
 		exitWithError()
 	}
 
-	// Start manager and HTTP server
 	wg.Add(1)
 	go startManager(cancel, mgr)
 

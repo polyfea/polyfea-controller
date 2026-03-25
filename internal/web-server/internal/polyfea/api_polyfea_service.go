@@ -68,7 +68,6 @@ func (s *PolyfeaApiService) GetContextArea(w http.ResponseWriter, r *http.Reques
 	}
 
 	webComponents = s.limitWebComponents(webComponents, params.Take)
-	// Initialize microFrontendsToLoad
 	microFrontendsToLoad := []string{}
 	result.Elements = s.convertWebComponentsToResponse(webComponents, &microFrontendsToLoad)
 
@@ -98,7 +97,6 @@ func (s *PolyfeaApiService) GetStaticConfig(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// Helper methods for GetContextArea
 func (s *PolyfeaApiService) prepareLogger(functionName, name, path string, take *int) logr.Logger {
 	return s.logger.WithValues("function", functionName, "context-area", name, "path", path, "take", take)
 }
