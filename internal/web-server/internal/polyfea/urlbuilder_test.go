@@ -58,7 +58,7 @@ func TestBuildModulePath(t *testing.T) {
 
 	t.Run("proxy enabled with version", func(t *testing.T) {
 		got := buildModulePath("ns", "mf", "app.js", "abc123def456", true, nil)
-		want := "./polyfea/proxy/ns/mf/app.js#abc123def456"
+		want := "./polyfea/proxy/ns/mf/app.js?v=abc123def456"
 		if got == nil || *got != want {
 			t.Errorf("buildModulePath(proxy=true, version) = %v, want %q", got, want)
 		}
@@ -89,7 +89,7 @@ func TestAppendVersionFragment(t *testing.T) {
 		name, path, version, want string
 	}{
 		{"empty version", "./polyfea/proxy/ns/mf/app.js", "", "./polyfea/proxy/ns/mf/app.js"},
-		{"with version", "./polyfea/proxy/ns/mf/app.js", "abc123", "./polyfea/proxy/ns/mf/app.js#abc123"},
+		{"with version", "./polyfea/proxy/ns/mf/app.js", "abc123", "./polyfea/proxy/ns/mf/app.js?v=abc123"},
 		{"trailing slash not versioned", "./polyfea/proxy/ns/mf/imports/@lit/context/", "abc123", "./polyfea/proxy/ns/mf/imports/@lit/context/"},
 	}
 	for _, tt := range tests {

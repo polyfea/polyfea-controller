@@ -20,15 +20,16 @@ func joinURL(baseURL, path string) string {
 	return baseURL + path
 }
 
-// appendVersionFragment appends a URL fragment (#version) to path when version is non-empty.
-// Used to bust the browser ES module registry cache without changing the HTTP request URL.
+// appendVersionFragment appends a query-string version (?v=version) to path when version is non-empty.
+// The proxy strips query strings before forwarding to the backend, so the version token is invisible
+// to the origin server but changes the URL seen by the browser's HTTP cache, busting it on update.
 // Paths ending in "/" are left unchanged: they are import map namespace-like entries and the
-// browser requires the address to also end in "/" — appending a fragment would break that.
+// browser requires the address to also end in "/" — appending anything would break that.
 func appendVersionFragment(path, version string) string {
 	if version == "" || strings.HasSuffix(path, "/") {
 		return path
 	}
-	return path + "#" + version
+	return path + "?v=" + version
 }
 
 // buildModulePath constructs the path for a microfrontend module, either proxied or direct.
