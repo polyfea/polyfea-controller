@@ -177,7 +177,7 @@ func (r *MicroFrontendReconciler) resolveModuleHash(ctx context.Context, mf *pol
 		logger.Info("Failed to fetch module for hashing, keeping existing hash", "url", moduleURL, "error", err.Error())
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusNotModified {
 		return false

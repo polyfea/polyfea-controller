@@ -29,13 +29,21 @@ import (
 	v1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 )
 
+const (
+	testModulePath   = "/app.js"
+	testETagV1       = `"v1"`
+	testETagV2       = `"v2"`
+	testExistingHash = "existinghash1"
+)
+
 // newTestReconciler creates a minimal MicroFrontendReconciler sufficient for hash tests.
 func newTestReconciler() *MicroFrontendReconciler {
 	return &MicroFrontendReconciler{}
 }
 
-// newMFWithURL creates a MicroFrontend whose ResolvedServiceURL and ModulePath point to the given server.
-func newMFWithURL(serviceURL, modulePath string) *v1alpha1.MicroFrontend {
+// newMFWithURL creates a MicroFrontend whose ResolvedServiceURL points to the given server.
+func newMFWithURL(serviceURL string) *v1alpha1.MicroFrontend {
+	modulePath := testModulePath
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{Name: "test-mf", Namespace: "default"},
 		Spec: v1alpha1.MicroFrontendSpec{
@@ -56,13 +64,13 @@ func expectedHash(content []byte) string {
 func TestResolveModuleHash_SetsHashOnFirstFetch(t *testing.T) {
 	body := []byte("console.log('hello');")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("ETag", testETagV1)
 		_, _ = w.Write(body)
 	}))
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
+	mf := newMFWithURL(srv.URL)
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
@@ -73,24 +81,24 @@ func TestResolveModuleHash_SetsHashOnFirstFetch(t *testing.T) {
 	if mf.Status.ModuleHash != want {
 		t.Errorf("ModuleHash = %q, want %q", mf.Status.ModuleHash, want)
 	}
-	if mf.Status.ModuleETag != `"v1"` {
-		t.Errorf("ModuleETag = %q, want %q", mf.Status.ModuleETag, `"v1"`)
+	if mf.Status.ModuleETag != testETagV1 {
+		t.Errorf("ModuleETag = %q, want %q", mf.Status.ModuleETag, testETagV1)
 	}
 }
 
 func TestResolveModuleHash_NoChangeWhenContentUnchanged(t *testing.T) {
 	body := []byte("console.log('hello');")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("ETag", testETagV1)
 		_, _ = w.Write(body)
 	}))
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
+	mf := newMFWithURL(srv.URL)
 	// Pre-populate with the same hash as the server would produce
 	mf.Status.ModuleHash = expectedHash(body)
-	mf.Status.ModuleETag = `"v1"`
+	mf.Status.ModuleETag = testETagV1
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
@@ -103,15 +111,15 @@ func TestResolveModuleHash_UpdatesHashWhenContentChanges(t *testing.T) {
 	oldBody := []byte("console.log('old');")
 	newBody := []byte("console.log('new');")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("ETag", `"v2"`)
+		w.Header().Set("ETag", testETagV2)
 		_, _ = w.Write(newBody)
 	}))
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
+	mf := newMFWithURL(srv.URL)
 	mf.Status.ModuleHash = expectedHash(oldBody)
-	mf.Status.ModuleETag = `"v1"` // Different ETag → no 304, full response
+	mf.Status.ModuleETag = testETagV1 // Different ETag → no 304, full response
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
@@ -122,26 +130,26 @@ func TestResolveModuleHash_UpdatesHashWhenContentChanges(t *testing.T) {
 	if mf.Status.ModuleHash != want {
 		t.Errorf("ModuleHash = %q, want %q", mf.Status.ModuleHash, want)
 	}
-	if mf.Status.ModuleETag != `"v2"` {
-		t.Errorf("ModuleETag = %q, want %q", mf.Status.ModuleETag, `"v2"`)
+	if mf.Status.ModuleETag != testETagV2 {
+		t.Errorf("ModuleETag = %q, want %q", mf.Status.ModuleETag, testETagV2)
 	}
 }
 
 func TestResolveModuleHash_ETagHit_Returns304(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("If-None-Match") == `"v1"` {
+		if r.Header.Get("If-None-Match") == testETagV1 {
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
-		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("ETag", testETagV1)
 		_, _ = w.Write([]byte("content"))
 	}))
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
-	mf.Status.ModuleHash = "existinghash1"
-	mf.Status.ModuleETag = `"v1"`
+	mf := newMFWithURL(srv.URL)
+	mf.Status.ModuleHash = testExistingHash
+	mf.Status.ModuleETag = testETagV1
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
@@ -149,7 +157,7 @@ func TestResolveModuleHash_ETagHit_Returns304(t *testing.T) {
 		t.Fatal("expected changed=false on 304 Not Modified")
 	}
 	// Hash must be preserved unchanged
-	if mf.Status.ModuleHash != "existinghash1" {
+	if mf.Status.ModuleHash != testExistingHash {
 		t.Errorf("ModuleHash changed unexpectedly to %q", mf.Status.ModuleHash)
 	}
 }
@@ -157,16 +165,16 @@ func TestResolveModuleHash_ETagHit_Returns304(t *testing.T) {
 func TestResolveModuleHash_KeepsExistingHashOnFetchFailure(t *testing.T) {
 	// Point to a port with no listener
 	r := newTestReconciler()
-	mf := newMFWithURL("http://127.0.0.1:1", "/app.js")
-	mf.Status.ModuleHash = "existinghash1"
-	mf.Status.ModuleETag = `"v1"`
+	mf := newMFWithURL("http://127.0.0.1:1")
+	mf.Status.ModuleHash = testExistingHash
+	mf.Status.ModuleETag = testETagV1
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
 	if changed {
 		t.Fatal("expected changed=false on fetch failure")
 	}
-	if mf.Status.ModuleHash != "existinghash1" {
+	if mf.Status.ModuleHash != testExistingHash {
 		t.Errorf("ModuleHash changed on failure: got %q", mf.Status.ModuleHash)
 	}
 }
@@ -178,22 +186,22 @@ func TestResolveModuleHash_KeepsExistingHashOnNon200(t *testing.T) {
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
-	mf.Status.ModuleHash = "existinghash1"
+	mf := newMFWithURL(srv.URL)
+	mf.Status.ModuleHash = testExistingHash
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
 	if changed {
 		t.Fatal("expected changed=false on non-200 response")
 	}
-	if mf.Status.ModuleHash != "existinghash1" {
+	if mf.Status.ModuleHash != testExistingHash {
 		t.Errorf("ModuleHash changed on error response: got %q", mf.Status.ModuleHash)
 	}
 }
 
 func TestResolveModuleHash_SkipsWhenNoServiceURL(t *testing.T) {
 	r := newTestReconciler()
-	mf := newMFWithURL("", "/app.js")
+	mf := newMFWithURL("")
 
 	changed := r.resolveModuleHash(context.Background(), mf)
 
@@ -223,7 +231,7 @@ func TestResolveModuleHash_HashIs12HexChars(t *testing.T) {
 	defer srv.Close()
 
 	r := newTestReconciler()
-	mf := newMFWithURL(srv.URL, "/app.js")
+	mf := newMFWithURL(srv.URL)
 
 	r.resolveModuleHash(context.Background(), mf)
 
@@ -231,7 +239,7 @@ func TestResolveModuleHash_HashIs12HexChars(t *testing.T) {
 		t.Errorf("ModuleHash length = %d, want 12; got %q", len(mf.Status.ModuleHash), mf.Status.ModuleHash)
 	}
 	for _, c := range mf.Status.ModuleHash {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			t.Errorf("ModuleHash contains non-hex char %q in %q", c, mf.Status.ModuleHash)
 		}
 	}
