@@ -34,7 +34,6 @@ func GetConfigurationValue(key string) string {
 }
 
 func initConfiguration() {
-	// Load configuration from environment variables
 	for _, env := range os.Environ() {
 		configuration[strings.Split(env, "=")[0]] = strings.Split(env, "=")[1]
 	}

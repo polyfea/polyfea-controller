@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -69,7 +68,6 @@ func (s *PolyfeaApiService) GetContextArea(w http.ResponseWriter, r *http.Reques
 	}
 
 	webComponents = s.limitWebComponents(webComponents, params.Take)
-	// Initialize microFrontendsToLoad
 	microFrontendsToLoad := []string{}
 	result.Elements = s.convertWebComponentsToResponse(webComponents, &microFrontendsToLoad)
 
@@ -99,7 +97,6 @@ func (s *PolyfeaApiService) GetStaticConfig(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-// Helper methods for GetContextArea
 func (s *PolyfeaApiService) prepareLogger(functionName, name, path string, take *int) logr.Logger {
 	return s.logger.WithValues("function", functionName, "context-area", name, "path", path, "take", take)
 }
@@ -170,7 +167,7 @@ func (s *PolyfeaApiService) getMicroFrontendsForClass(frontendClass *v1alpha1.Mi
 }
 
 func (s *PolyfeaApiService) getWebComponents(name, path string, userRoles []string, microFrontendsForClass []*v1alpha1.MicroFrontend) ([]*v1alpha1.WebComponent, error) {
-	microFrontendsNamesForClass := []string{}
+	microFrontendsNamesForClass := make([]string, 0, len(microFrontendsForClass))
 	for _, mf := range microFrontendsForClass {
 		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
 	}
@@ -215,7 +212,7 @@ func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComp
 }
 
 func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1alpha1.WebComponent, microFrontendsToLoad *[]string) []generated.ElementSpec {
-	result := []generated.ElementSpec{}
+	result := make([]generated.ElementSpec, 0, len(webComponents))
 	for _, webComponent := range webComponents {
 		var microfrontendName string
 		if webComponent.Spec.MicroFrontend != nil {
@@ -259,119 +256,6 @@ func (s *PolyfeaApiService) finalizeResponse(w http.ResponseWriter, logger logr.
 	}
 }
 
-func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
-	// Check if any of display rules matches
-	for _, displayRule := range webComponent.Spec.DisplayRules {
-		var pathRegex *regexp.Regexp
-		selectCurrent := true
-
-		// If any of noneOf rules matches, we can evaluate to false
-		for _, matcher := range displayRule.NoneOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
-
-				selectCurrent = false
-				break
-			}
-		}
-
-		if !selectCurrent {
-			continue
-		}
-
-		// If any of allOf rules does not match, we can evaluate to false
-		for _, matcher := range displayRule.AllOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName != name ||
-				len(matcher.Path) > 0 && !pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && !slices.Contains(userRoles, matcher.Role) {
-
-				selectCurrent = false
-				break
-			}
-		}
-
-		if !selectCurrent {
-			continue
-		}
-
-		// If any of anyOf rules matches, we can evaluate to true therfore we need to set to false first
-		if len(displayRule.AnyOf) > 0 {
-			selectCurrent = false
-		}
-
-		// If any of anyOf rules matches, we can evaluate to true
-		for _, matcher := range displayRule.AnyOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
-
-				selectCurrent = true
-				break
-			}
-		}
-
-		// If any of display rules matches, we can evaluate to true
-		if selectCurrent {
-			return true
-		}
-	}
-
-	return false
-}
-
-func convertAttributes(attributes []v1alpha1.Attribute) *map[string]string {
-	result := make(map[string]string)
-	for _, webcomponentAttribute := range attributes {
-		var value string
-		err := json.Unmarshal(webcomponentAttribute.Value.Raw, &value)
-		if err != nil {
-			value = string(webcomponentAttribute.Value.Raw)
-		}
-		result[webcomponentAttribute.Name] = value
-	}
-
-	return &result
-}
-
-func convertStyles(styles []v1alpha1.Style) *map[string]string {
-	result := make(map[string]string)
-
-	for _, style := range styles {
-		result[style.Name] = style.Value
-	}
-
-	return &result
-}
-
-func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference) *[]generated.MicrofrontendResource {
-	result := []generated.MicrofrontendResource{}
-
-	for _, resource := range resources {
-		kind := generated.MicrofrontendResourceKind(resource.Kind)
-		result = append(result, generated.MicrofrontendResource{
-			Kind:       &kind,
-			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, *resource.Proxy, service),
-			Attributes: convertAttributes(resource.Attributes),
-			WaitOnLoad: &resource.WaitOnLoad,
-		})
-	}
-
-	return arrToPtr(result)
-}
-
 func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string, microFrontendRepository repository.Repository[*v1alpha1.MicroFrontend], loadPath []string) ([]*v1alpha1.MicroFrontend, error) {
 	logger := s.logger.WithValues("function", "loadAllMicroFrontends")
 
@@ -411,30 +295,4 @@ func (s *PolyfeaApiService) loadAllMicroFrontends(microFrontendsToLoad []string,
 	}
 
 	return result, nil
-}
-
-func buildModulePath(microFrontendNamespace string, microFrontendName string, path string, proxy bool, service *v1alpha1.ServiceReference) *string {
-	if proxy {
-		return strToPtr("./polyfea/proxy/" + microFrontendNamespace + "/" + microFrontendName + "/" + path)
-	} else {
-		// For non-proxied services, combine service URL with path
-		if service != nil {
-			baseUrl := service.ResolveServiceURL(microFrontendNamespace)
-			if baseUrl != "" {
-				// Handle URL joining properly
-				if len(baseUrl) > 0 && baseUrl[len(baseUrl)-1] != '/' && len(path) > 0 && path[0] != '/' {
-					return strToPtr(baseUrl + "/" + path)
-				}
-				return strToPtr(baseUrl + path)
-			}
-		}
-		// Fallback to just path if service is not provided
-		return strToPtr(path)
-	}
-}
-
-func addExtraHeaders(w http.ResponseWriter, extraHeaders []v1alpha1.Header) {
-	for _, header := range extraHeaders {
-		w.Header().Add(header.Name, header.Value)
-	}
 }

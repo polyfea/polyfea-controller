@@ -33,7 +33,6 @@ import (
 const (
 	MicroFrontendName      = "test-microfrontend"
 	MicroFrontendNamespace = "default"
-	MicroFrontendFinalizer = "polyfea.github.io/finalizer"
 )
 
 func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass *string, staticResources []v1alpha1.StaticResources) *v1alpha1.MicroFrontend {
@@ -59,21 +58,7 @@ func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, 
 }
 
 func ensureMicroFrontendDeleted(ctx context.Context) {
-	existingMicroFrontend := &v1alpha1.MicroFrontend{}
-	err := k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend)
-	if err == nil {
-		// Check if already being deleted
-		if existingMicroFrontend.DeletionTimestamp == nil {
-			// Not yet marked for deletion, delete it now
-			Expect(k8sClient.Delete(ctx, existingMicroFrontend)).To(Succeed())
-		}
-		// Wait for the resource to be fully deleted (whether we just deleted it or it was already being deleted)
-		Eventually(func() bool {
-			return errors.IsNotFound(k8sClient.Get(ctx, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}, existingMicroFrontend))
-		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
-		// Give extra time for repository cleanup
-		time.Sleep(time.Millisecond * 500)
-	}
+	ensureResourceDeleted(ctx, &v1alpha1.MicroFrontend{}, types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace})
 }
 
 var _ = Describe("MicroFrontend Controller", func() {
@@ -124,7 +109,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 						return nil
 					}
 					return updatedMicroFrontend.ObjectMeta.Finalizers
-				}, timeout, interval).Should(ContainElement(MicroFrontendFinalizer))
+				}, timeout, interval).Should(ContainElement(FinalizerName))
 
 				By("Deleting the MicroFrontend")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())

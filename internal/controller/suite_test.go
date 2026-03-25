@@ -21,9 +21,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -135,6 +137,21 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+// ensureResourceDeleted deletes a Kubernetes resource and waits for it to be fully removed.
+func ensureResourceDeleted(ctx context.Context, obj client.Object, key client.ObjectKey) {
+	existing := obj.DeepCopyObject().(client.Object)
+	err := k8sClient.Get(ctx, key, existing)
+	if err == nil {
+		if existing.GetDeletionTimestamp() == nil {
+			Expect(k8sClient.Delete(ctx, existing)).To(Succeed())
+		}
+		Eventually(func() bool {
+			return errors.IsNotFound(k8sClient.Get(ctx, key, existing))
+		}, time.Second*10, time.Millisecond*250).Should(BeTrue())
+		time.Sleep(time.Millisecond * 500)
+	}
+}
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.
 // ENVTEST-based tests depend on specific binaries, usually located in paths set by

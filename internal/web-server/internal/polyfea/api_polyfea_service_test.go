@@ -161,276 +161,82 @@ func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaWithExtraHeaders(t *te
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfNoneOfIsMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				NoneOf: []v1alpha1.Matcher{
-					{
-						Path: "teset-path",
-					},
-					{
-						ContextName: "etest-name",
-					},
-				},
-			},
+func TestPolyfeaApiServiceGetContextAreaDisplayRuleMatching(t *testing.T) {
+	tests := []struct {
+		name         string
+		displayRules []v1alpha1.DisplayRules
+		queryPath    string
+		headers      http.Header
+	}{
+		{
+			name: "NoneOf matching (none of the matchers match)",
+			displayRules: []v1alpha1.DisplayRules{{
+				NoneOf: []v1alpha1.Matcher{{Path: "teset-path"}, {ContextName: "etest-name"}},
+			}},
+			queryPath: "test-path",
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
+		{
+			name: "AnyOf matching (at least one matcher matches)",
+			displayRules: []v1alpha1.DisplayRules{{
+				AnyOf: []v1alpha1.Matcher{{Path: "teet-path"}, {ContextName: "test-name"}},
+			}},
+			queryPath: "test-path",
+		},
+		{
+			name: "complex combination (AllOf + AnyOf + NoneOf)",
+			displayRules: []v1alpha1.DisplayRules{{
+				NoneOf: []v1alpha1.Matcher{{Path: "teset-path"}, {ContextName: "etest-name"}},
+				AllOf:  []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name"}},
+				AnyOf:  []v1alpha1.Matcher{{Path: "teet-path"}, {ContextName: "test-name"}},
+			}},
+			queryPath: "test-path",
+		},
+		{
+			name: "complex matcher with roles and glob path",
+			displayRules: []v1alpha1.DisplayRules{{
+				AllOf: []v1alpha1.Matcher{{Path: "test*"}, {ContextName: "test-name"}, {Role: "test-role"}, {Role: "test-other-role"}},
+			}},
+			queryPath: "test-path",
+			headers: func() http.Header {
+				h := http.Header{}
+				h.Set("test-user-roles-header", "some-different-role")
+				h.Add("test-user-roles-header", "test-role, test-other-role")
+				return h
+			}(),
+		},
 	}
 
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wcRepo := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
+			mfRepo := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
+			if err := wcRepo.Store(createTestWebComponent("test-name", "test-microfrontend", tt.displayRules, &[]int32{1}[0])); err != nil {
+				t.Fatalf("Failed to store WebComponent: %v", err)
+			}
+			if err := mfRepo.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)); err != nil {
+				t.Fatalf("Failed to store MicroFrontend: %v", err)
+			}
 
-	expectedContextArea := createTestContextArea(
-		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
-		},
-		map[string]generated.MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}),
+			svc := NewPolyfeaAPIService(wcRepo, mfRepo, &logr.Logger{})
+			ctx := setupContext()
+			take := 10
+			statusCode, actual := callGetContextArea(t, svc, ctx, tt.queryPath, &take, tt.headers)
+
+			if statusCode != http.StatusOK {
+				t.Errorf("Expected status 200, got %v", statusCode)
+			}
+
+			expected := createTestContextArea(
+				[]generated.ElementSpec{createTestElementSpec("test-microfrontend")},
+				map[string]generated.MicrofrontendSpec{"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{})},
+			)
+			expectedBytes, _ := json.Marshal(expected)
+			actualBytes, _ := json.Marshal(actual)
+			if string(expectedBytes) != string(actualBytes) {
+				t.Errorf("Expected %v, got %v", string(expectedBytes), string(actualBytes))
+			}
 		})
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	// Act
-	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %v", statusCode)
-	}
-
-	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
-	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
-
-	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfAnyOfIsMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AnyOf: []v1alpha1.Matcher{
-					{
-						Path: "teet-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-				},
-			},
-		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	expectedContextArea := createTestContextArea(
-		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
-		},
-		map[string]generated.MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}),
-		})
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	// Act
-	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %v", statusCode)
-	}
-
-	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
-	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
-
-	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexCombinationIsMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				NoneOf: []v1alpha1.Matcher{
-					{
-						Path: "teset-path",
-					},
-					{
-						ContextName: "etest-name",
-					},
-				},
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-				},
-				AnyOf: []v1alpha1.Matcher{
-					{
-						Path: "teet-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-				},
-			},
-		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	expectedContextArea := createTestContextArea(
-		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
-		},
-		map[string]generated.MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}),
-		})
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	// Act
-	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %v", statusCode)
-	}
-
-	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
-	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
-
-	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsContextAreaIfComplexMatcherIsMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test*",
-					},
-					{
-						ContextName: "test-name",
-					},
-					{
-						Role: "test-role",
-					},
-					{
-						Role: "test-other-role",
-					},
-				},
-			},
-		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	expectedContextArea := createTestContextArea(
-		[]generated.ElementSpec{
-			createTestElementSpec("test-microfrontend"),
-		},
-		map[string]generated.MicrofrontendSpec{
-			"test-microfrontend": createTestMicroFrontendSpec("test-microfrontend", []string{}),
-		})
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %v", statusCode)
-	}
-
-	expectedContextAreaBytes, _ := json.Marshal(expectedContextArea)
-	actualContextAreaBytes, _ := json.Marshal(actualContextArea)
-
-	if string(expectedContextAreaBytes) != string(actualContextAreaBytes) {
-		t.Errorf("Expected %v, got %v", string(expectedContextAreaBytes), string(actualContextAreaBytes))
 	}
 }
 
@@ -500,318 +306,87 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 	}
 }
 
-func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfRoleMatcherIsNotMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-					{
-						Role: "test-role-not-matching",
-					},
-					{
-						Role: "test-other-role",
-					},
-				},
-			},
+func TestPolyfeaApiServiceGetContextAreaDisplayRuleNotMatching(t *testing.T) {
+	roleHeaders := func() http.Header {
+		h := http.Header{}
+		h.Set("test-user-roles-header", "some-different-role")
+		h.Add("test-user-roles-header", "test-role, test-other-role")
+		return h
+	}()
+
+	tests := []struct {
+		name         string
+		displayRules []v1alpha1.DisplayRules
+		queryPath    string
+		headers      http.Header
+	}{
+		{
+			name: "role not matching",
+			displayRules: []v1alpha1.DisplayRules{{
+				AllOf: []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name"}, {Role: "test-role-not-matching"}, {Role: "test-other-role"}},
+			}},
+			queryPath: "test.*",
+			headers:   roleHeaders,
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %v", statusCode)
-	}
-
-	if len(contextArea.Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfContextMatcherIsNotMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name-not-matching",
-					},
-					{
-						Role: "test-role",
-					},
-					{
-						Role: "test-other-role",
-					},
-				},
-			},
+		{
+			name: "context name not matching",
+			displayRules: []v1alpha1.DisplayRules{{
+				AllOf: []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name-not-matching"}, {Role: "test-role"}, {Role: "test-other-role"}},
+			}},
+			queryPath: "test.*",
+			headers:   roleHeaders,
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "test.*", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %v", statusCode)
-	}
-
-	if len(contextArea.Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfPathIsNotMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "soe.*",
-					},
-					{
-						ContextName: "test-name",
-					},
-					{
-						Role: "test-role",
-					},
-					{
-						Role: "test-other-role",
-					},
-				},
-			},
+		{
+			name: "path not matching",
+			displayRules: []v1alpha1.DisplayRules{{
+				AllOf: []v1alpha1.Matcher{{Path: "soe.*"}, {ContextName: "test-name"}, {Role: "test-role"}, {Role: "test-other-role"}},
+			}},
+			queryPath: "sometest",
+			headers:   roleHeaders,
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %v", statusCode)
-	}
-
-	if len(contextArea.Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfNoneOfIsMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AllOf: []v1alpha1.Matcher{
-					{
-						Path: "test-path",
-					},
-					{
-						ContextName: "test-name",
-					},
-					{
-						Role: "test-role",
-					},
-					{
-						Role: "test-other-role",
-					},
-				},
-				NoneOf: []v1alpha1.Matcher{
-					{
-						Role: "test-role",
-					},
-				},
-			},
+		{
+			name: "NoneOf excludes matching role",
+			displayRules: []v1alpha1.DisplayRules{{
+				AllOf:  []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name"}, {Role: "test-role"}, {Role: "test-other-role"}},
+				NoneOf: []v1alpha1.Matcher{{Role: "test-role"}},
+			}},
+			queryPath: "sometest.*",
+			headers:   roleHeaders,
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
-	}
-
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
-
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
-
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
-
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %v", statusCode)
-	}
-
-	if len(contextArea.Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
-	}
-}
-
-func TestPolyfeaApiServiceGetContextAreaReturnsEmptyIfAnyOfIsNotMatching(t *testing.T) {
-	// Arrange
-	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
-	err := testWebComponentRepository.Store(createTestWebComponent(
-		"test-name",
-		"test-microfrontend",
-		[]v1alpha1.DisplayRules{
-			{
-				AnyOf: []v1alpha1.Matcher{
-					{
-						Path: "tes-path",
-					},
-					{
-						ContextName: "test-nameer",
-					},
-					{
-						Role: "rtest-role",
-					},
-					{
-						Role: "wtest-other-role",
-					},
-				},
-			},
+		{
+			name: "AnyOf none matching",
+			displayRules: []v1alpha1.DisplayRules{{
+				AnyOf: []v1alpha1.Matcher{{Path: "tes-path"}, {ContextName: "test-nameer"}, {Role: "rtest-role"}, {Role: "wtest-other-role"}},
+			}},
+			queryPath: "sometest.*",
+			headers:   roleHeaders,
 		},
-		&[]int32{1}[0]))
-	if err != nil {
-		t.Fatalf("Failed to store WebComponent in repository: %v", err)
 	}
 
-	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
-	err = testMicroFrontendRepository.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true))
-	if err != nil {
-		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wcRepo := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
+			mfRepo := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
-	polyfeaApiService := NewPolyfeaAPIService(
-		testWebComponentRepository,
-		testMicroFrontendRepository,
-		&logr.Logger{},
-	)
+			if err := wcRepo.Store(createTestWebComponent("test-name", "test-microfrontend", tt.displayRules, &[]int32{1}[0])); err != nil {
+				t.Fatalf("Failed to store WebComponent: %v", err)
+			}
+			if err := mfRepo.Store(createTestMicroFrontend("test-microfrontend", []string{}, "test-frontend-class", true)); err != nil {
+				t.Fatalf("Failed to store MicroFrontend: %v", err)
+			}
 
-	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
-	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+			svc := NewPolyfeaAPIService(wcRepo, mfRepo, &logr.Logger{})
+			ctx := setupContext()
+			take := 10
+			statusCode, result := callGetContextArea(t, svc, ctx, tt.queryPath, &take, tt.headers)
 
-	headers := http.Header{}
-	headers.Set("test-user-roles-header", "some-different-role")
-	headers.Add("test-user-roles-header", "test-role, test-other-role")
-
-	// Act
-	take := 10
-	statusCode, contextArea := callGetContextArea(t, polyfeaApiService, ctx, "sometest.*", &take, headers)
-
-	// Assert
-	if statusCode != http.StatusOK {
-		t.Errorf("Expected 200, got %v", statusCode)
-	}
-
-	if len(contextArea.Elements) != 0 {
-		t.Errorf("Expected 0 elements, got %v", len(contextArea.Elements))
+			if statusCode != http.StatusOK {
+				t.Errorf("Expected 200, got %v", statusCode)
+			}
+			if len(result.Elements) != 0 {
+				t.Errorf("Expected 0 elements, got %v", len(result.Elements))
+			}
+		})
 	}
 }
 
@@ -1331,7 +906,7 @@ func createTestContextArea(expectedElements []generated.ElementSpec, expectedMic
 	}
 }
 
-func createTestWebComponent(objecName string, microFrontendName string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
+func createTestWebComponent(objectName string, microFrontendName string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
 
 	var mfn *string
 	if len(microFrontendName) == 0 {
@@ -1342,7 +917,7 @@ func createTestWebComponent(objecName string, microFrontendName string, displayR
 
 	return &v1alpha1.WebComponent{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      objecName,
+			Name:      objectName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.WebComponentSpec{
@@ -1366,14 +941,14 @@ func createTestWebComponent(objecName string, microFrontendName string, displayR
 	}
 }
 
-func createTestMicroFrontend(objecName string, dependsOn []string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
+func createTestMicroFrontend(objectName string, dependsOn []string, frontendClass string, proxy bool) *v1alpha1.MicroFrontend {
 	serviceName := "test-service"
 	serviceNamespace := "test-namespace"
 	servicePort := int32(80)
 	serviceScheme := "http"
 	return &v1alpha1.MicroFrontend{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      objecName,
+			Name:      objectName,
 			Namespace: "default",
 		},
 		Spec: v1alpha1.MicroFrontendSpec{

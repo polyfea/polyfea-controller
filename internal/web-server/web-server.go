@@ -24,7 +24,6 @@ func SetupRouter(
 		logger,
 	)
 
-	// Create a new mux and add handlers
 	mux := http.NewServeMux()
 	mux.HandleFunc("/openapi", api.HandleOpenApi)
 

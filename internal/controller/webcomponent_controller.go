@@ -46,7 +46,6 @@ type WebComponentReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
 
 func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	const webComponentFinalizer = "polyfea.github.io/finalizer"
 	logger := log.FromContext(ctx)
 
 	webComponent := &polyfeav1alpha1.WebComponent{}
@@ -61,9 +60,9 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	logger.Info("Reconciling WebComponent.", "WebComponent", webComponent)
 
-	if !controllerutil.ContainsFinalizer(webComponent, webComponentFinalizer) {
+	if !controllerutil.ContainsFinalizer(webComponent, FinalizerName) {
 		logger.Info("Adding Finalizer for WebComponent.")
-		controllerutil.AddFinalizer(webComponent, webComponentFinalizer)
+		controllerutil.AddFinalizer(webComponent, FinalizerName)
 		if err := r.Update(ctx, webComponent); err != nil {
 			logger.Error(err, "Failed to update custom resource to add finalizer!")
 			return ctrl.Result{Requeue: true}, err
@@ -72,13 +71,13 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	if webComponent.GetDeletionTimestamp() != nil {
-		if controllerutil.ContainsFinalizer(webComponent, webComponentFinalizer) {
+		if controllerutil.ContainsFinalizer(webComponent, FinalizerName) {
 			logger.Info("Performing finalizer operations for the WebComponent before deleting the custom resource.")
 			if err := r.finalizeOperationsForWebComponent(webComponent); err != nil {
 				logger.Error(err, "Failed to perform finalizer operations for the WebComponent!")
 				return ctrl.Result{Requeue: true}, nil
 			}
-			controllerutil.RemoveFinalizer(webComponent, webComponentFinalizer)
+			controllerutil.RemoveFinalizer(webComponent, FinalizerName)
 			if err := r.Update(ctx, webComponent); err != nil {
 				logger.Error(err, "Failed to remove finalizer for WebComponent!")
 				return ctrl.Result{Requeue: true}, err
@@ -87,20 +86,16 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	// Update status
 	statusUpdated := false
 	originalStatus := webComponent.Status.DeepCopy()
 
-	// Reconcile MicroFrontend reference
 	statusUpdated = r.reconcileMicroFrontendReference(ctx, webComponent, logger)
 
-	// Update ObservedGeneration
 	if webComponent.Status.ObservedGeneration != webComponent.Generation {
 		webComponent.Status.ObservedGeneration = webComponent.Generation
 		statusUpdated = true
 	}
 
-	// Update status if needed
 	if statusUpdated {
 		if err := r.Status().Update(ctx, webComponent); err != nil {
 			logger.Error(err, "Failed to update WebComponent status")
@@ -116,118 +111,124 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Context, webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
 	statusUpdated := false
 
-	// Check if MicroFrontend reference exists
-	if webComponent.Spec.MicroFrontend != nil && *webComponent.Spec.MicroFrontend != "" {
-		mfName := *webComponent.Spec.MicroFrontend
-		mf := &polyfeav1alpha1.MicroFrontend{}
+	if webComponent.Spec.MicroFrontend == nil || *webComponent.Spec.MicroFrontend == "" {
+		statusUpdated = r.handleNoMicroFrontendRef(webComponent, logger)
+		return statusUpdated
+	}
 
-		// Look for MicroFrontend in the same namespace first
-		mfFound := false
-		mfNamespace := webComponent.Namespace
-		if err := r.Get(ctx, client.ObjectKey{Name: mfName, Namespace: webComponent.Namespace}, mf); err == nil {
-			mfFound = true
-		} else if apierrors.IsNotFound(err) {
-			// If not found in the same namespace, search across all namespaces
-			mfList := &polyfeav1alpha1.MicroFrontendList{}
-			if err := r.List(ctx, mfList); err != nil {
-				logger.Error(err, "Failed to list MicroFrontends", "name", mfName)
-				polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-					metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontend")
-				webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
-				statusUpdated = true
-			} else {
-				// Search for MicroFrontend with matching name
-				for _, item := range mfList.Items {
-					if item.Name == mfName {
-						mf = &item
-						mfFound = true
-						mfNamespace = item.Namespace
-						break
-					}
-				}
-			}
-		} else if !apierrors.IsNotFound(err) {
-			logger.Error(err, "Failed to get MicroFrontend", "name", mfName)
-			polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-				metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontend")
-			webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
-			statusUpdated = true
+	mfName := *webComponent.Spec.MicroFrontend
+
+	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, webComponent.Namespace)
+	mfFound := err == nil
+	mfNamespace := webComponent.Namespace
+	if mfFound {
+		mfNamespace = mf.Namespace
+	} else if !apierrors.IsNotFound(err) {
+		logger.Error(err, "Failed to get MicroFrontend", "name", mfName)
+		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontend")
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+		statusUpdated = true
+	}
+
+	statusUpdated = r.updateMicroFrontendRef(webComponent, mfName, mfNamespace, mfFound) || statusUpdated
+
+	if mfFound {
+		statusUpdated = r.handleMicroFrontendFound(webComponent, mf, logger) || statusUpdated
+	} else {
+		statusUpdated = r.handleMicroFrontendNotFound(webComponent, mfName, logger) || statusUpdated
+	}
+
+	return statusUpdated
+}
+
+// handleNoMicroFrontendRef handles WebComponents with no MicroFrontend reference.
+func (r *WebComponentReconciler) handleNoMicroFrontendRef(webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
+	statusUpdated := false
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference specified")
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference")
+	if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseFailed {
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+		statusUpdated = true
+	}
+
+	// Still store it in repository as it might be used differently
+	if err := r.Repository.Store(webComponent); err != nil {
+		logger.Error(err, "Failed to store WebComponent in repository!")
+	}
+	return statusUpdated
+}
+
+// updateMicroFrontendRef updates the MicroFrontendRef status field if changed.
+func (r *WebComponentReconciler) updateMicroFrontendRef(webComponent *polyfeav1alpha1.WebComponent, name, namespace string, found bool) bool {
+	if webComponent.Status.MicroFrontendRef == nil ||
+		webComponent.Status.MicroFrontendRef.Name != name ||
+		webComponent.Status.MicroFrontendRef.Namespace != namespace ||
+		webComponent.Status.MicroFrontendRef.Found != found {
+		webComponent.Status.MicroFrontendRef = &polyfeav1alpha1.ObjectReference{
+			Name:      name,
+			Namespace: namespace,
+			Found:     found,
 		}
+		return true
+	}
+	return false
+}
 
-		// Update MicroFrontendRef
-		if webComponent.Status.MicroFrontendRef == nil ||
-			webComponent.Status.MicroFrontendRef.Name != mfName ||
-			webComponent.Status.MicroFrontendRef.Namespace != mfNamespace ||
-			webComponent.Status.MicroFrontendRef.Found != mfFound {
-			webComponent.Status.MicroFrontendRef = &polyfeav1alpha1.ObjectReference{
-				Name:      mfName,
-				Namespace: mfNamespace,
-				Found:     mfFound,
-			}
+// handleMicroFrontendFound updates status when MicroFrontend is found.
+func (r *WebComponentReconciler) handleMicroFrontendFound(webComponent *polyfeav1alpha1.WebComponent, mf *polyfeav1alpha1.MicroFrontend, logger logr.Logger) bool {
+	statusUpdated := false
+
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontend found and resolved")
+
+	if polyfeav1alpha1.IsReady(mf.Status.Conditions) {
+		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+			metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "WebComponent is ready")
+		if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseReady {
+			webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseReady
 			statusUpdated = true
-		}
-
-		if mfFound {
-			polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-				metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "MicroFrontend found and resolved")
-
-			// Check if the MicroFrontend is ready
-			if polyfeav1alpha1.IsReady(mf.Status.Conditions) {
-				polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-					metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "WebComponent is ready")
-				if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseReady {
-					webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseReady
-					statusUpdated = true
-				}
-			} else {
-				polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-					metav1.ConditionFalse, polyfeav1alpha1.ReasonReconciling, "Waiting for MicroFrontend to be ready")
-				if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhasePending {
-					webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhasePending
-					statusUpdated = true
-				}
-			}
-
-			// Store in repository only if MicroFrontend is ready
-			if err := r.Repository.Store(webComponent); err != nil {
-				logger.Error(err, "Failed to store WebComponent in repository!")
-				polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-					metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Failed to store in repository")
-				webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
-				statusUpdated = true
-			}
-		} else {
-			polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-				metav1.ConditionFalse, polyfeav1alpha1.ReasonMicroFrontendNotFound, "MicroFrontend not found in namespace")
-			polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-				metav1.ConditionFalse, polyfeav1alpha1.ReasonMicroFrontendNotFound, "MicroFrontend not found")
-			if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound {
-				webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound
-				statusUpdated = true
-			}
-			logger.Info("MicroFrontend not found", "webComponent", webComponent.Name, "microFrontend", mfName)
-
-			// Still store in repository even if MicroFrontend is not found
-			// This allows the WebComponent to be registered and potentially work with other mechanisms
-			if err := r.Repository.Store(webComponent); err != nil {
-				logger.Error(err, "Failed to store WebComponent in repository!")
-			}
 		}
 	} else {
-		// No MicroFrontend reference
-		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-			metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference specified")
 		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-			metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference")
-		if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseFailed {
-			webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonReconciling, "Waiting for MicroFrontend to be ready")
+		if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhasePending {
+			webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhasePending
 			statusUpdated = true
 		}
+	}
 
-		// Still store it in repository as it might be used differently
-		if err := r.Repository.Store(webComponent); err != nil {
-			logger.Error(err, "Failed to store WebComponent in repository!")
-		}
+	if err := r.Repository.Store(webComponent); err != nil {
+		logger.Error(err, "Failed to store WebComponent in repository!")
+		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Failed to store in repository")
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+		statusUpdated = true
+	}
+
+	return statusUpdated
+}
+
+// handleMicroFrontendNotFound updates status when MicroFrontend is not found.
+func (r *WebComponentReconciler) handleMicroFrontendNotFound(webComponent *polyfeav1alpha1.WebComponent, mfName string, logger logr.Logger) bool {
+	statusUpdated := false
+
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonMicroFrontendNotFound, "MicroFrontend not found in namespace")
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonMicroFrontendNotFound, "MicroFrontend not found")
+	if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound {
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound
+		statusUpdated = true
+	}
+	logger.Info("MicroFrontend not found", "webComponent", webComponent.Name, "microFrontend", mfName)
+
+	// Still store in repository even if MicroFrontend is not found
+	// This allows the WebComponent to be registered and potentially work with other mechanisms
+	if err := r.Repository.Store(webComponent); err != nil {
+		logger.Error(err, "Failed to store WebComponent in repository!")
 	}
 
 	return statusUpdated
