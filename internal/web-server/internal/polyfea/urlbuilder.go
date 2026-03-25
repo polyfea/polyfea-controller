@@ -1,12 +1,15 @@
 package polyfea
 
 import (
+	"strings"
+
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
 )
 
 // buildProxyPath constructs a proxy URL path for a microfrontend resource.
+// Leading slashes are stripped from path to avoid double slashes in the result.
 func buildProxyPath(namespace, name, path string) string {
-	return "./polyfea/proxy/" + namespace + "/" + name + "/" + path
+	return "./polyfea/proxy/" + namespace + "/" + name + "/" + strings.TrimLeft(path, "/")
 }
 
 // joinURL joins a base URL and path, ensuring exactly one "/" separator.
@@ -19,8 +22,10 @@ func joinURL(baseURL, path string) string {
 
 // appendVersionFragment appends a URL fragment (#version) to path when version is non-empty.
 // Used to bust the browser ES module registry cache without changing the HTTP request URL.
+// Paths ending in "/" are left unchanged: they are import map namespace-like entries and the
+// browser requires the address to also end in "/" — appending a fragment would break that.
 func appendVersionFragment(path, version string) string {
-	if version == "" {
+	if version == "" || strings.HasSuffix(path, "/") {
 		return path
 	}
 	return path + "#" + version

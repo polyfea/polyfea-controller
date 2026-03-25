@@ -12,6 +12,8 @@ func TestBuildProxyPath(t *testing.T) {
 	}{
 		{"basic", "default", "mf", "module.js", "./polyfea/proxy/default/mf/module.js"},
 		{"nested path", "ns", "app", "assets/style.css", "./polyfea/proxy/ns/app/assets/style.css"},
+		{"leading slash stripped", "ns", "mf", "/imports/@lit/context/", "./polyfea/proxy/ns/mf/imports/@lit/context/"},
+		{"empty path", "ns", "mf", "", "./polyfea/proxy/ns/mf/"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -88,6 +90,7 @@ func TestAppendVersionFragment(t *testing.T) {
 	}{
 		{"empty version", "./polyfea/proxy/ns/mf/app.js", "", "./polyfea/proxy/ns/mf/app.js"},
 		{"with version", "./polyfea/proxy/ns/mf/app.js", "abc123", "./polyfea/proxy/ns/mf/app.js#abc123"},
+		{"trailing slash not versioned", "./polyfea/proxy/ns/mf/imports/@lit/context/", "abc123", "./polyfea/proxy/ns/mf/imports/@lit/context/"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
