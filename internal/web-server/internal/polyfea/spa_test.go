@@ -289,7 +289,7 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react":     "./react.js",
 					"react-dom": "./react-dom.js",
 				},
@@ -356,7 +356,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react": "./react-v18.js",
 				},
 			},
@@ -382,8 +382,8 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
-					"react": "./react-v17.js", // Should be ignored
+				Optional: map[string]string{
+					"react": "./react-v17.js", // Should be ignored (first-registered-wins)
 					"vue":   "./vue.js",       // Should be included
 				},
 			},
@@ -435,7 +435,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 	}
 }
 
-func TestBuildImportMapWithScopes(t *testing.T) {
+func TestBuildImportMapWithScopedEntries(t *testing.T) {
 	// Arrange
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
@@ -452,13 +452,8 @@ func TestBuildImportMapWithScopes(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Scoped: map[string]string{
 					"react": "./react-v18.js",
-				},
-				Scopes: map[string]map[string]string{
-					"/legacy/": {
-						"react": "./react-v16.js",
-					},
 				},
 			},
 		},
@@ -494,36 +489,43 @@ func TestBuildImportMapWithScopes(t *testing.T) {
 	if !strings.Contains(result, `"scopes"`) {
 		t.Fatalf("expected import map to contain scopes, got %s", result)
 	}
-	if !strings.Contains(result, `"/legacy/"`) {
-		t.Fatalf("expected import map to contain /legacy/ scope, got %s", result)
+	// Scoped entries should be under the MF's proxy path scope
+	expectedScopeKey := `"./polyfea/proxy/default/mf1/"`
+	if !strings.Contains(result, expectedScopeKey) {
+		t.Fatalf("expected import map to contain MF-specific scope key %s, got %s", expectedScopeKey, result)
 	}
-	// Scoped imports should also be proxied
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v16.js"`) {
-		t.Fatalf("expected import map to contain proxied react-v16.js in scope, got %s", result)
+	// Scoped imports should be proxied
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+		t.Fatalf("expected import map to contain proxied react-v18.js in scope, got %s", result)
+	}
+	// Should NOT have top-level imports for scoped entries
+	if strings.Contains(result, `"imports"`) {
+		t.Fatalf("expected no top-level imports for scoped-only entries, got %s", result)
 	}
 }
 
-func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
+func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 	// Arrange
 	logger := logr.Logger{}
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	className := TestClassName
+	now := metav1.Now()
 
-	// First microfrontend (no conflicts)
+	// First microfrontend (older) registers react
 	mf1 := &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "mf1",
 			Namespace:         "default",
-			CreationTimestamp: metav1.Now(),
+			CreationTimestamp: now,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
 			FrontendClass: &className,
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
-					"react": "./react.js",
+				Optional: map[string]string{
+					"react": "./react-v18.js",
 				},
 			},
 		},
@@ -535,20 +537,22 @@ func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
 		},
 	}
 
-	// Second microfrontend (has conflicts - should be excluded)
+	// Second microfrontend (newer) also declares react — should be silently skipped
+	later := metav1.NewTime(now.Add(time.Minute))
 	mf2 := &v1alpha1.MicroFrontend{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              "mf2",
 			Namespace:         "default",
-			CreationTimestamp: metav1.Now(),
+			CreationTimestamp: later,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
 			FrontendClass: &className,
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
-					"vue": "./vue.js",
+				Optional: map[string]string{
+					"react": "./react-v17.js", // silently skipped
+					"vue":   "./vue.js",       // unique, should be included
 				},
 			},
 		},
@@ -556,14 +560,6 @@ func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
 				Name:     className,
 				Accepted: true,
-			},
-			ImportMapConflicts: []v1alpha1.ImportMapConflict{
-				{
-					Specifier:      "vue",
-					RequestedPath:  "./vue.js",
-					RegisteredPath: "./vue-other.js",
-					RegisteredBy:   "default/other-mf",
-				},
 			},
 		},
 	}
@@ -591,14 +587,19 @@ func TestBuildImportMapExcludesConflictedMicrofrontends(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// Should include mf1
-	if !strings.Contains(result, `"react"`) {
-		t.Fatalf("expected import map to contain react from mf1, got %s", result)
+	// Should use mf1's version (first registered)
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+		t.Fatalf("expected first-registered react-v18.js, got %s", result)
 	}
 
-	// Should NOT include mf2 (has conflicts)
-	if strings.Contains(result, `"vue"`) {
-		t.Fatalf("expected import map to NOT contain vue from conflicted mf2, got %s", result)
+	// Should NOT contain mf2's react version
+	if strings.Contains(result, `react-v17.js`) {
+		t.Fatalf("expected mf2's react-v17.js to be skipped, got %s", result)
+	}
+
+	// Should include mf2's unique vue entry
+	if !strings.Contains(result, `"vue"`) {
+		t.Fatalf("expected vue from mf2 to be included, got %s", result)
 	}
 }
 
@@ -621,7 +622,7 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react": "./react.js",
 				},
 			},
@@ -679,15 +680,13 @@ func TestImportMapJSONFormatting(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react":     "./react.js",
 					"react-dom": "./react-dom.js",
 					"lodash":    "./lodash.js",
 				},
-				Scopes: map[string]map[string]string{
-					"/legacy/": {
-						"react": "./react-legacy.js",
-					},
+				Scoped: map[string]string{
+					"react": "./react-legacy.js",
 				},
 			},
 		},
@@ -748,8 +747,8 @@ func TestImportMapJSONFormatting(t *testing.T) {
 	if !strings.Contains(result, `"scopes"`) {
 		t.Fatalf("expected JSON to contain 'scopes' key, got: %s", result)
 	}
-	if !strings.Contains(result, `"/legacy/"`) {
-		t.Fatalf("expected JSON to contain '/legacy/' scope, got: %s", result)
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/"`) {
+		t.Fatalf("expected JSON to contain MF-specific scope key, got: %s", result)
 	}
 
 	// Verify it's valid JSON by checking structure
@@ -789,7 +788,7 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"lit":      "./lit.js",
 					"lit-html": "./lit-html.js",
 				},
@@ -891,7 +890,7 @@ func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react":     "https://cdn.example.com/react.js",     // Absolute URL - should NOT be proxied
 					"react-dom": "https://cdn.example.com/react-dom.js", // Absolute URL - should NOT be proxied
 					"lodash":    "./lodash.js",                          // Relative path - SHOULD be proxied
@@ -966,7 +965,7 @@ func TestImportMapNonProxiedService(t *testing.T) {
 			ModulePath:    ptr("app.js"),
 			Proxy:         &proxy,
 			ImportMap: &v1alpha1.ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"react": "./react.js", // Should be resolved against service URL
 				},
 			},
@@ -1009,5 +1008,461 @@ func TestImportMapNonProxiedService(t *testing.T) {
 	// Should NOT be proxied
 	if strings.Contains(result, `"./polyfea/proxy/`) {
 		t.Fatalf("non-proxied service should not use proxy path, got: %s", result)
+	}
+}
+
+func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
+	// Verifies that each MF gets its own scope key (isolation)
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	now := metav1.Now()
+
+	mf1 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: now,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react": "./react-v18.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	later := metav1.NewTime(now.Add(time.Minute))
+	mf2 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf2",
+			Namespace:         "default",
+			CreationTimestamp: later,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react": "./react-v17.js", // Same specifier, different version — no conflict due to isolation
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf1)
+	_ = microFrontendRepository.Store(mf2)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Both scope keys should be present
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/"`) {
+		t.Fatalf("expected mf1 scope key, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf2/"`) {
+		t.Fatalf("expected mf2 scope key, got %s", result)
+	}
+
+	// Both react versions should exist under their own scopes
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+		t.Fatalf("expected mf1's react-v18.js in its scope, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf2/./react-v17.js"`) {
+		t.Fatalf("expected mf2's react-v17.js in its scope, got %s", result)
+	}
+
+	// No global imports
+	if strings.Contains(result, `"imports"`) {
+		t.Fatalf("expected no global imports for scoped-only entries, got %s", result)
+	}
+}
+
+func TestBuildImportMapScopedAbsoluteURLsNotProxied(t *testing.T) {
+	// Verifies absolute URLs in scoped entries are not proxied
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react":  "https://cdn.example.com/react.js", // Absolute — not proxied
+					"lodash": "./lodash.js",                      // Relative — proxied
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Absolute URL should remain unchanged in scope
+	if !strings.Contains(result, `"https://cdn.example.com/react.js"`) {
+		t.Fatalf("expected absolute URL unchanged in scope, got: %s", result)
+	}
+
+	// Relative path should be proxied in scope
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./lodash.js"`) {
+		t.Fatalf("expected relative path proxied in scope, got: %s", result)
+	}
+}
+
+func TestBuildImportMapScopedNonProxiedService(t *testing.T) {
+	// Verifies scoped entries with non-proxied service resolve values against service URL
+	// Note: scope key is always the proxy path (it identifies the MF), but values use service URL
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	proxy := false
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://external.com")},
+			ModulePath:    ptr("app.js"),
+			Proxy:         &proxy,
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react": "./react.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Scope key is still the proxy path (identifies the MF)
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/"`) {
+		t.Fatalf("expected proxy-based scope key, got: %s", result)
+	}
+
+	// Values should resolve against service URL (not proxied)
+	if !strings.Contains(result, `"https://external.com/./react.js"`) {
+		t.Fatalf("expected scoped value resolved against service URL, got: %s", result)
+	}
+}
+
+func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
+	// Verifies different namespaces produce different scope keys
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	now := metav1.Now()
+
+	mf1 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf-nsa",
+			Namespace:         "ns-a",
+			CreationTimestamp: now,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react": "./react.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	later := metav1.NewTime(now.Add(time.Minute))
+	mf2 := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf-nsb",
+			Namespace:         "ns-b",
+			CreationTimestamp: later,
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Scoped: map[string]string{
+					"react": "./react-other.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf1)
+	_ = microFrontendRepository.Store(mf2)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "ns-a",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Both namespace-specific scope keys should exist
+	if !strings.Contains(result, `"./polyfea/proxy/ns-a/mf-nsa/"`) {
+		t.Fatalf("expected ns-a scope key, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/ns-b/mf-nsb/"`) {
+		t.Fatalf("expected ns-b scope key, got %s", result)
+	}
+
+	// Each gets its own react resolution
+	if !strings.Contains(result, `"./polyfea/proxy/ns-a/mf-nsa/./react.js"`) {
+		t.Fatalf("expected ns-a's react.js, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/ns-b/mf-nsb/./react-other.js"`) {
+		t.Fatalf("expected ns-b's react-other.js, got %s", result)
+	}
+}
+
+func TestBuildImportMapNilImportMapSkipped(t *testing.T) {
+	// Verifies MFs with nil ImportMap are handled gracefully
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap:     nil, // No import map at all
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result != "{}" {
+		t.Fatalf("expected empty import map for MF with nil ImportMap, got %s", result)
+	}
+}
+
+func TestBuildImportMapMixedOptionalAndScoped(t *testing.T) {
+	// Arrange
+	logger := logr.Logger{}
+	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+
+	className := TestClassName
+	mf := &v1alpha1.MicroFrontend{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "mf1",
+			Namespace:         "default",
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: v1alpha1.MicroFrontendSpec{
+			FrontendClass: &className,
+			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+			ModulePath:    ptr("app.js"),
+			ImportMap: &v1alpha1.ImportMap{
+				Optional: map[string]string{
+					"lodash": "./lodash.js",
+				},
+				Scoped: map[string]string{
+					"react": "./react-v18.js",
+				},
+			},
+		},
+		Status: v1alpha1.MicroFrontendStatus{
+			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
+				Name:     className,
+				Accepted: true,
+			},
+		},
+	}
+
+	_ = microFrontendRepository.Store(mf)
+	spa := NewSinglePageApplication(&logger, microFrontendRepository)
+
+	mfc := &v1alpha1.MicroFrontendClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      className,
+			Namespace: "default",
+		},
+		Spec: v1alpha1.MicroFrontendClassSpec{
+			BaseUri: ptr("/"),
+			Title:   ptr("Test"),
+		},
+	}
+
+	// Act
+	result, err := spa.buildImportMap(mfc, logger)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Optional entry should be in global imports
+	if !strings.Contains(result, `"imports"`) {
+		t.Fatalf("expected import map to contain 'imports' key, got %s", result)
+	}
+	if !strings.Contains(result, `"lodash"`) {
+		t.Fatalf("expected import map to contain lodash in global imports, got %s", result)
+	}
+
+	// Scoped entry should be under MF-specific scope
+	if !strings.Contains(result, `"scopes"`) {
+		t.Fatalf("expected import map to contain 'scopes' key, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/"`) {
+		t.Fatalf("expected MF-specific scope key, got %s", result)
+	}
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+		t.Fatalf("expected scoped react entry with proxied path, got %s", result)
 	}
 }

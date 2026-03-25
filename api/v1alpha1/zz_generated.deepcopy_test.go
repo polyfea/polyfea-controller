@@ -208,9 +208,8 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 
 func TestMicroFrontendStatus_DeepCopy(t *testing.T) {
 	status := &MicroFrontendStatus{
-		Conditions:         []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}},
-		FrontendClassRef:   &MicroFrontendClassReference{Name: TestConst},
-		ImportMapConflicts: []ImportMapConflict{{Specifier: TestConst}},
+		Conditions:       []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}},
+		FrontendClassRef: &MicroFrontendClassReference{Name: TestConst},
 	}
 	if status.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
@@ -503,42 +502,30 @@ func TestImportMap_DeepCopy(t *testing.T) {
 			in:   &ImportMap{},
 		},
 		{
-			name: "with imports",
+			name: "with optional",
 			in: &ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"angular": "./bundle/angular.mjs",
 					"react":   "https://cdn.example.com/react.js",
 				},
 			},
 		},
 		{
-			name: "with scopes",
+			name: "with scoped",
 			in: &ImportMap{
-				Scopes: map[string]map[string]string{
-					"/legacy/": {
-						"angular": "./old-angular.mjs",
-					},
+				Scoped: map[string]string{
+					"angular": "./old-angular.mjs",
 				},
 			},
 		},
 		{
-			name: "with imports and scopes",
+			name: "with optional and scoped",
 			in: &ImportMap{
-				Imports: map[string]string{
+				Optional: map[string]string{
 					"angular": "./bundle/angular.mjs",
 				},
-				Scopes: map[string]map[string]string{
-					"/legacy/": {
-						"angular": "./old-angular.mjs",
-					},
-				},
-			},
-		},
-		{
-			name: "with nil scope value",
-			in: &ImportMap{
-				Scopes: map[string]map[string]string{
-					"/nil/": nil,
+				Scoped: map[string]string{
+					"react": "./react-v18.js",
 				},
 			},
 		},
@@ -564,86 +551,21 @@ func TestImportMap_DeepCopy(t *testing.T) {
 
 func TestImportMap_DeepCopyInto(t *testing.T) {
 	original := &ImportMap{
-		Imports: map[string]string{
+		Optional: map[string]string{
 			TestConst: "./test.js",
 		},
-		Scopes: map[string]map[string]string{
-			"/app/": {
-				"lodash": "./lodash.js",
-			},
+		Scoped: map[string]string{
+			"lodash": "./lodash.js",
 		},
 	}
 
 	out := &ImportMap{}
 	original.DeepCopyInto(out)
 
-	if out.Imports == nil {
-		t.Errorf("DeepCopyInto() did not copy imports")
+	if out.Optional == nil {
+		t.Errorf("DeepCopyInto() did not copy optional")
 	}
-	if out.Scopes == nil {
-		t.Errorf("DeepCopyInto() did not copy scopes")
-	}
-}
-
-func TestImportMapConflict_DeepCopy(t *testing.T) {
-	tests := []struct {
-		name string
-		in   *ImportMapConflict
-	}{
-		{
-			name: "nil",
-			in:   nil,
-		},
-		{
-			name: "empty",
-			in:   &ImportMapConflict{},
-		},
-		{
-			name: "with all fields",
-			in: &ImportMapConflict{
-				Specifier:      "angular",
-				RequestedPath:  "./bundle/angular-v15.mjs",
-				RegisteredPath: "./bundle/angular-v17.mjs",
-				RegisteredBy:   "namespace/mf-name",
-				Scope:          "/legacy/",
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			copied := tt.in.DeepCopy()
-
-			if tt.in == nil {
-				if copied != nil {
-					t.Errorf("DeepCopy() of nil should return nil")
-				}
-				return
-			}
-
-			if copied == nil {
-				t.Errorf("DeepCopy() returned nil for non-nil input")
-			}
-		})
-	}
-}
-
-func TestImportMapConflict_DeepCopyInto(t *testing.T) {
-	original := &ImportMapConflict{
-		Specifier:      "vue",
-		RequestedPath:  "./vue2.js",
-		RegisteredPath: "./vue3.js",
-		RegisteredBy:   "team/app",
-		Scope:          "/app/",
-	}
-
-	out := &ImportMapConflict{}
-	original.DeepCopyInto(out)
-
-	if out.Specifier != original.Specifier {
-		t.Errorf("DeepCopyInto() did not copy Specifier")
-	}
-	if out.Scope != original.Scope {
-		t.Errorf("DeepCopyInto() did not copy Scope")
+	if out.Scoped == nil {
+		t.Errorf("DeepCopyInto() did not copy scoped")
 	}
 }
