@@ -18,6 +18,11 @@ package controller
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -74,6 +79,7 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	originalStatus := mf.Status.DeepCopy()
 
 	statusUpdated = r.resolveServiceURL(mf) || statusUpdated
+	statusUpdated = r.resolveModuleHash(ctx, mf) || statusUpdated
 	statusUpdated = r.processFrontendClass(ctx, mf) || statusUpdated
 
 	if mf.Status.ObservedGeneration != mf.Generation {
@@ -136,6 +142,67 @@ func (r *MicroFrontendReconciler) handleDeletion(ctx context.Context, req ctrl.R
 		}
 	}
 	return &ctrl.Result{}, nil
+}
+
+// resolveModuleHash fetches the module JS file and updates status.ModuleHash and status.ModuleETag.
+// Uses If-None-Match conditional GET to avoid redundant downloads when the backend supports ETags.
+// On fetch failure the existing hash is kept so a temporarily unavailable service doesn't break the site.
+func (r *MicroFrontendReconciler) resolveModuleHash(ctx context.Context, mf *polyfeav1alpha1.MicroFrontend) bool {
+	logger := log.FromContext(ctx)
+
+	if mf.Status.ResolvedServiceURL == "" || mf.Spec.ModulePath == nil || *mf.Spec.ModulePath == "" {
+		return false
+	}
+
+	base := mf.Status.ResolvedServiceURL
+	path := *mf.Spec.ModulePath
+	var moduleURL string
+	if strings.HasSuffix(base, "/") || strings.HasPrefix(path, "/") {
+		moduleURL = base + path
+	} else {
+		moduleURL = base + "/" + path
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, moduleURL, nil)
+	if err != nil {
+		logger.Error(err, "Failed to create module hash request", "url", moduleURL)
+		return false
+	}
+	if mf.Status.ModuleETag != "" {
+		req.Header.Set("If-None-Match", mf.Status.ModuleETag)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		logger.Info("Failed to fetch module for hashing, keeping existing hash", "url", moduleURL, "error", err.Error())
+		return false
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNotModified {
+		return false
+	}
+	if resp.StatusCode != http.StatusOK {
+		logger.Info("Unexpected status fetching module, keeping existing hash", "url", moduleURL, "status", resp.StatusCode)
+		return false
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error(err, "Failed to read module body", "url", moduleURL)
+		return false
+	}
+
+	sum := sha256.Sum256(body)
+	hash := hex.EncodeToString(sum[:])[:12]
+	etag := resp.Header.Get("ETag")
+
+	if hash == mf.Status.ModuleHash && etag == mf.Status.ModuleETag {
+		return false
+	}
+	mf.Status.ModuleHash = hash
+	mf.Status.ModuleETag = etag
+	return true
 }
 
 // resolveServiceURL resolves the service URL and updates status.
@@ -252,7 +319,7 @@ func (r *MicroFrontendReconciler) handleAcceptedMicroFrontend(mf *polyfeav1alpha
 		}
 
 		// Store the MicroFrontend in the repository
-		if err := r.Repository.Store(mf); err != nil {
+		if err := r.Repository.Store(mf.DeepCopy()); err != nil {
 			logger.Error(err, "Failed to store MicroFrontend in repository")
 			polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
 				metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Failed to store in repository")

@@ -408,11 +408,6 @@ func (in *MicroFrontendSpec) DeepCopyInto(out *MicroFrontendSpec) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.CacheControl != nil {
-		in, out := &in.CacheControl, &out.CacheControl
-		*out = new(string)
-		**out = **in
-	}
 	if in.ModulePath != nil {
 		in, out := &in.ModulePath, &out.ModulePath
 		*out = new(string)

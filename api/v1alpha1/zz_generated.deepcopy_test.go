@@ -193,7 +193,6 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 	spec := &MicroFrontendSpec{
 		Service:         &ServiceReference{Name: ptr(TestConst)},
 		Proxy:           ptr(true),
-		CacheControl:    ptr("no-cache"),
 		ModulePath:      ptr("/module.js"),
 		StaticResources: []StaticResources{{Kind: "script", Path: "/test.js"}},
 		FrontendClass:   ptr("default"),

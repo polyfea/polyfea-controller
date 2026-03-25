@@ -48,7 +48,6 @@ func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, 
 		Spec: v1alpha1.MicroFrontendSpec{
 			Service:         service,
 			Proxy:           proxy,
-			CacheStrategy:   "none",
 			ModulePath:      modulePath,
 			StaticResources: staticResources,
 			FrontendClass:   frontendClass,
@@ -176,9 +175,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal(ptr("test-service")))
 				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(Equal(ptr("test-namespace")))
 				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.CacheStrategy).Should(Equal("none"))
 				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(ptr(DefaultFrontendClassName)))
-				Expect(createdMicroFrontend.Spec.CacheControl).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
 
