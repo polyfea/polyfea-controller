@@ -117,9 +117,7 @@ func createTestMicrofrontend() *v1alpha1.MicroFrontend {
 				Port:      &servicePort,
 				Scheme:    &serviceScheme,
 			},
-			CacheStrategy: "none",
-			CacheControl:  ptr("no-cache"),
-			ModulePath:    ptr("test"),
+			ModulePath: ptr("test"),
 			StaticResources: []v1alpha1.StaticResources{{
 				Kind: "test",
 				Path: "test",

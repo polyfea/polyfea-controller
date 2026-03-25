@@ -338,7 +338,7 @@ func (s *SinglePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend,
 	}
 
 	if proxy {
-		return buildProxyPath(mf.Namespace, mf.Name, path)
+		return appendVersionFragment(buildProxyPath(mf.Namespace, mf.Name, path), mf.Status.ModuleHash)
 	}
 
 	// For non-proxied services, combine service URL with path

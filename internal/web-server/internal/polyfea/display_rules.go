@@ -116,7 +116,7 @@ func convertMicrofrontendResources(microFrontendNamespace string, microFrontendN
 		kind := generated.MicrofrontendResourceKind(resource.Kind)
 		result = append(result, generated.MicrofrontendResource{
 			Kind:       &kind,
-			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, *resource.Proxy, service),
+			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, "", *resource.Proxy, service),
 			Attributes: convertAttributes(resource.Attributes),
 			WaitOnLoad: &resource.WaitOnLoad,
 		})

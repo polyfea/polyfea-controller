@@ -1,5 +1,7 @@
 package repository
 
+import "sync"
+
 // FilterFunc defines a predicate function for filtering repository items.
 type FilterFunc[Item interface{ GetName() string }] func(item Item) bool
 
@@ -14,6 +16,7 @@ type Repository[Item interface{ GetName() string }] interface {
 
 // InMemoryRepository is an in-memory implementation of Repository.
 type InMemoryRepository[Item interface{ GetName() string }] struct {
+	mu    sync.RWMutex
 	items map[string]Item
 }
 
@@ -26,17 +29,23 @@ func NewInMemoryRepository[Item interface{ GetName() string }]() *InMemoryReposi
 
 // Store adds or updates an item in the repository.
 func (r *InMemoryRepository[Item]) Store(item Item) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.items[item.GetName()] = item
 	return nil
 }
 
 // Get retrieves an item by its name.
 func (r *InMemoryRepository[Item]) Get(item Item) (Item, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.items[item.GetName()], nil
 }
 
 // List returns all items matching the filter.
 func (r *InMemoryRepository[Item]) List(filter FilterFunc[Item]) ([]Item, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	var result []Item
 	for _, item := range r.items {
 		if filter(item) {
@@ -48,6 +57,8 @@ func (r *InMemoryRepository[Item]) List(filter FilterFunc[Item]) ([]Item, error)
 
 // Delete removes an item from the repository.
 func (r *InMemoryRepository[Item]) Delete(item Item) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	delete(r.items, item.GetName())
 	return nil
 }

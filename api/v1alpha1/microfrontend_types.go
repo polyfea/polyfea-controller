@@ -81,20 +81,6 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Proxy *bool `json:"proxy,omitempty"`
 
-	// TODO: Make this work
-	// CachingStrategy defines the caching strategy for the micro frontend.
-	// +kubebuilder:default=none
-	// +kubebuilder:validation:Enum=none;cache;
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheStrategy string `json:"cacheStrategy,omitempty"`
-
-	// TODO: Make this work
-	// CacheControl defines the cache control header for the micro frontend. This is only used if the caching strategy is set to 'cache'.
-	// +optional
-	// +kubebuilder:validation:MaxLength=256
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheControl *string `json:"cacheControl,omitempty"`
-
 	// Relative path to the module file within the service.
 	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -241,6 +227,21 @@ type MicroFrontendStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ModuleHash is the SHA256 hash (first 12 hex characters) of the module JS file content,
+	// automatically updated on each reconciliation. Appended as a URL fragment (#hash) to all
+	// proxied module paths and import map entries for browser cache busting.
+	// +optional
+	// +kubebuilder:validation:MaxLength=64
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ModuleHash string `json:"moduleHash,omitempty"`
+
+	// ModuleETag is the ETag value returned by the backend when the module was last fetched.
+	// Used for conditional GET requests (If-None-Match) to avoid redundant downloads.
+	// +optional
+	// +kubebuilder:validation:MaxLength=256
+	// +operator-sdk:csv:customresourcedefinitions:type=status
+	ModuleETag string `json:"moduleETag,omitempty"`
 }
 
 // +kubebuilder:object:root=true

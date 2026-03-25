@@ -44,7 +44,7 @@ func NewProgressiveWebApplication(logger *logr.Logger, microFrontendRepository r
 }
 
 func (pwa *ProgressiveWebApplication) ServeAppWebManifest(w http.ResponseWriter, r *http.Request) {
-	pwa.serveResource(w, r, "ServeAppWebManifest", "application/manifest+json", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+	pwa.serveResource(w, r, "ServeAppWebManifest", "application/manifest+json", "no-cache", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
 		manifest := pwa.serveAppWebManifest(microFrontendClass)
 		return json.Marshal(manifest)
 	})
@@ -55,19 +55,19 @@ func (pwa *ProgressiveWebApplication) serveAppWebManifest(microFrontendClass *v1
 }
 
 func (pwa *ProgressiveWebApplication) ServeServiceWorker(w http.ResponseWriter, r *http.Request) {
-	pwa.serveResource(w, r, "ServeServiceWorker", "application/javascript", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+	pwa.serveResource(w, r, "ServeServiceWorker", "application/javascript", "no-store", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
 		return serviceWorker, nil
 	})
 }
 
 func (pwa *ProgressiveWebApplication) ServeRegister(w http.ResponseWriter, r *http.Request) {
-	pwa.serveResource(w, r, "ServeRegister", "application/javascript", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+	pwa.serveResource(w, r, "ServeRegister", "application/javascript", "no-cache", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
 		return register, nil
 	})
 }
 
 func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *http.Request) {
-	pwa.serveResource(w, r, "ServeCaching", "application/json", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
+	pwa.serveResource(w, r, "ServeCaching", "application/json", "no-cache", func(microFrontendClass *v1alpha1.MicroFrontendClass) ([]byte, error) {
 		config, err := pwa.getProxyConfig(microFrontendClass)
 		if err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func (pwa *ProgressiveWebApplication) ServeCaching(w http.ResponseWriter, r *htt
 	})
 }
 
-func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *http.Request, functionName, contentType string, resourceProvider func(*v1alpha1.MicroFrontendClass) ([]byte, error)) {
+func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *http.Request, functionName, contentType, cacheControl string, resourceProvider func(*v1alpha1.MicroFrontendClass) ([]byte, error)) {
 	logger := pwa.logger.WithValues("function", functionName, "method", r.Method, "path", r.URL.Path)
 
 	_, span := telemetry().tracer.Start(
@@ -112,6 +112,7 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 		w.Header().Set(header.Name, header.Value)
 	}
 	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", cacheControl)
 
 	resource, err := resourceProvider(microFrontendClass)
 	if err != nil {
@@ -131,12 +132,14 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 	var preCache []v1alpha1.PreCacheEntry
 	var routes []CacheRouteResponse
 
+	empty := &ProxyConfigResponse{PreCache: []v1alpha1.PreCacheEntry{}, Routes: []CacheRouteResponse{}}
+
 	if microFrontendClass.Spec.ProgressiveWebApp == nil {
-		return nil, nil
+		return empty, nil
 	}
 
 	if microFrontendClass.Spec.ProgressiveWebApp.CacheOptions == nil {
-		return nil, nil
+		return empty, nil
 	}
 
 	if microFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes != nil {
@@ -157,7 +160,8 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 	}
 
 	relevantMicroFrontends, err := pwa.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
-		return *mf.Spec.FrontendClass == microFrontendClass.Name && *mf.Spec.Proxy
+		return mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass == microFrontendClass.Name &&
+			mf.Spec.Proxy != nil && *mf.Spec.Proxy
 	})
 
 	if err != nil {

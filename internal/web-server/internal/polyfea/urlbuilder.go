@@ -17,10 +17,19 @@ func joinURL(baseURL, path string) string {
 	return baseURL + path
 }
 
+// appendVersionFragment appends a URL fragment (#version) to path when version is non-empty.
+// Used to bust the browser ES module registry cache without changing the HTTP request URL.
+func appendVersionFragment(path, version string) string {
+	if version == "" {
+		return path
+	}
+	return path + "#" + version
+}
+
 // buildModulePath constructs the path for a microfrontend module, either proxied or direct.
-func buildModulePath(namespace, name, path string, proxy bool, service *v1alpha1.ServiceReference) *string {
+func buildModulePath(namespace, name, path, version string, proxy bool, service *v1alpha1.ServiceReference) *string {
 	if proxy {
-		result := buildProxyPath(namespace, name, path)
+		result := appendVersionFragment(buildProxyPath(namespace, name, path), version)
 		return &result
 	}
 	// For non-proxied services, combine service URL with path

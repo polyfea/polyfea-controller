@@ -39,12 +39,6 @@ spec:
           spec:
             description: MicroFrontendSpec defines the desired state of MicroFrontend
             properties:
-              cacheControl:
-                description: CacheControl defines the cache control header for the
-                  micro frontend. This is only used if the caching strategy is set
-                  to 'cache'.
-                maxLength: 256
-                type: string
               cacheOptions:
                 description: CacheOptions specifies the cache settings for the PWA,
                   including pre-caching and runtime caching.
@@ -146,14 +140,6 @@ spec:
                     maxItems: 256
                     type: array
                 type: object
-              cacheStrategy:
-                default: none
-                description: CachingStrategy defines the caching strategy for the
-                  micro frontend.
-                enum:
-                - none
-                - cache
-                type: string
               dependsOn:
                 description: List of dependencies that should be loaded before this
                   micro frontend.
@@ -392,6 +378,19 @@ spec:
                 - accepted
                 - name
                 type: object
+              moduleETag:
+                description: |-
+                  ModuleETag is the ETag value returned by the backend when the module was last fetched.
+                  Used for conditional GET requests (If-None-Match) to avoid redundant downloads.
+                maxLength: 256
+                type: string
+              moduleHash:
+                description: |-
+                  ModuleHash is the SHA256 hash (first 12 hex characters) of the module JS file content,
+                  automatically updated on each reconciliation. Appended as a URL fragment (#hash) to all
+                  proxied module paths and import map entries for browser cache busting.
+                maxLength: 64
+                type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed MicroFrontend
