@@ -39,6 +39,17 @@ spec:
           spec:
             description: MicroFrontendSpec defines the desired state of MicroFrontend
             properties:
+              cacheBustingHash:
+                default: nohash
+                description: |-
+                  CacheBustingHash is a token embedded as a path segment in all proxied URLs for this
+                  microfrontend: ./polyfea/proxy/{namespace}/{name}/{CacheBustingHash}/{path}
+                  The proxy always strips this segment before forwarding to the backend service.
+                  Change this value to force browsers to re-fetch all proxied resources (cache busting).
+                  Defaults to "nohash". Only applies to proxied resources (Proxy: true).
+                maxLength: 64
+                pattern: ^[a-zA-Z0-9_.-]+$
+                type: string
               cacheOptions:
                 description: CacheOptions specifies the cache settings for the PWA,
                   including pre-caching and runtime caching.
@@ -378,19 +389,6 @@ spec:
                 - accepted
                 - name
                 type: object
-              moduleETag:
-                description: |-
-                  ModuleETag is the ETag value returned by the backend when the module was last fetched.
-                  Used for conditional GET requests (If-None-Match) to avoid redundant downloads.
-                maxLength: 256
-                type: string
-              moduleHash:
-                description: |-
-                  ModuleHash is the SHA256 hash (first 12 hex characters) of the module JS file content,
-                  automatically updated on each reconciliation. Appended as a URL fragment (#hash) to all
-                  proxied module paths and import map entries for browser cache busting.
-                maxLength: 64
-                type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed MicroFrontend

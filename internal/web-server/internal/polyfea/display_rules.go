@@ -109,14 +109,14 @@ func convertStyles(styles []v1alpha1.Style) *map[string]string {
 }
 
 // convertMicrofrontendResources converts API resources to the response format.
-func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference) *[]generated.MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference, cacheBustingHash string) *[]generated.MicrofrontendResource {
 	result := make([]generated.MicrofrontendResource, 0, len(resources))
 
 	for _, resource := range resources {
 		kind := generated.MicrofrontendResourceKind(resource.Kind)
 		result = append(result, generated.MicrofrontendResource{
 			Kind:       &kind,
-			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, "", *resource.Proxy, service),
+			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, cacheBustingHash, *resource.Proxy, service),
 			Attributes: convertAttributes(resource.Attributes),
 			WaitOnLoad: &resource.WaitOnLoad,
 		})

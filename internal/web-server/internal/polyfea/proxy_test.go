@@ -284,7 +284,7 @@ func PolyfeaProxyHandleProxyProxiesReturnsResultWithExtraHeaders(t *testing.T) {
 	}()
 
 	// Act
-	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/test-module.css")
+	response, err := http.Get(testServerUrl + "/polyfea/proxy/default/test-microfrontend/nohash/test-module.css")
 
 	// Assert
 	if err != nil {

@@ -243,8 +243,8 @@ func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []
 		result[microFrontend.Name] = generated.MicrofrontendSpec{
 
 			DependsOn: arrToPtr(microFrontend.Spec.DependsOn),
-			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, microFrontend.Status.ModuleHash, *microFrontend.Spec.Proxy, microFrontend.Spec.Service),
-			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources, microFrontend.Spec.Service),
+			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, microFrontend.Spec.CacheBustingHash, *microFrontend.Spec.Proxy, microFrontend.Spec.Service),
+			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources, microFrontend.Spec.Service, microFrontend.Spec.CacheBustingHash),
 		}
 	}
 	return &result

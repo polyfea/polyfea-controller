@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/polyfea/polyfea-controller/api/v1alpha1"
@@ -59,6 +60,14 @@ func (p *PolyfeaProxy) HandleProxy(w http.ResponseWriter, r *http.Request) {
 	microfrontendClass, err := p.getMicrofrontendClass(microfrontend, logger, span, w)
 	if err != nil {
 		return
+	}
+
+	// Strip the cache-busting hash segment (always the first component).
+	// URLs are of the form: {hash}/{actual-path}, e.g. "nohash/module.js" or "v1/app.js".
+	if idx := strings.Index(path, "/"); idx >= 0 {
+		path = path[idx+1:]
+	} else {
+		path = ""
 	}
 
 	serviceUrl := microfrontend.Spec.Service.ResolveServiceURL(microfrontend.Namespace)
