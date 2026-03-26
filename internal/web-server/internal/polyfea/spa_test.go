@@ -331,7 +331,7 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 		t.Fatalf("expected import map to contain react-dom, got %s", result)
 	}
 	// Paths should be proxied through the controller
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react.js"`) {
 		t.Fatalf("expected import map to contain proxied react.js path, got %s", result)
 	}
 }
@@ -420,7 +420,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 	}
 
 	// Should use mf1's version (first registered) with proxy path
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react-v18.js"`) {
 		t.Fatalf("expected import map to contain proxied react-v18.js (first registered), got %s", result)
 	}
 
@@ -495,7 +495,7 @@ func TestBuildImportMapWithScopedEntries(t *testing.T) {
 		t.Fatalf("expected import map to contain MF-specific scope key %s, got %s", expectedScopeKey, result)
 	}
 	// Scoped imports should be proxied
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react-v18.js"`) {
 		t.Fatalf("expected import map to contain proxied react-v18.js in scope, got %s", result)
 	}
 	// Should NOT have top-level imports for scoped entries
@@ -588,7 +588,7 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 	}
 
 	// Should use mf1's version (first registered)
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react-v18.js"`) {
 		t.Fatalf("expected first-registered react-v18.js, got %s", result)
 	}
 
@@ -736,7 +736,7 @@ func TestImportMapJSONFormatting(t *testing.T) {
 		t.Fatalf("expected JSON with proper quotes around 'react', got: %s", result)
 	}
 	// Paths should be proxied
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react.js"`) {
 		t.Fatalf("expected JSON with proxied react.js path, got: %s", result)
 	}
 
@@ -847,7 +847,7 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 		t.Fatalf("expected HTML to contain properly quoted 'lit' in import map")
 	}
 	// Paths should be proxied through the controller
-	if !strings.Contains(htmlOutput, `"./polyfea/proxy/default/test-mf/./lit.js"`) {
+	if !strings.Contains(htmlOutput, `"./polyfea/proxy/default/test-mf/nohash/./lit.js"`) {
 		t.Fatalf("expected HTML to contain proxied lit.js path in import map")
 	}
 	if !strings.Contains(htmlOutput, `"imports"`) {
@@ -936,7 +936,7 @@ func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
 	}
 
 	// Relative path should be proxied
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf-with-cdn/./lodash.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf-with-cdn/nohash/./lodash.js"`) {
 		t.Fatalf("expected relative path to be proxied, got: %s", result)
 	}
 
@@ -1100,10 +1100,10 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 	}
 
 	// Both react versions should exist under their own scopes
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react-v18.js"`) {
 		t.Fatalf("expected mf1's react-v18.js in its scope, got %s", result)
 	}
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf2/./react-v17.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf2/nohash/./react-v17.js"`) {
 		t.Fatalf("expected mf2's react-v17.js in its scope, got %s", result)
 	}
 
@@ -1172,7 +1172,7 @@ func TestBuildImportMapScopedAbsoluteURLsNotProxied(t *testing.T) {
 	}
 
 	// Relative path should be proxied in scope
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./lodash.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./lodash.js"`) {
 		t.Fatalf("expected relative path proxied in scope, got: %s", result)
 	}
 }
@@ -1332,10 +1332,10 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 	}
 
 	// Each gets its own react resolution
-	if !strings.Contains(result, `"./polyfea/proxy/ns-a/mf-nsa/./react.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/ns-a/mf-nsa/nohash/./react.js"`) {
 		t.Fatalf("expected ns-a's react.js, got %s", result)
 	}
-	if !strings.Contains(result, `"./polyfea/proxy/ns-b/mf-nsb/./react-other.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/ns-b/mf-nsb/nohash/./react-other.js"`) {
 		t.Fatalf("expected ns-b's react-other.js, got %s", result)
 	}
 }
@@ -1462,7 +1462,7 @@ func TestBuildImportMapMixedOptionalAndScoped(t *testing.T) {
 	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/"`) {
 		t.Fatalf("expected MF-specific scope key, got %s", result)
 	}
-	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/./react-v18.js"`) {
+	if !strings.Contains(result, `"./polyfea/proxy/default/mf1/nohash/./react-v18.js"`) {
 		t.Fatalf("expected scoped react entry with proxied path, got %s", result)
 	}
 }

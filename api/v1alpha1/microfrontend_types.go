@@ -112,6 +112,17 @@ type MicroFrontendSpec struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	ImportMap *ImportMap `json:"importMap,omitempty"`
+
+	// CacheBustingHash is a token embedded as a path segment in all proxied URLs for this
+	// microfrontend: ./polyfea/proxy/{namespace}/{name}/{CacheBustingHash}/{path}
+	// The proxy always strips this segment before forwarding to the backend service.
+	// Change this value to force browsers to re-fetch all proxied resources (cache busting).
+	// Defaults to "nohash". Only applies to proxied resources (Proxy: true).
+	// +kubebuilder:default=nohash
+	// +kubebuilder:validation:MaxLength=64
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.-]+$`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	CacheBustingHash string `json:"cacheBustingHash,omitempty"`
 }
 
 // StaticResources defines the static resources that should be loaded before this micro frontend.
@@ -227,21 +238,6 @@ type MicroFrontendStatus struct {
 	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// ModuleHash is the SHA256 hash (first 12 hex characters) of the module JS file content,
-	// automatically updated on each reconciliation. Appended as a URL fragment (#hash) to all
-	// proxied module paths and import map entries for browser cache busting.
-	// +optional
-	// +kubebuilder:validation:MaxLength=64
-	// +operator-sdk:csv:customresourcedefinitions:type=status
-	ModuleHash string `json:"moduleHash,omitempty"`
-
-	// ModuleETag is the ETag value returned by the backend when the module was last fetched.
-	// Used for conditional GET requests (If-None-Match) to avoid redundant downloads.
-	// +optional
-	// +kubebuilder:validation:MaxLength=256
-	// +operator-sdk:csv:customresourcedefinitions:type=status
-	ModuleETag string `json:"moduleETag,omitempty"`
 }
 
 // +kubebuilder:object:root=true

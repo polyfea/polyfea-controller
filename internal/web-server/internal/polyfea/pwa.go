@@ -200,6 +200,6 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 }
 
 func buildPreCachePath(mf *v1alpha1.MicroFrontend, url string) *string {
-	path := strings.ReplaceAll("polyfea/proxy/"+mf.Namespace+"/"+mf.Name+"/"+url, "//", "/")
+	path := "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/" + strings.TrimLeft(url, "/")
 	return &path
 }

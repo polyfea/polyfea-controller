@@ -8,18 +8,55 @@ import (
 
 func TestBuildProxyPath(t *testing.T) {
 	tests := []struct {
-		name, namespace, mfName, path, want string
+		name, namespace, mfName, hash, path, want string
 	}{
-		{"basic", "default", "mf", "module.js", "./polyfea/proxy/default/mf/module.js"},
-		{"nested path", "ns", "app", "assets/style.css", "./polyfea/proxy/ns/app/assets/style.css"},
-		{"leading slash stripped", "ns", "mf", "/imports/@lit/context/", "./polyfea/proxy/ns/mf/imports/@lit/context/"},
-		{"empty path", "ns", "mf", "", "./polyfea/proxy/ns/mf/"},
+		{"basic no hash", "default", "mf", "", "module.js", "./polyfea/proxy/default/mf/nohash/module.js"},
+		{"basic with hash", "default", "mf", "v1", "module.js", "./polyfea/proxy/default/mf/v1/module.js"},
+		{"nested path", "ns", "app", "abc123", "assets/style.css", "./polyfea/proxy/ns/app/abc123/assets/style.css"},
+		{"leading slash stripped", "ns", "mf", "v2", "/imports/@lit/context/", "./polyfea/proxy/ns/mf/v2/imports/@lit/context/"},
+		{"empty path", "ns", "mf", "v1", "", "./polyfea/proxy/ns/mf/v1/"},
+		{"trailing slash preserved", "ns", "mf", "v1", "imports/@lit/context/", "./polyfea/proxy/ns/mf/v1/imports/@lit/context/"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildProxyPath(tt.namespace, tt.mfName, tt.path)
+			got := buildProxyPath(tt.namespace, tt.mfName, tt.hash, tt.path)
 			if got != tt.want {
 				t.Errorf("buildProxyPath() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildScopeKey(t *testing.T) {
+	tests := []struct {
+		name, namespace, mfName, want string
+	}{
+		{"basic", "default", "mf1", "./polyfea/proxy/default/mf1/"},
+		{"cross-namespace", "ns-a", "my-app", "./polyfea/proxy/ns-a/my-app/"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildScopeKey(tt.namespace, tt.mfName)
+			if got != tt.want {
+				t.Errorf("buildScopeKey() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHashOrDefault(t *testing.T) {
+	tests := []struct {
+		name, hash, want string
+	}{
+		{"empty hash uses nohash", "", "nohash"},
+		{"explicit hash returned as-is", "v1", "v1"},
+		{"nohash passthrough", "nohash", "nohash"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := hashOrDefault(tt.hash)
+			if got != tt.want {
+				t.Errorf("hashOrDefault(%q) = %q, want %q", tt.hash, got, tt.want)
 			}
 		})
 	}
@@ -48,19 +85,19 @@ func TestJoinURL(t *testing.T) {
 }
 
 func TestBuildModulePath(t *testing.T) {
-	t.Run("proxy enabled", func(t *testing.T) {
+	t.Run("proxy enabled no hash", func(t *testing.T) {
 		got := buildModulePath("ns", "mf", "app.js", "", true, nil)
-		want := "./polyfea/proxy/ns/mf/app.js"
+		want := "./polyfea/proxy/ns/mf/nohash/app.js"
 		if got == nil || *got != want {
-			t.Errorf("buildModulePath(proxy=true) = %v, want %q", got, want)
+			t.Errorf("buildModulePath(proxy=true, no hash) = %v, want %q", got, want)
 		}
 	})
 
-	t.Run("proxy enabled with version", func(t *testing.T) {
+	t.Run("proxy enabled with hash", func(t *testing.T) {
 		got := buildModulePath("ns", "mf", "app.js", "abc123def456", true, nil)
-		want := "./polyfea/proxy/ns/mf/app.js?v=abc123def456"
+		want := "./polyfea/proxy/ns/mf/abc123def456/app.js"
 		if got == nil || *got != want {
-			t.Errorf("buildModulePath(proxy=true, version) = %v, want %q", got, want)
+			t.Errorf("buildModulePath(proxy=true, hash) = %v, want %q", got, want)
 		}
 	})
 
@@ -82,24 +119,6 @@ func TestBuildModulePath(t *testing.T) {
 			t.Errorf("buildModulePath(proxy=false, nil service) = %v, want %q", got, want)
 		}
 	})
-}
-
-func TestAppendVersionFragment(t *testing.T) {
-	tests := []struct {
-		name, path, version, want string
-	}{
-		{"empty version", "./polyfea/proxy/ns/mf/app.js", "", "./polyfea/proxy/ns/mf/app.js"},
-		{"with version", "./polyfea/proxy/ns/mf/app.js", "abc123", "./polyfea/proxy/ns/mf/app.js?v=abc123"},
-		{"trailing slash not versioned", "./polyfea/proxy/ns/mf/imports/@lit/context/", "abc123", "./polyfea/proxy/ns/mf/imports/@lit/context/"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := appendVersionFragment(tt.path, tt.version)
-			if got != tt.want {
-				t.Errorf("appendVersionFragment(%q, %q) = %q, want %q", tt.path, tt.version, got, tt.want)
-			}
-		})
-	}
 }
 
 func strPtr(s string) *string { return &s }

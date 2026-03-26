@@ -1116,8 +1116,8 @@ func createTestElementSpec(microFrontendName string) generated.ElementSpec {
 }
 
 func createTestMicroFrontendSpec(microfrontendName string, dependsOn []string) generated.MicrofrontendSpec {
-	href := "./polyfea/proxy/default/" + microfrontendName + "/test-uri"
-	module := "./polyfea/proxy/default/" + microfrontendName + "/test-module"
+	href := "./polyfea/proxy/default/" + microfrontendName + "/nohash/test-uri"
+	module := "./polyfea/proxy/default/" + microfrontendName + "/nohash/test-module"
 	kind := generated.MicrofrontendResourceKind("test-type")
 	attr := map[string]string{
 		"test-attribute-name": "test-attribute-value",

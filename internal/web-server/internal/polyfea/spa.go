@@ -293,7 +293,7 @@ func (s *SinglePageApplication) mergeImportMaps(sortedMfs []mfWithTimestamp) (ma
 
 		// Scoped entries → under MF-specific scope
 		if len(mf.Spec.ImportMap.Scoped) > 0 {
-			scopeKey := buildProxyPath(mf.Namespace, mf.Name, "")
+			scopeKey := buildScopeKey(mf.Namespace, mf.Name)
 			s.mergeScopedImports(mf, mf.Spec.ImportMap.Scoped, scopeKey, scopes)
 		}
 	}
@@ -338,7 +338,7 @@ func (s *SinglePageApplication) resolveImportMapPath(mf *v1alpha1.MicroFrontend,
 	}
 
 	if proxy {
-		return appendVersionFragment(buildProxyPath(mf.Namespace, mf.Name, path), mf.Status.ModuleHash)
+		return buildProxyPath(mf.Namespace, mf.Name, mf.Spec.CacheBustingHash, path)
 	}
 
 	// For non-proxied services, combine service URL with path
