@@ -203,7 +203,15 @@ func (s *PolyfeaApiService) handleNoWebComponentsFound(w http.ResponseWriter, lo
 
 func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComponent, take *int) []*v1alpha1.WebComponent {
 	sort.Slice(webComponents, func(i, j int) bool {
-		return *webComponents[i].Spec.Priority > *webComponents[j].Spec.Priority
+		pi, pj := *webComponents[i].Spec.Priority, *webComponents[j].Spec.Priority
+		if pi != pj {
+			return pi > pj
+		}
+		ei, ej := strings.ToLower(*webComponents[i].Spec.Element), strings.ToLower(*webComponents[j].Spec.Element)
+		if ei != ej {
+			return ei < ej
+		}
+		return webComponents[i].Name < webComponents[j].Name
 	})
 	if take != nil && *take > 0 && *take < len(webComponents) {
 		return webComponents[:*take]

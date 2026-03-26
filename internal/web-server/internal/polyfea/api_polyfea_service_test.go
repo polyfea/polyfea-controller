@@ -864,6 +864,103 @@ func TestPolyfeaApiServiceGetContextAreaInvalidHeaders(t *testing.T) {
 	}
 }
 
+func TestPolyfeaApiServiceGetContextAreaSamePriorityOrderedByElementName(t *testing.T) {
+	// Arrange: five web components matching the target context area.
+	// Expected order after sorting:
+	//   100 / "aaaa"
+	//    90 / "zzzz"
+	//    10 / "AAA"
+	//    10 / "BBB"
+	//    10 / "Zzzz"
+	displayRules := []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name"}}}}
+
+	wcRepo, mfRepo := setupRepositories()
+	for _, wc := range []*v1alpha1.WebComponent{
+		createTestWebComponentWithElement("wc-zzzz", "mf-zzzz", "zzzz", displayRules, int32(90)),
+		createTestWebComponentWithElement("wc-Zzzz", "mf-Zzzz", "Zzzz", displayRules, int32(10)),
+		createTestWebComponentWithElement("wc-BBB", "mf-BBB", "BBB", displayRules, int32(10)),
+		createTestWebComponentWithElement("wc-aaaa", "mf-aaaa", "aaaa", displayRules, int32(100)),
+		createTestWebComponentWithElement("wc-AAA", "mf-AAA", "AAA", displayRules, int32(10)),
+	} {
+		if err := wcRepo.Store(wc); err != nil {
+			t.Fatalf("Failed to store WebComponent: %v", err)
+		}
+	}
+	for _, mfName := range []string{"mf-aaaa", "mf-zzzz", "mf-AAA", "mf-BBB", "mf-Zzzz"} {
+		if err := mfRepo.Store(createTestMicroFrontend(mfName, []string{}, "test-frontend-class", false)); err != nil {
+			t.Fatalf("Failed to store MicroFrontend: %v", err)
+		}
+	}
+
+	svc := NewPolyfeaAPIService(wcRepo, mfRepo, &logr.Logger{})
+	ctx := setupContext()
+	take := 10
+	statusCode, result := callGetContextArea(t, svc, ctx, "test-path", &take, nil)
+
+	if statusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %v", statusCode)
+	}
+
+	// Assert element order
+	wantOrder := []string{"aaaa", "zzzz", "AAA", "BBB", "Zzzz"}
+	if len(result.Elements) != len(wantOrder) {
+		t.Fatalf("Expected %d elements, got %d", len(wantOrder), len(result.Elements))
+	}
+	for i, want := range wantOrder {
+		if result.Elements[i].TagName != want {
+			t.Errorf("Element[%d]: expected tag %q, got %q", i, want, result.Elements[i].TagName)
+		}
+	}
+}
+
+func TestPolyfeaApiServiceGetContextAreaSamePriorityAndElementOrderedByObjectName(t *testing.T) {
+	// Two components with identical priority and element tag name — order must be
+	// determined by the Kubernetes object name to be fully deterministic.
+	displayRules := []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{Path: "test-path"}, {ContextName: "test-name"}}}}
+
+	priority := int32(10)
+	tagName := "my-widget"
+
+	wcRepo, mfRepo := setupRepositories()
+	for _, objectName := range []string{"wc-beta", "wc-alpha"} {
+		wc := createTestWebComponent(objectName, "mf-"+objectName, displayRules, &priority)
+		wc.Spec.Element = &tagName
+		if err := wcRepo.Store(wc); err != nil {
+			t.Fatalf("Failed to store WebComponent: %v", err)
+		}
+		if err := mfRepo.Store(createTestMicroFrontend("mf-"+objectName, []string{}, "test-frontend-class", false)); err != nil {
+			t.Fatalf("Failed to store MicroFrontend: %v", err)
+		}
+	}
+
+	svc := NewPolyfeaAPIService(wcRepo, mfRepo, &logr.Logger{})
+	ctx := setupContext()
+	take := 10
+	statusCode, result := callGetContextArea(t, svc, ctx, "test-path", &take, nil)
+
+	if statusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %v", statusCode)
+	}
+
+	// Both have tag "my-widget"; "wc-alpha" < "wc-beta" so alpha must come first.
+	if len(result.Elements) != 2 {
+		t.Fatalf("Expected 2 elements, got %d", len(result.Elements))
+	}
+	// microfrontend name reflects the object name, so we can distinguish them
+	if result.Elements[0].Microfrontend == nil || *result.Elements[0].Microfrontend != "mf-wc-alpha" {
+		t.Errorf("Element[0]: expected microfrontend %q, got %v", "mf-wc-alpha", result.Elements[0].Microfrontend)
+	}
+	if result.Elements[1].Microfrontend == nil || *result.Elements[1].Microfrontend != "mf-wc-beta" {
+		t.Errorf("Element[1]: expected microfrontend %q, got %v", "mf-wc-beta", result.Elements[1].Microfrontend)
+	}
+}
+
+func createTestWebComponentWithElement(objectName string, microFrontendName string, elementName string, displayRules []v1alpha1.DisplayRules, priority int32) *v1alpha1.WebComponent {
+	wc := createTestWebComponent(objectName, microFrontendName, displayRules, &priority)
+	wc.Spec.Element = &elementName
+	return wc
+}
+
 func setupRepositories() (repository.Repository[*v1alpha1.WebComponent], repository.Repository[*v1alpha1.MicroFrontend]) {
 	webComponentRepo := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
 	microFrontendRepo := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
