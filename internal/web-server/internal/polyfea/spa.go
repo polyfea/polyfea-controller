@@ -235,15 +235,12 @@ func (s *SinglePageApplication) buildImportMap(microFrontendClass *v1alpha1.Micr
 // getEligibleMicrofrontends returns all accepted microfrontends for the class
 func (s *SinglePageApplication) getEligibleMicrofrontends(microFrontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
 	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
-		// Check if the MicroFrontend references this class
-		if mf.Spec.FrontendClass == nil || *mf.Spec.FrontendClass != microFrontendClass.Name {
-			return false
-		}
-		// Check if the MicroFrontend is accepted by the namespace policy
+		// Check if the MicroFrontend is accepted by the namespace policy and bound to this class
 		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
 			return false
 		}
-		return true
+		return mf.Status.FrontendClassRef.Name == microFrontendClass.Name &&
+			mf.Status.FrontendClassRef.Namespace == microFrontendClass.Namespace
 	})
 }
 

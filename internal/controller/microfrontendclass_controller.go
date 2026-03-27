@@ -121,13 +121,14 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 		rejectedCount := int32(0)
 
 		for _, mf := range mfList.Items {
-			// Check if this MicroFrontend references this class
-			if GetFrontendClassName(mf.Spec.FrontendClass) == mfc.Name {
-				if mfc.IsNamespaceAllowed(mf.Namespace) {
-					acceptedCount++
-				} else {
-					rejectedCount++
-				}
+			ref := mf.Status.FrontendClassRef
+			if ref == nil || ref.Name != mfc.Name || ref.Namespace != mfc.Namespace {
+				continue
+			}
+			if ref.Accepted {
+				acceptedCount++
+			} else {
+				rejectedCount++
 			}
 		}
 

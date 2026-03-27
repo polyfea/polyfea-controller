@@ -69,7 +69,7 @@ var _ = Describe("WebComponent Controller", func() {
 				}
 			},
 			Entry("missing element", polyfeav1alpha1.WebComponentSpec{
-				MicroFrontend: &[]string{"test-microfrontend"}[0],
+				MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 				Attributes: []polyfeav1alpha1.Attribute{
 					{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
 				},
@@ -81,7 +81,7 @@ var _ = Describe("WebComponent Controller", func() {
 			}, false),
 			Entry("missing display rules", polyfeav1alpha1.WebComponentSpec{
 				Element:       &[]string{"my-menu-item"}[0],
-				MicroFrontend: &[]string{"test-microfrontend"}[0],
+				MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 				Attributes: []polyfeav1alpha1.Attribute{
 					{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
 				},
@@ -149,7 +149,7 @@ var _ = Describe("WebComponent Controller", func() {
 					Namespace: WebComponentNamespace,
 				},
 				Spec: polyfeav1alpha1.WebComponentSpec{
-					MicroFrontend: &[]string{"test-microfrontend"}[0],
+					MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 					Element:       &[]string{"my-menu-item"}[0],
 					Attributes: []polyfeav1alpha1.Attribute{
 						{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
@@ -238,7 +238,7 @@ var _ = Describe("WebComponent Controller", func() {
 					Namespace: WebComponentNamespace,
 				},
 				Spec: polyfeav1alpha1.WebComponentSpec{
-					MicroFrontend: &microFrontendName,
+					MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: microFrontendName, Namespace: &mfNamespace},
 					Element:       &[]string{"my-menu-item"}[0],
 					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}, {ContextName: "user"}},

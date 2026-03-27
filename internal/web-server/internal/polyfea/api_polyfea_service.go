@@ -154,25 +154,33 @@ func (s *PolyfeaApiService) updateLoggerAndSpanWithRoles(logger logr.Logger, spa
 
 func (s *PolyfeaApiService) getMicroFrontendsForClass(frontendClass *v1alpha1.MicroFrontendClass) ([]*v1alpha1.MicroFrontend, error) {
 	return s.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
-		// Check if the MicroFrontend references this class
-		if *mf.Spec.FrontendClass != frontendClass.Name {
+		ref := mf.Status.FrontendClassRef
+		if ref == nil {
 			return false
 		}
-		// Check if the MicroFrontend is accepted by the namespace policy
-		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
-			return false
-		}
-		return true
+		return ref.Accepted && ref.Name == frontendClass.Name && ref.Namespace == frontendClass.Namespace
 	})
 }
 
 func (s *PolyfeaApiService) getWebComponents(name, path string, userRoles []string, microFrontendsForClass []*v1alpha1.MicroFrontend) ([]*v1alpha1.WebComponent, error) {
-	microFrontendsNamesForClass := make([]string, 0, len(microFrontendsForClass))
+	type mfKey struct{ name, namespace string }
+	accepted := make(map[mfKey]struct{}, len(microFrontendsForClass))
 	for _, mf := range microFrontendsForClass {
-		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
+		accepted[mfKey{mf.Name, mf.Namespace}] = struct{}{}
 	}
-	return s.webComponentRepository.List(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, userRoles) && (mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend))
+	return s.webComponentRepository.List(func(wc *v1alpha1.WebComponent) bool {
+		if !selectMatchingWebComponents(wc, name, path, userRoles) {
+			return false
+		}
+		if wc.Spec.MicroFrontend == nil {
+			return true
+		}
+		ns := wc.Namespace
+		if wc.Spec.MicroFrontend.Namespace != nil && *wc.Spec.MicroFrontend.Namespace != "" {
+			ns = *wc.Spec.MicroFrontend.Namespace
+		}
+		_, ok := accepted[mfKey{wc.Spec.MicroFrontend.Name, ns}]
+		return ok
 	})
 }
 
@@ -224,8 +232,8 @@ func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1al
 	for _, webComponent := range webComponents {
 		var microfrontendName string
 		if webComponent.Spec.MicroFrontend != nil {
-			*microFrontendsToLoad = append(*microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
-			microfrontendName = *webComponent.Spec.MicroFrontend
+			*microFrontendsToLoad = append(*microFrontendsToLoad, webComponent.Spec.MicroFrontend.Name)
+			microfrontendName = webComponent.Spec.MicroFrontend.Name
 		}
 		result = append(result, generated.ElementSpec{
 			Microfrontend: strToPtr(microfrontendName),

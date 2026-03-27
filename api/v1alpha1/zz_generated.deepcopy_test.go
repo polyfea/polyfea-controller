@@ -195,7 +195,7 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 		Proxy:           ptr(true),
 		ModulePath:      ptr("/module.js"),
 		StaticResources: []StaticResources{{Kind: "script", Path: "/test.js"}},
-		FrontendClass:   ptr("default"),
+		FrontendClass:   NamespacedReference{Name: "default"},
 		DependsOn:       []string{"dep1"},
 		CacheOptions:    &PWACache{},
 		ImportMap:       &ImportMap{},
@@ -359,7 +359,7 @@ func TestWebComponentList_DeepCopy(t *testing.T) {
 
 func TestWebComponentSpec_DeepCopy(t *testing.T) {
 	spec := &WebComponentSpec{
-		MicroFrontend: ptr("mf"),
+		MicroFrontend: &NamespacedReference{Name: "mf"},
 		Element:       ptr("my-element"),
 		Attributes:    []Attribute{{Name: TestConst, Value: runtime.RawExtension{Raw: []byte(`"value"`)}}},
 		DisplayRules:  []DisplayRules{{AllOf: []Matcher{{Path: "/"}}}},

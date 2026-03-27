@@ -285,7 +285,7 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -297,8 +297,9 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -352,7 +353,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 			CreationTimestamp: now,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -363,8 +364,9 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -378,7 +380,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 			CreationTimestamp: later,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -390,8 +392,9 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -448,7 +451,7 @@ func TestBuildImportMapWithScopedEntries(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -459,8 +462,9 @@ func TestBuildImportMapWithScopedEntries(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -520,7 +524,7 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 			CreationTimestamp: now,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -531,8 +535,9 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -546,7 +551,7 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 			CreationTimestamp: later,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -558,8 +563,9 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -618,7 +624,7 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -629,8 +635,9 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: false, // Not accepted
+				Name:      className,
+				Namespace: "default",
+				Accepted:  false, // Not accepted
 			},
 		},
 	}
@@ -676,7 +683,7 @@ func TestImportMapJSONFormatting(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -692,8 +699,9 @@ func TestImportMapJSONFormatting(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -784,7 +792,7 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -796,8 +804,9 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -886,7 +895,7 @@ func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -899,8 +908,9 @@ func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -960,7 +970,7 @@ func TestImportMapNonProxiedService(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://external-service.com")},
 			ModulePath:    ptr("app.js"),
 			Proxy:         &proxy,
@@ -972,8 +982,9 @@ func TestImportMapNonProxiedService(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1026,7 +1037,7 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 			CreationTimestamp: now,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1037,8 +1048,9 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1051,7 +1063,7 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 			CreationTimestamp: later,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1062,8 +1074,9 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1126,7 +1139,7 @@ func TestBuildImportMapScopedAbsoluteURLsNotProxied(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1138,8 +1151,9 @@ func TestBuildImportMapScopedAbsoluteURLsNotProxied(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1192,7 +1206,7 @@ func TestBuildImportMapScopedNonProxiedService(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://external.com")},
 			ModulePath:    ptr("app.js"),
 			Proxy:         &proxy,
@@ -1204,8 +1218,9 @@ func TestBuildImportMapScopedNonProxiedService(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1258,7 +1273,7 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 			CreationTimestamp: now,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1269,8 +1284,9 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "ns-a",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1283,7 +1299,7 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 			CreationTimestamp: later,
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1294,8 +1310,9 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "ns-a",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1353,15 +1370,16 @@ func TestBuildImportMapNilImportMapSkipped(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap:     nil, // No import map at all
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}
@@ -1405,7 +1423,7 @@ func TestBuildImportMapMixedOptionalAndScoped(t *testing.T) {
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: v1alpha1.MicroFrontendSpec{
-			FrontendClass: &className,
+			FrontendClass: v1alpha1.NamespacedReference{Name: className},
 			Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 			ModulePath:    ptr("app.js"),
 			ImportMap: &v1alpha1.ImportMap{
@@ -1419,8 +1437,9 @@ func TestBuildImportMapMixedOptionalAndScoped(t *testing.T) {
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:     className,
-				Accepted: true,
+				Name:      className,
+				Namespace: "default",
+				Accepted:  true,
 			},
 		},
 	}

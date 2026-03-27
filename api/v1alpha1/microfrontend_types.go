@@ -22,6 +22,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// NamespacedReference refers to a named resource, optionally in a specific namespace.
+// If Namespace is omitted, the referencing resource's own namespace is assumed.
+type NamespacedReference struct {
+	// Name of the referenced resource.
+	// +kubebuilder:validation:MaxLength=253
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// Namespace of the referenced resource.
+	// Defaults to the namespace of the referencing resource if not specified.
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Namespace *string `json:"namespace,omitempty"`
+}
+
 // ServiceReference defines how to reach the service hosting the micro frontend
 // +kubebuilder:validation:XValidation:rule="(has(self.name) && size(self.name) > 0) != (has(self.uri) && size(self.uri) > 0)",message="Either 'name' or 'uri' must be specified, but not both"
 type ServiceReference struct {
@@ -91,11 +107,11 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	StaticResources []StaticResources `json:"staticPaths,omitempty"`
 
-	// FrontendClass is the name of the frontend class that should be used for this micro frontend.
-	// +kubebuilder:default=polyfea-controller-default
-	// +kubebuilder:validation:MaxLength=253
+	// FrontendClass is a reference to the MicroFrontendClass to bind to.
+	// If Namespace is omitted, the MicroFrontend's own namespace is assumed.
+	// +kubebuilder:default={name: "polyfea-controller-default"}
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	FrontendClass *string `json:"frontendClass"`
+	FrontendClass NamespacedReference `json:"frontendClass"`
 
 	// List of dependencies that should be loaded before this micro frontend.
 	// +kubebuilder:validation:MaxItems=64

@@ -111,14 +111,18 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Context, webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
 	statusUpdated := false
 
-	if webComponent.Spec.MicroFrontend == nil || *webComponent.Spec.MicroFrontend == "" {
+	if webComponent.Spec.MicroFrontend == nil || webComponent.Spec.MicroFrontend.Name == "" {
 		statusUpdated = r.handleNoMicroFrontendRef(webComponent, logger)
 		return statusUpdated
 	}
 
-	mfName := *webComponent.Spec.MicroFrontend
+	mfName := webComponent.Spec.MicroFrontend.Name
+	mfLookupNamespace := webComponent.Namespace
+	if webComponent.Spec.MicroFrontend.Namespace != nil && *webComponent.Spec.MicroFrontend.Namespace != "" {
+		mfLookupNamespace = *webComponent.Spec.MicroFrontend.Namespace
+	}
 
-	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, webComponent.Namespace)
+	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, mfLookupNamespace)
 	mfFound := err == nil
 	mfNamespace := webComponent.Namespace
 	if mfFound {

@@ -124,7 +124,11 @@ func (p *PolyfeaProxy) getMicrofrontend(nameSpace, nameMicroFrontend string, log
 
 func (p *PolyfeaProxy) getMicrofrontendClass(microfrontend *v1alpha1.MicroFrontend, logger logr.Logger, span trace.Span, w http.ResponseWriter) (*v1alpha1.MicroFrontendClass, error) {
 	microfrontendClasses, err := p.microfrontendClassRepository.List(func(mfc *v1alpha1.MicroFrontendClass) bool {
-		return mfc.Name == *microfrontend.Spec.FrontendClass
+		ref := microfrontend.Status.FrontendClassRef
+		if ref == nil {
+			return false
+		}
+		return mfc.Name == ref.Name && mfc.Namespace == ref.Namespace
 	})
 
 	if err != nil {

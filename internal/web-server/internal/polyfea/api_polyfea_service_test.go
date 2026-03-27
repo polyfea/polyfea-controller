@@ -1005,11 +1005,11 @@ func createTestContextArea(expectedElements []generated.ElementSpec, expectedMic
 
 func createTestWebComponent(objectName string, microFrontendName string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
 
-	var mfn *string
+	var mfn *v1alpha1.NamespacedReference
 	if len(microFrontendName) == 0 {
 		mfn = nil
 	} else {
-		mfn = &microFrontendName
+		mfn = &v1alpha1.NamespacedReference{Name: microFrontendName}
 	}
 
 	return &v1alpha1.WebComponent{
@@ -1056,7 +1056,7 @@ func createTestMicroFrontend(objectName string, dependsOn []string, frontendClas
 				Scheme:    &serviceScheme,
 			},
 			Proxy:         &[]bool{proxy}[0],
-			FrontendClass: &[]string{frontendClass}[0],
+			FrontendClass: v1alpha1.NamespacedReference{Name: frontendClass},
 			DependsOn:     dependsOn,
 			ModulePath:    &[]string{"test-module"}[0],
 			StaticResources: []v1alpha1.StaticResources{{
@@ -1174,7 +1174,7 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 				URI: &externalServiceURI,
 			},
 			Proxy:         &[]bool{false}[0],
-			FrontendClass: &[]string{"test-frontend-class"}[0],
+			FrontendClass: v1alpha1.NamespacedReference{Name: "test-frontend-class"},
 			DependsOn:     []string{},
 			ModulePath:    &[]string{"modules/app.js"}[0],
 			StaticResources: []v1alpha1.StaticResources{{

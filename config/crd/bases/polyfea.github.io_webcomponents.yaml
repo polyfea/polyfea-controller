@@ -166,10 +166,23 @@ spec:
                 maxLength: 256
                 type: string
               microFrontend:
-                description: Reference to a microfrontend from which the webcomponent
-                  would be served.
-                maxLength: 253
-                type: string
+                description: |-
+                  MicroFrontend is a reference to the MicroFrontend that provides this component.
+                  If Namespace is omitted, the WebComponent's own namespace is assumed.
+                properties:
+                  name:
+                    description: Name of the referenced resource.
+                    maxLength: 253
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the referenced resource.
+                      Defaults to the namespace of the referencing resource if not specified.
+                    maxLength: 63
+                    type: string
+                required:
+                - name
+                type: object
               priority:
                 default: 0
                 description: Priority defines the priority of the webcomponent. Used

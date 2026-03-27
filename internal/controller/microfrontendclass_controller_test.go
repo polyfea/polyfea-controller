@@ -20,6 +20,7 @@ import (
 	"context"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors" // Correct import for `errors.IsNotFound`
 
 	. "github.com/onsi/ginkgo/v2"
@@ -366,6 +367,77 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				Expect(created.IsNamespaceAllowed("staging")).Should(BeFalse())
 
 				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			})
+
+			It("Should not double-count MFs when same-named classes exist in multiple namespaces", func() {
+				By("Creating two MFCs with the same name in different namespaces")
+				testCtx := context.Background()
+				mfcName := MicroFrontendClassName
+				otherNamespace := "mfc-count-test-ns"
+
+				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: otherNamespace}}
+				_ = k8sClient.Create(testCtx, ns)
+
+				ensureMicroFrontendClassDeleted(testCtx)
+
+				mfcDefault := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{Name: mfcName, Namespace: MicroFrontendClassNamespace},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://default.example.com"),
+						Title:   ptr("Default"),
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfcDefault)).To(Succeed())
+
+				mfcOther := &v1alpha1.MicroFrontendClass{
+					ObjectMeta: metav1.ObjectMeta{Name: mfcName, Namespace: otherNamespace},
+					Spec: v1alpha1.MicroFrontendClassSpec{
+						BaseUri: ptr("https://other.example.com"),
+						Title:   ptr("Other"),
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfcOther)).To(Succeed())
+
+				By("Creating a MF in the default namespace referencing the default MFC")
+				proxy := true
+				mfDefault := &v1alpha1.MicroFrontend{
+					ObjectMeta: metav1.ObjectMeta{Name: "mf-count-test", Namespace: MicroFrontendClassNamespace},
+					Spec: v1alpha1.MicroFrontendSpec{
+						Service:       &v1alpha1.ServiceReference{URI: ptr("https://example.com")},
+						ModulePath:    ptr("app.js"),
+						Proxy:         &proxy,
+						FrontendClass: v1alpha1.NamespacedReference{Name: mfcName},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, mfDefault)).To(Succeed())
+
+				By("Verifying default MFC counts exactly 1 accepted MF")
+				mfcDefaultKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendClassNamespace}
+				createdMfcDefault := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, mfcDefaultKey, createdMfcDefault)
+					if err != nil {
+						return false
+					}
+					return createdMfcDefault.Status.AcceptedMicroFrontends == 1
+				}, timeout, interval).Should(BeTrue())
+
+				By("Verifying other MFC counts 0 — does not steal the MF from default")
+				mfcOtherKey := types.NamespacedName{Name: mfcName, Namespace: otherNamespace}
+				createdMfcOther := &v1alpha1.MicroFrontendClass{}
+				Eventually(func() bool {
+					err := k8sClient.Get(testCtx, mfcOtherKey, createdMfcOther)
+					if err != nil {
+						return false
+					}
+					return createdMfcOther.Status.AcceptedMicroFrontends == 0 &&
+						createdMfcOther.Status.RejectedMicroFrontends == 0
+				}, timeout, interval).Should(BeTrue())
+
+				By("Cleaning up")
+				Expect(k8sClient.Delete(testCtx, mfDefault)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfcDefault)).Should(Succeed())
+				Expect(k8sClient.Delete(testCtx, mfcOther)).Should(Succeed())
 			})
 		})
 	})

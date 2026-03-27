@@ -23,11 +23,11 @@ import (
 
 // WebComponentSpec defines the desired state of WebComponent
 type WebComponentSpec struct {
-	// Reference to a microfrontend from which the webcomponent would be served.
+	// MicroFrontend is a reference to the MicroFrontend that provides this component.
+	// If Namespace is omitted, the WebComponent's own namespace is assumed.
 	// +optional
-	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	MicroFrontend *string `json:"microFrontend,omitempty"`
+	MicroFrontend *NamespacedReference `json:"microFrontend,omitempty"`
 
 	// The HTML element tag name to be used when the matcher is matched.
 	// +kubebuilder:example="my-menu-item"
