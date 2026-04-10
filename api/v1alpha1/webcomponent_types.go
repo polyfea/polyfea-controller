@@ -125,18 +125,27 @@ type Matcher struct {
 	Role string `json:"role,omitempty"`
 
 	// Nested allOf: all sub-matchers must match.
+	//
+	// Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+	// are required here because Matcher references itself. controller-gen detects the cycle
+	// and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+	// side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+	// array-specific markers on Schemaless fields. The semantically intended limit is 16,
+	// matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AllOf []Matcher `json:"allOf,omitempty"`
 
 	// Nested anyOf: at least one sub-matcher must match.
+	// See AllOf for an explanation of why MaxItems cannot be set here.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AnyOf []Matcher `json:"anyOf,omitempty"`
 
 	// Nested noneOf: none of the sub-matchers may match.
+	// See AllOf for an explanation of why MaxItems cannot be set here.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

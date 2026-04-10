@@ -83,11 +83,20 @@ spec:
                           AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
                           allOf:
-                            description: 'Nested allOf: all sub-matchers must match.'
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
                             x-kubernetes-preserve-unknown-fields: true
                           anyOf:
-                            description: 'Nested anyOf: at least one sub-matcher must
-                              match.'
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
@@ -95,8 +104,9 @@ spec:
                             maxLength: 256
                             type: string
                           noneOf:
-                            description: 'Nested noneOf: none of the sub-matchers
-                              may match.'
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
@@ -124,11 +134,20 @@ spec:
                           AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
                           allOf:
-                            description: 'Nested allOf: all sub-matchers must match.'
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
                             x-kubernetes-preserve-unknown-fields: true
                           anyOf:
-                            description: 'Nested anyOf: at least one sub-matcher must
-                              match.'
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
@@ -136,8 +155,9 @@ spec:
                             maxLength: 256
                             type: string
                           noneOf:
-                            description: 'Nested noneOf: none of the sub-matchers
-                              may match.'
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
@@ -165,11 +185,20 @@ spec:
                           AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
                           allOf:
-                            description: 'Nested allOf: all sub-matchers must match.'
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
                             x-kubernetes-preserve-unknown-fields: true
                           anyOf:
-                            description: 'Nested anyOf: at least one sub-matcher must
-                              match.'
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
@@ -177,8 +206,9 @@ spec:
                             maxLength: 256
                             type: string
                           noneOf:
-                            description: 'Nested noneOf: none of the sub-matchers
-                              may match.'
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
                             x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is

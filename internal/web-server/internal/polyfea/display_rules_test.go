@@ -131,3 +131,117 @@ func TestSelectMatchingWebComponentsNestedOperators(t *testing.T) {
 		})
 	}
 }
+
+// TestSelectMatchingWebComponentsWildCombinations exercises deep nesting across all three
+// operators (allOf / anyOf / noneOf) at multiple levels, plus multiple DisplayRules entries
+// (OR semantics between them), and scalar matchers alongside nested operators at the same level.
+//
+// Rule set (two DisplayRules, OR between them):
+//
+// Rule 1: allOf
+//   - anyOf: context=dashboard OR (context=reports AND role=analyst)  <- nested allOf inside anyOf
+//   - noneOf: anyOf: path=^/draft OR role=guest                       <- noneOf containing anyOf
+//   - path=^/app                                                       <- scalar alongside nested ops
+//
+// Reads: "in (dashboard OR (reports AND analyst)), not on /draft and not a guest, path starts /app"
+//
+// Rule 2: anyOf
+//   - role=superadmin
+//   - allOf: context=admin-panel AND noneOf: path=^/admin/secret       <- double nesting
+//
+// Reads: "superadmin anywhere, OR admin-panel but not the secret path"
+func TestSelectMatchingWebComponentsWildCombinations(t *testing.T) {
+	wc := &v1alpha1.WebComponent{
+		Spec: v1alpha1.WebComponentSpec{
+			DisplayRules: []v1alpha1.DisplayRules{
+				// Rule 1
+				{
+					AllOf: []v1alpha1.Matcher{
+						{
+							// anyOf: dashboard  OR  (reports AND analyst)
+							AnyOf: []v1alpha1.Matcher{
+								{ContextName: "dashboard"},
+								{
+									// nested allOf inside anyOf
+									AllOf: []v1alpha1.Matcher{
+										{ContextName: "reports"},
+										{Role: "analyst"},
+									},
+								},
+							},
+						},
+						{
+							// noneOf: (path /draft OR role guest)
+							NoneOf: []v1alpha1.Matcher{
+								{
+									AnyOf: []v1alpha1.Matcher{
+										{Path: "^/draft"},
+										{Role: "guest"},
+									},
+								},
+							},
+						},
+						// scalar alongside nested ops
+						{Path: "^/app"},
+					},
+				},
+				// Rule 2
+				{
+					AnyOf: []v1alpha1.Matcher{
+						{Role: "superadmin"},
+						{
+							AllOf: []v1alpha1.Matcher{
+								{ContextName: "admin-panel"},
+								{
+									NoneOf: []v1alpha1.Matcher{
+										{Path: "^/admin/secret"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		desc    string
+		context string
+		path    string
+		roles   []string
+		want    bool
+	}{
+		// Rule 1 matches
+		{"dashboard analyst /app", "dashboard", "/app/page", []string{"analyst"}, true},
+		{"reports + analyst /app", "reports", "/app/data", []string{"analyst"}, true},
+		// Rule 1 misses — wrong context
+		{"other context", "other", "/app/page", []string{"analyst"}, false},
+		// Rule 1 misses — reports without analyst role
+		{"reports without analyst", "reports", "/app/data", []string{"viewer"}, false},
+		// Rule 1 misses — excluded path (noneOf block)
+		{"dashboard /draft blocked", "dashboard", "/draft/item", []string{"analyst"}, false},
+		// Rule 1 misses — guest role blocked by noneOf
+		{"dashboard guest blocked", "dashboard", "/app/page", []string{"guest"}, false},
+		// Rule 1 misses — path doesn't match ^/app scalar
+		{"dashboard wrong path", "dashboard", "/home", []string{"analyst"}, false},
+		// Rule 2 matches — superadmin anywhere
+		{"superadmin any context", "anything", "/wherever", []string{"superadmin"}, true},
+		// Rule 2 matches — admin-panel non-secret path
+		{"admin-panel safe path", "admin-panel", "/admin/users", []string{"viewer"}, true},
+		// Rule 2 misses — admin-panel but secret path
+		{"admin-panel secret blocked", "admin-panel", "/admin/secret/key", []string{"viewer"}, false},
+		// Neither rule — no role, wrong context, wrong path
+		{"no match at all", "public", "/home", []string{}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := selectMatchingWebComponents(wc, tc.context, tc.path, tc.roles)
+			if got != tc.want {
+				t.Errorf("selectMatchingWebComponents(%q, %q, %v) = %v, want %v",
+					tc.context, tc.path, tc.roles, got, tc.want)
+			}
+		})
+	}
+}
