@@ -284,5 +284,111 @@ var _ = Describe("WebComponent Controller", func() {
 			Expect(k8sClient.Delete(testCtx, microFrontend)).Should(Succeed())
 			Expect(k8sClient.Delete(testCtx, namespaceObj)).Should(Succeed())
 		})
+
+		It("Should accept and round-trip nested matcher operators via the Kubernetes API", func() {
+			// This test verifies that the CRD schema (with x-kubernetes-preserve-unknown-fields
+			// on the recursive Matcher fields) allows deeply nested allOf/anyOf/noneOf structures
+			// to be written to and read back from the API server without any fields being pruned.
+			testCtx := context.Background()
+			ensureWebComponentDeleted(testCtx)
+
+			webComponent := &polyfeav1alpha1.WebComponent{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "WebComponent",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      WebComponentName,
+					Namespace: WebComponentNamespace,
+				},
+				Spec: polyfeav1alpha1.WebComponentSpec{
+					Element: &[]string{"my-element"}[0],
+					DisplayRules: []polyfeav1alpha1.DisplayRules{
+						{
+							// Top-level allOf containing nested anyOf and noneOf — mirrors the
+							// feature request example: show for (nav OR apps) AND (admin OR ds)
+							// AND NOT /secret.
+							AllOf: []polyfeav1alpha1.Matcher{
+								{
+									AnyOf: []polyfeav1alpha1.Matcher{
+										{ContextName: "navigation"},
+										{ContextName: "applications"},
+									},
+								},
+								{
+									AnyOf: []polyfeav1alpha1.Matcher{
+										{Role: "admin"},
+										{Role: "datascience"},
+									},
+								},
+								{
+									NoneOf: []polyfeav1alpha1.Matcher{
+										{Path: "^/secret$"},
+									},
+								},
+							},
+						},
+						{
+							// Second rule: deeply nested allOf inside anyOf inside noneOf,
+							// exercising three levels and all three operators in one rule.
+							AnyOf: []polyfeav1alpha1.Matcher{
+								{Role: "superadmin"},
+								{
+									AllOf: []polyfeav1alpha1.Matcher{
+										{ContextName: "admin-panel"},
+										{
+											NoneOf: []polyfeav1alpha1.Matcher{
+												{Path: "^/admin/secret"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+			lookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+			fetched := &polyfeav1alpha1.WebComponent{}
+			Eventually(func() bool {
+				return k8sClient.Get(testCtx, lookupKey, fetched) == nil
+			}, timeout, interval).Should(BeTrue())
+
+			// Rule 1: allOf with three nested matchers
+			Expect(fetched.Spec.DisplayRules).Should(HaveLen(2))
+			rule1 := fetched.Spec.DisplayRules[0]
+			Expect(rule1.AllOf).Should(HaveLen(3))
+
+			// First allOf entry: anyOf with two context matchers
+			Expect(rule1.AllOf[0].AnyOf).Should(HaveLen(2))
+			Expect(rule1.AllOf[0].AnyOf[0].ContextName).Should(Equal("navigation"))
+			Expect(rule1.AllOf[0].AnyOf[1].ContextName).Should(Equal("applications"))
+
+			// Second allOf entry: anyOf with two role matchers
+			Expect(rule1.AllOf[1].AnyOf).Should(HaveLen(2))
+			Expect(rule1.AllOf[1].AnyOf[0].Role).Should(Equal("admin"))
+			Expect(rule1.AllOf[1].AnyOf[1].Role).Should(Equal("datascience"))
+
+			// Third allOf entry: noneOf with path matcher
+			Expect(rule1.AllOf[2].NoneOf).Should(HaveLen(1))
+			Expect(rule1.AllOf[2].NoneOf[0].Path).Should(Equal("^/secret$"))
+
+			// Rule 2: anyOf with scalar and nested allOf+noneOf (three levels deep)
+			rule2 := fetched.Spec.DisplayRules[1]
+			Expect(rule2.AnyOf).Should(HaveLen(2))
+			Expect(rule2.AnyOf[0].Role).Should(Equal("superadmin"))
+			Expect(rule2.AnyOf[1].AllOf).Should(HaveLen(2))
+			Expect(rule2.AnyOf[1].AllOf[0].ContextName).Should(Equal("admin-panel"))
+			Expect(rule2.AnyOf[1].AllOf[1].NoneOf).Should(HaveLen(1))
+			Expect(rule2.AnyOf[1].AllOf[1].NoneOf[0].Path).Should(Equal("^/admin/secret"))
+
+			Expect(k8sClient.Delete(testCtx, fetched)).Should(Succeed())
+			Eventually(func() bool {
+				return errors.IsNotFound(k8sClient.Get(testCtx, lookupKey, fetched))
+			}, timeout, interval).Should(BeTrue())
+		})
 	})
 })
