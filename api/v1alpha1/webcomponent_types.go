@@ -103,7 +103,9 @@ type DisplayRules struct {
 }
 
 // Matcher defines the conditions under which the web component should be loaded.
-// +kubebuilder:validation:MaxProperties=1
+// A Matcher may contain scalar fields (context-name, path, role) and/or nested
+// operator fields (allOf, anyOf, noneOf). All present conditions are combined with
+// AND semantics: every condition must hold for the matcher to evaluate to true.
 type Matcher struct {
 	// This is a list of context names in which this element is intended to be shown.
 	// +kubebuilder:validation:MaxLength=256
@@ -121,6 +123,21 @@ type Matcher struct {
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Role string `json:"role,omitempty"`
+
+	// Nested allOf: all sub-matchers must match.
+	// +kubebuilder:validation:MaxItems=16
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	AllOf []Matcher `json:"allOf,omitempty"`
+
+	// Nested anyOf: at least one sub-matcher must match.
+	// +kubebuilder:validation:MaxItems=16
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	AnyOf []Matcher `json:"anyOf,omitempty"`
+
+	// Nested noneOf: none of the sub-matchers may match.
+	// +kubebuilder:validation:MaxItems=16
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	NoneOf []Matcher `json:"noneOf,omitempty"`
 }
 
 // ObjectReference contains information about a referenced object

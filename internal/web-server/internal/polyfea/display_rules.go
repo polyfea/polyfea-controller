@@ -10,22 +10,64 @@ import (
 	"github.com/polyfea/polyfea-controller/internal/web-server/internal/polyfea/generated"
 )
 
+// matchesMatcher evaluates a single Matcher against the given request criteria.
+// All conditions present on the matcher are combined with AND semantics.
+// Scalar fields (ContextName, Path, Role) and nested operators (AllOf, AnyOf, NoneOf)
+// may appear together; every condition must hold for the matcher to return true.
+func matchesMatcher(matcher v1alpha1.Matcher, name string, path string, userRoles []string) bool {
+	// Scalar field checks
+	if len(matcher.ContextName) > 0 && matcher.ContextName != name {
+		return false
+	}
+	if len(matcher.Path) > 0 {
+		pathRegex := regexp.MustCompile(matcher.Path)
+		if !pathRegex.MatchString(path) {
+			return false
+		}
+	}
+	if len(matcher.Role) > 0 && !slices.Contains(userRoles, matcher.Role) {
+		return false
+	}
+
+	// Nested NoneOf: if any sub-matcher matches, this matcher fails
+	for _, m := range matcher.NoneOf {
+		if matchesMatcher(m, name, path, userRoles) {
+			return false
+		}
+	}
+
+	// Nested AllOf: every sub-matcher must match
+	for _, m := range matcher.AllOf {
+		if !matchesMatcher(m, name, path, userRoles) {
+			return false
+		}
+	}
+
+	// Nested AnyOf: at least one sub-matcher must match (vacuously true when empty)
+	if len(matcher.AnyOf) > 0 {
+		anyMatch := false
+		for _, m := range matcher.AnyOf {
+			if matchesMatcher(m, name, path, userRoles) {
+				anyMatch = true
+				break
+			}
+		}
+		if !anyMatch {
+			return false
+		}
+	}
+
+	return true
+}
+
 // selectMatchingWebComponents checks if a WebComponent matches the given display criteria.
 func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name string, path string, userRoles []string) bool {
 	for _, displayRule := range webComponent.Spec.DisplayRules {
-		var pathRegex *regexp.Regexp
 		selectCurrent := true
 
 		// If any of noneOf rules matches, we can evaluate to false
 		for _, matcher := range displayRule.NoneOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
-
+			if matchesMatcher(matcher, name, path, userRoles) {
 				selectCurrent = false
 				break
 			}
@@ -37,14 +79,7 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 
 		// If any of allOf rules does not match, we can evaluate to false
 		for _, matcher := range displayRule.AllOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName != name ||
-				len(matcher.Path) > 0 && !pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && !slices.Contains(userRoles, matcher.Role) {
-
+			if !matchesMatcher(matcher, name, path, userRoles) {
 				selectCurrent = false
 				break
 			}
@@ -54,23 +89,14 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 			continue
 		}
 
-		// If any of anyOf rules matches, we can evaluate to true therfore we need to set to false first
+		// AnyOf: at least one must match (vacuously true when empty)
 		if len(displayRule.AnyOf) > 0 {
 			selectCurrent = false
-		}
-
-		// If any of anyOf rules matches, we can evaluate to true
-		for _, matcher := range displayRule.AnyOf {
-			if len(matcher.Path) != 0 {
-				pathRegex = regexp.MustCompile(matcher.Path)
-			}
-
-			if len(matcher.ContextName) > 0 && matcher.ContextName == name ||
-				len(matcher.Path) > 0 && pathRegex.MatchString(path) ||
-				len(matcher.Role) > 0 && slices.Contains(userRoles, matcher.Role) {
-
-				selectCurrent = true
-				break
+			for _, matcher := range displayRule.AnyOf {
+				if matchesMatcher(matcher, name, path, userRoles) {
+					selectCurrent = true
+					break
+				}
 			}
 		}
 

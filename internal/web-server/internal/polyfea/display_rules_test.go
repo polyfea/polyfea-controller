@@ -67,3 +67,67 @@ func TestSelectMatchingWebComponentsAllOf(t *testing.T) {
 		t.Error("expected no match for wrong context name")
 	}
 }
+
+// TestSelectMatchingWebComponentsNestedOperators verifies that allOf, anyOf, and noneOf
+// can be used recursively inside another allOf entry to express combinatorial rules
+// without listing every combination explicitly.
+//
+// The rule below reads:
+//
+//	"show if (context is navigation OR applications)
+//	       AND (role is admin OR datascience)
+//	       AND NOT path matches ^/secret$"
+func TestSelectMatchingWebComponentsNestedOperators(t *testing.T) {
+	wc := &v1alpha1.WebComponent{
+		Spec: v1alpha1.WebComponentSpec{
+			DisplayRules: []v1alpha1.DisplayRules{
+				{
+					AllOf: []v1alpha1.Matcher{
+						{
+							AnyOf: []v1alpha1.Matcher{
+								{ContextName: "navigation"},
+								{ContextName: "applications"},
+							},
+						},
+						{
+							AnyOf: []v1alpha1.Matcher{
+								{Role: "admin"},
+								{Role: "datascience"},
+							},
+						},
+						{
+							NoneOf: []v1alpha1.Matcher{
+								{Path: "^/secret$"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		desc    string
+		context string
+		path    string
+		roles   []string
+		want    bool
+	}{
+		{"navigation + admin", "navigation", "/page", []string{"admin"}, true},
+		{"applications + datascience", "applications", "/page", []string{"datascience"}, true},
+		{"navigation + datascience", "navigation", "/page", []string{"datascience"}, true},
+		{"wrong context", "other", "/page", []string{"admin"}, false},
+		{"wrong role", "navigation", "/page", []string{"other"}, false},
+		{"excluded path", "navigation", "/secret", []string{"admin"}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := selectMatchingWebComponents(wc, tc.context, tc.path, tc.roles)
+			if got != tc.want {
+				t.Errorf("selectMatchingWebComponents(%q, %q, %v) = %v, want %v",
+					tc.context, tc.path, tc.roles, got, tc.want)
+			}
+		})
+	}
+}
