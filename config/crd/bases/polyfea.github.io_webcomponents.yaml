@@ -84,15 +84,11 @@ spec:
                         properties:
                           allOf:
                             description: 'Nested allOf: all sub-matchers must match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           anyOf:
                             description: 'Nested anyOf: at least one sub-matcher must
                               match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
@@ -101,9 +97,7 @@ spec:
                           noneOf:
                             description: 'Nested noneOf: none of the sub-matchers
                               may match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
@@ -131,15 +125,11 @@ spec:
                         properties:
                           allOf:
                             description: 'Nested allOf: all sub-matchers must match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           anyOf:
                             description: 'Nested anyOf: at least one sub-matcher must
                               match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
@@ -148,9 +138,7 @@ spec:
                           noneOf:
                             description: 'Nested noneOf: none of the sub-matchers
                               may match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
@@ -178,15 +166,11 @@ spec:
                         properties:
                           allOf:
                             description: 'Nested allOf: all sub-matchers must match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           anyOf:
                             description: 'Nested anyOf: at least one sub-matcher must
                               match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
@@ -195,9 +179,7 @@ spec:
                           noneOf:
                             description: 'Nested noneOf: none of the sub-matchers
                               may match.'
-                            items: {}
-                            maxItems: 16
-                            type: array
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.

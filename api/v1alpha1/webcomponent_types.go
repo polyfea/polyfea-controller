@@ -125,17 +125,20 @@ type Matcher struct {
 	Role string `json:"role,omitempty"`
 
 	// Nested allOf: all sub-matchers must match.
-	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AllOf []Matcher `json:"allOf,omitempty"`
 
 	// Nested anyOf: at least one sub-matcher must match.
-	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	AnyOf []Matcher `json:"anyOf,omitempty"`
 
 	// Nested noneOf: none of the sub-matchers may match.
-	// +kubebuilder:validation:MaxItems=16
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	NoneOf []Matcher `json:"noneOf,omitempty"`
 }
