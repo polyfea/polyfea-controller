@@ -38,6 +38,10 @@ var spaTestSuite = IntegrationTestSuite{
 			Name: "PolyfeaSinglePageApplicationReturnsBootJsWhenRequested",
 			Func: PolyfeaSinglePageApplicationReturnsBootJsWhenRequested,
 		},
+		{
+			Name: "PolyfeaSinglePageApplicationManifestLinkHasCrossOriginUseCredentials",
+			Func: PolyfeaSinglePageApplicationManifestLinkHasCrossOriginUseCredentials,
+		},
 	},
 }
 
@@ -149,6 +153,39 @@ func PolyfeaSinglePageApplicationReturnsTemplatedHtmlIfAnythingBesidesPolyfeaIsR
 
 	if !strings.Contains(bodyString, "webmanifest") {
 		t.Fatalf("expected body to  contain %s", "webmanifest")
+	}
+}
+
+func PolyfeaSinglePageApplicationManifestLinkHasCrossOriginUseCredentials(t *testing.T) {
+	// Arrange
+	testServerUrl := os.Getenv(TestServerUrlName)
+
+	// Act
+	response, err := http.Get(testServerUrl + "/some-page")
+
+	// Assert
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err := response.Body.Close()
+		if err != nil {
+			t.Errorf("Expected no error on closing response body, got %v", err)
+		}
+	}()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected status code %d, got %d", http.StatusOK, response.StatusCode)
+	}
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bodyString := string(bodyBytes)
+
+	if !strings.Contains(bodyString, `crossorigin="use-credentials"`) {
+		t.Fatalf("expected manifest link to contain crossorigin=\"use-credentials\", got:\n%s", bodyString)
 	}
 }
 
