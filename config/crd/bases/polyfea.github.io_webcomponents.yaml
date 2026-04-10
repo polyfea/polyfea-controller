@@ -76,15 +76,38 @@ spec:
                       description: If all of the matchers in this list are matched,
                         the web component will be loaded.
                       items:
-                        description: Matcher defines the conditions under which the
-                          web component should be loaded.
-                        maxProperties: 1
+                        description: |-
+                          Matcher defines the conditions under which the web component should be loaded.
+                          A Matcher may contain scalar fields (context-name, path, role) and/or nested
+                          operator fields (allOf, anyOf, noneOf). All present conditions are combined with
+                          AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
+                          allOf:
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
+                            x-kubernetes-preserve-unknown-fields: true
+                          anyOf:
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             maxLength: 256
                             type: string
+                          noneOf:
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
@@ -104,15 +127,38 @@ spec:
                       description: If any of the matchers in this list are matched,
                         the web component will be loaded.
                       items:
-                        description: Matcher defines the conditions under which the
-                          web component should be loaded.
-                        maxProperties: 1
+                        description: |-
+                          Matcher defines the conditions under which the web component should be loaded.
+                          A Matcher may contain scalar fields (context-name, path, role) and/or nested
+                          operator fields (allOf, anyOf, noneOf). All present conditions are combined with
+                          AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
+                          allOf:
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
+                            x-kubernetes-preserve-unknown-fields: true
+                          anyOf:
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             maxLength: 256
                             type: string
+                          noneOf:
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.
@@ -132,15 +178,38 @@ spec:
                       description: If none of the matchers in this list are matched,
                         the web component will be loaded.
                       items:
-                        description: Matcher defines the conditions under which the
-                          web component should be loaded.
-                        maxProperties: 1
+                        description: |-
+                          Matcher defines the conditions under which the web component should be loaded.
+                          A Matcher may contain scalar fields (context-name, path, role) and/or nested
+                          operator fields (allOf, anyOf, noneOf). All present conditions are combined with
+                          AND semantics: every condition must hold for the matcher to evaluate to true.
                         properties:
+                          allOf:
+                            description: |-
+                              Nested allOf: all sub-matchers must match.
+
+                              Note: +kubebuilder:pruning:PreserveUnknownFields and +kubebuilder:validation:Schemaless
+                              are required here because Matcher references itself. controller-gen detects the cycle
+                              and refuses to expand the schema, so Schemaless is the only escape hatch. As a
+                              side-effect, +kubebuilder:validation:MaxItems=16 cannot be set — controller-gen rejects
+                              array-specific markers on Schemaless fields. The semantically intended limit is 16,
+                              matching the top-level DisplayRules fields, but it cannot be enforced at the CRD level.
+                            x-kubernetes-preserve-unknown-fields: true
+                          anyOf:
+                            description: |-
+                              Nested anyOf: at least one sub-matcher must match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           context-name:
                             description: This is a list of context names in which
                               this element is intended to be shown.
                             maxLength: 256
                             type: string
+                          noneOf:
+                            description: |-
+                              Nested noneOf: none of the sub-matchers may match.
+                              See AllOf for an explanation of why MaxItems cannot be set here.
+                            x-kubernetes-preserve-unknown-fields: true
                           path:
                             description: The list of paths in which this element is
                               intended to be shown.

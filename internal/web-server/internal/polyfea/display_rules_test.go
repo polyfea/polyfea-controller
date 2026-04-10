@@ -67,3 +67,297 @@ func TestSelectMatchingWebComponentsAllOf(t *testing.T) {
 		t.Error("expected no match for wrong context name")
 	}
 }
+
+// TestSelectMatchingWebComponentsFlatBackwardCompatibility verifies that all pre-existing flat
+// displayRules patterns continue to work unchanged after the nested-operator feature was added.
+// Each case uses only scalar matchers (context-name, path, role) — no nested operators — to
+// confirm the refactored matchesMatcher helper preserves the original semantics exactly.
+func TestSelectMatchingWebComponentsFlatBackwardCompatibility(t *testing.T) {
+	cases := []struct {
+		desc    string
+		rules   []v1alpha1.DisplayRules
+		context string
+		path    string
+		roles   []string
+		want    bool
+	}{
+		{
+			desc:    "allOf single context match",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}}}},
+			context: "nav", path: "/", roles: nil, want: true,
+		},
+		{
+			desc:    "allOf single context no match",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}}}},
+			context: "other", path: "/", roles: nil, want: false,
+		},
+		{
+			desc:    "allOf context + path match",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}, {Path: "^/app"}}}},
+			context: "nav", path: "/app/page", roles: nil, want: true,
+		},
+		{
+			desc:    "allOf context + path no match on path",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}, {Path: "^/app"}}}},
+			context: "nav", path: "/home", roles: nil, want: false,
+		},
+		{
+			desc:    "allOf with role match",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}, {Role: "admin"}}}},
+			context: "nav", path: "/", roles: []string{"admin"}, want: true,
+		},
+		{
+			desc:    "allOf with role no match",
+			rules:   []v1alpha1.DisplayRules{{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}, {Role: "admin"}}}},
+			context: "nav", path: "/", roles: []string{"viewer"}, want: false,
+		},
+		{
+			desc:    "anyOf first matches",
+			rules:   []v1alpha1.DisplayRules{{AnyOf: []v1alpha1.Matcher{{ContextName: "nav"}, {ContextName: "side"}}}},
+			context: "nav", path: "/", roles: nil, want: true,
+		},
+		{
+			desc:    "anyOf second matches",
+			rules:   []v1alpha1.DisplayRules{{AnyOf: []v1alpha1.Matcher{{ContextName: "nav"}, {ContextName: "side"}}}},
+			context: "side", path: "/", roles: nil, want: true,
+		},
+		{
+			desc:    "anyOf none match",
+			rules:   []v1alpha1.DisplayRules{{AnyOf: []v1alpha1.Matcher{{ContextName: "nav"}, {ContextName: "side"}}}},
+			context: "other", path: "/", roles: nil, want: false,
+		},
+		{
+			desc:    "noneOf excludes match",
+			rules:   []v1alpha1.DisplayRules{{NoneOf: []v1alpha1.Matcher{{ContextName: "nav"}}}},
+			context: "nav", path: "/", roles: nil, want: false,
+		},
+		{
+			desc:    "noneOf passes when no match",
+			rules:   []v1alpha1.DisplayRules{{NoneOf: []v1alpha1.Matcher{{ContextName: "nav"}}}},
+			context: "other", path: "/", roles: nil, want: true,
+		},
+		{
+			desc: "allOf + anyOf + noneOf combined",
+			rules: []v1alpha1.DisplayRules{{
+				AllOf:  []v1alpha1.Matcher{{ContextName: "nav"}},
+				AnyOf:  []v1alpha1.Matcher{{Role: "admin"}, {Role: "editor"}},
+				NoneOf: []v1alpha1.Matcher{{Path: "^/secret"}},
+			}},
+			context: "nav", path: "/page", roles: []string{"editor"}, want: true,
+		},
+		{
+			desc: "allOf + anyOf + noneOf — noneOf blocks",
+			rules: []v1alpha1.DisplayRules{{
+				AllOf:  []v1alpha1.Matcher{{ContextName: "nav"}},
+				AnyOf:  []v1alpha1.Matcher{{Role: "admin"}, {Role: "editor"}},
+				NoneOf: []v1alpha1.Matcher{{Path: "^/secret"}},
+			}},
+			context: "nav", path: "/secret/page", roles: []string{"editor"}, want: false,
+		},
+		{
+			desc: "multiple displayRules OR — second rule matches",
+			rules: []v1alpha1.DisplayRules{
+				{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}}},
+				{AllOf: []v1alpha1.Matcher{{ContextName: "side"}}},
+			},
+			context: "side", path: "/", roles: nil, want: true,
+		},
+		{
+			desc: "multiple displayRules OR — neither matches",
+			rules: []v1alpha1.DisplayRules{
+				{AllOf: []v1alpha1.Matcher{{ContextName: "nav"}}},
+				{AllOf: []v1alpha1.Matcher{{ContextName: "side"}}},
+			},
+			context: "other", path: "/", roles: nil, want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			wc := &v1alpha1.WebComponent{Spec: v1alpha1.WebComponentSpec{DisplayRules: tc.rules}}
+			got := selectMatchingWebComponents(wc, tc.context, tc.path, tc.roles)
+			if got != tc.want {
+				t.Errorf("selectMatchingWebComponents(%q, %q, %v) = %v, want %v",
+					tc.context, tc.path, tc.roles, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSelectMatchingWebComponentsNestedOperators verifies that allOf, anyOf, and noneOf
+// can be used recursively inside another allOf entry to express combinatorial rules
+// without listing every combination explicitly.
+//
+// The rule below reads:
+//
+//	"show if (context is navigation OR applications)
+//	       AND (role is admin OR datascience)
+//	       AND NOT path matches ^/secret$"
+func TestSelectMatchingWebComponentsNestedOperators(t *testing.T) {
+	wc := &v1alpha1.WebComponent{
+		Spec: v1alpha1.WebComponentSpec{
+			DisplayRules: []v1alpha1.DisplayRules{
+				{
+					AllOf: []v1alpha1.Matcher{
+						{
+							AnyOf: []v1alpha1.Matcher{
+								{ContextName: "navigation"},
+								{ContextName: "applications"},
+							},
+						},
+						{
+							AnyOf: []v1alpha1.Matcher{
+								{Role: "admin"},
+								{Role: "datascience"},
+							},
+						},
+						{
+							NoneOf: []v1alpha1.Matcher{
+								{Path: "^/secret$"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		desc    string
+		context string
+		path    string
+		roles   []string
+		want    bool
+	}{
+		{"navigation + admin", "navigation", "/page", []string{"admin"}, true},
+		{"applications + datascience", "applications", "/page", []string{"datascience"}, true},
+		{"navigation + datascience", "navigation", "/page", []string{"datascience"}, true},
+		{"wrong context", "other", "/page", []string{"admin"}, false},
+		{"wrong role", "navigation", "/page", []string{"other"}, false},
+		{"excluded path", "navigation", "/secret", []string{"admin"}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := selectMatchingWebComponents(wc, tc.context, tc.path, tc.roles)
+			if got != tc.want {
+				t.Errorf("selectMatchingWebComponents(%q, %q, %v) = %v, want %v",
+					tc.context, tc.path, tc.roles, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestSelectMatchingWebComponentsWildCombinations exercises deep nesting across all three
+// operators (allOf / anyOf / noneOf) at multiple levels, plus multiple DisplayRules entries
+// (OR semantics between them), and scalar matchers alongside nested operators at the same level.
+//
+// Rule set (two DisplayRules, OR between them):
+//
+// Rule 1: allOf
+//   - anyOf: context=dashboard OR (context=reports AND role=analyst)  <- nested allOf inside anyOf
+//   - noneOf: anyOf: path=^/draft OR role=guest                       <- noneOf containing anyOf
+//   - path=^/app                                                       <- scalar alongside nested ops
+//
+// Reads: "in (dashboard OR (reports AND analyst)), not on /draft and not a guest, path starts /app"
+//
+// Rule 2: anyOf
+//   - role=superadmin
+//   - allOf: context=admin-panel AND noneOf: path=^/admin/secret       <- double nesting
+//
+// Reads: "superadmin anywhere, OR admin-panel but not the secret path"
+func TestSelectMatchingWebComponentsWildCombinations(t *testing.T) {
+	wc := &v1alpha1.WebComponent{
+		Spec: v1alpha1.WebComponentSpec{
+			DisplayRules: []v1alpha1.DisplayRules{
+				// Rule 1
+				{
+					AllOf: []v1alpha1.Matcher{
+						{
+							// anyOf: dashboard  OR  (reports AND analyst)
+							AnyOf: []v1alpha1.Matcher{
+								{ContextName: "dashboard"},
+								{
+									// nested allOf inside anyOf
+									AllOf: []v1alpha1.Matcher{
+										{ContextName: "reports"},
+										{Role: "analyst"},
+									},
+								},
+							},
+						},
+						{
+							// noneOf: (path /draft OR role guest)
+							NoneOf: []v1alpha1.Matcher{
+								{
+									AnyOf: []v1alpha1.Matcher{
+										{Path: "^/draft"},
+										{Role: "guest"},
+									},
+								},
+							},
+						},
+						// scalar alongside nested ops
+						{Path: "^/app"},
+					},
+				},
+				// Rule 2
+				{
+					AnyOf: []v1alpha1.Matcher{
+						{Role: "superadmin"},
+						{
+							AllOf: []v1alpha1.Matcher{
+								{ContextName: "admin-panel"},
+								{
+									NoneOf: []v1alpha1.Matcher{
+										{Path: "^/admin/secret"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		desc    string
+		context string
+		path    string
+		roles   []string
+		want    bool
+	}{
+		// Rule 1 matches
+		{"dashboard analyst /app", "dashboard", "/app/page", []string{"analyst"}, true},
+		{"reports + analyst /app", "reports", "/app/data", []string{"analyst"}, true},
+		// Rule 1 misses — wrong context
+		{"other context", "other", "/app/page", []string{"analyst"}, false},
+		// Rule 1 misses — reports without analyst role
+		{"reports without analyst", "reports", "/app/data", []string{"viewer"}, false},
+		// Rule 1 misses — excluded path (noneOf block)
+		{"dashboard /draft blocked", "dashboard", "/draft/item", []string{"analyst"}, false},
+		// Rule 1 misses — guest role blocked by noneOf
+		{"dashboard guest blocked", "dashboard", "/app/page", []string{"guest"}, false},
+		// Rule 1 misses — path doesn't match ^/app scalar
+		{"dashboard wrong path", "dashboard", "/home", []string{"analyst"}, false},
+		// Rule 2 matches — superadmin anywhere
+		{"superadmin any context", "anything", "/wherever", []string{"superadmin"}, true},
+		// Rule 2 matches — admin-panel non-secret path
+		{"admin-panel safe path", "admin-panel", "/admin/users", []string{"viewer"}, true},
+		// Rule 2 misses — admin-panel but secret path
+		{"admin-panel secret blocked", "admin-panel", "/admin/secret/key", []string{"viewer"}, false},
+		// Neither rule — no role, wrong context, wrong path
+		{"no match at all", "public", "/home", []string{}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			got := selectMatchingWebComponents(wc, tc.context, tc.path, tc.roles)
+			if got != tc.want {
+				t.Errorf("selectMatchingWebComponents(%q, %q, %v) = %v, want %v",
+					tc.context, tc.path, tc.roles, got, tc.want)
+			}
+		})
+	}
+}
