@@ -147,18 +147,18 @@ func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Con
 }
 
 // handleNoMicroFrontendRef handles WebComponents with no MicroFrontend reference.
+// Omitting microFrontend is valid — native HTML elements (e.g. iframe, img) do not
+// require a backing MicroFrontend. The component is considered Ready immediately.
 func (r *WebComponentReconciler) handleNoMicroFrontendRef(webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
 	statusUpdated := false
-	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
-		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference specified")
+	polyfeav1alpha1.RemoveCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved)
 	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
-		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, "No MicroFrontend reference")
-	if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseFailed {
-		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+		metav1.ConditionTrue, polyfeav1alpha1.ReasonSuccessful, "WebComponent is ready")
+	if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseReady {
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseReady
 		statusUpdated = true
 	}
 
-	// Still store it in repository as it might be used differently
 	if err := r.Repository.Store(webComponent); err != nil {
 		logger.Error(err, "Failed to store WebComponent in repository!")
 	}
