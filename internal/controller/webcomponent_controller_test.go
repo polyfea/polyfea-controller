@@ -96,6 +96,48 @@ var _ = Describe("WebComponent Controller", func() {
 			}, true),
 		)
 
+		It("Should be Ready when no MicroFrontend reference is set", func() {
+			testCtx := context.Background()
+			ensureWebComponentDeleted(testCtx)
+
+			webComponent := &polyfeav1alpha1.WebComponent{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "polyfea.github.io/v1alpha1",
+					Kind:       "WebComponent",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      WebComponentName,
+					Namespace: WebComponentNamespace,
+				},
+				Spec: polyfeav1alpha1.WebComponentSpec{
+					Element: &[]string{"iframe"}[0],
+					DisplayRules: []polyfeav1alpha1.DisplayRules{{
+						AllOf: []polyfeav1alpha1.Matcher{{ContextName: "main"}},
+					}},
+				},
+			}
+			Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+			webComponentLookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+			createdWebComponent := &polyfeav1alpha1.WebComponent{}
+
+			Eventually(func() string {
+				if err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent); err != nil {
+					return ""
+				}
+				return createdWebComponent.Status.Phase
+			}, timeout, interval).Should(Equal(polyfeav1alpha1.WebComponentPhaseReady))
+
+			Expect(polyfeav1alpha1.GetCondition(createdWebComponent.Status.Conditions,
+				polyfeav1alpha1.ConditionTypeMicroFrontendResolved)).Should(BeNil())
+			Expect(polyfeav1alpha1.IsReady(createdWebComponent.Status.Conditions)).Should(BeTrue())
+
+			Expect(k8sClient.Delete(testCtx, createdWebComponent)).Should(Succeed())
+			Eventually(func() bool {
+				return errors.IsNotFound(k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent))
+			}, timeout, interval).Should(BeTrue())
+		})
+
 		It("Should create with defaults when optional fields are missing", func() {
 			testCtx := context.Background()
 			ensureWebComponentDeleted(testCtx)

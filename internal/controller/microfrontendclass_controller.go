@@ -22,10 +22,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
@@ -185,5 +188,27 @@ func (r *MicroFrontendClassReconciler) finalizeOperationsForMicroFrontendClass(m
 func (r *MicroFrontendClassReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&polyfeav1alpha1.MicroFrontendClass{}).
+		Watches(
+			&polyfeav1alpha1.MicroFrontend{},
+			handler.EnqueueRequestsFromMapFunc(r.findMicroFrontendClassForMicroFrontend),
+		).
 		Complete(r)
+}
+
+// findMicroFrontendClassForMicroFrontend maps a MicroFrontend change to a reconcile
+// request for the MicroFrontendClass it is bound to (via Status.FrontendClassRef).
+// This ensures the MFC's accepted/rejected counts stay up-to-date whenever an MF
+// is reconciled and its status changes.
+func (r *MicroFrontendClassReconciler) findMicroFrontendClassForMicroFrontend(ctx context.Context, obj client.Object) []reconcile.Request {
+	mf, ok := obj.(*polyfeav1alpha1.MicroFrontend)
+	if !ok {
+		return nil
+	}
+	ref := mf.Status.FrontendClassRef
+	if ref == nil {
+		return nil
+	}
+	return []reconcile.Request{
+		{NamespacedName: types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}},
+	}
 }
