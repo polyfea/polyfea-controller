@@ -144,21 +144,6 @@ type ProgressiveWebApp struct {
 	// +optional
 	// +kubebuilder:validation:Optional
 	ServiceWorker *ServiceWorker `json:"serviceWorker,omitempty"`
-
-	// Deprecated: Use ServiceWorker.PreCache and ServiceWorker.CacheRoutes instead. Will be removed in future versions.
-	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// +optional
-	// +kubebuilder:validation:Optional
-	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
-
-	// Deprecated: Use ServiceWorker.PolyfeaSWReconcileInterval instead. Will be removed in future versions.
-	// Time for reconciliation of the service worker configuration strategies from the frontend side in milliseconds.
-	// +kubebuilder:default=1800000
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	// +optional
-	// +kubebuilder:validation:Optional
-	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
 }
 
 // WebAppManifest represents the web app manifest file for the PWA.
@@ -217,20 +202,6 @@ type PWAIcon struct {
 	Purpose *string `json:"purpose,omitempty"`
 }
 
-// PWACache defines the caching options for a Progressive Web Application (PWA).
-// This struct includes configurations for both pre-caching and runtime caching strategies, which are essential for improving the performance and offline capabilities of the PWA.
-type PWACache struct {
-	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
-	// +kubebuilder:validation:MaxItems=256
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	PreCache []PreCacheEntry `json:"preCache,omitempty"`
-
-	// CacheRoutes specifies the caching strategies for different URL patterns.
-	// +kubebuilder:validation:MaxItems=64
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
-}
-
 // ServiceWorker defines the configuration for the service worker of a Progressive Web Application (PWA).
 type ServiceWorker struct {
 
@@ -243,7 +214,7 @@ type ServiceWorker struct {
 	// +kubebuilder:validation:Optional
 	Scope string `json:"scope,omitempty"`
 
-	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
+	// PreCache lists the URLs of	 resources to be pre-cached when the PWA is installed.
 	// +kubebuilder:validation:MaxItems=1024
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
@@ -277,6 +248,14 @@ type ServiceWorker struct {
 	// +optional
 	// +kubebuilder:validation:Optional
 	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
+
+	// NoMicroFrontEndInterceptors indicates whether to disable the loading at microfrontend level.
+	// By default, the Microfronted resources may specify own interceptors to be loaded by the service worker,
+	// but setting this field to true will disable loading of the interceptors specified by the Microfronted resources
+	// and only load the interceptors specified in the ServiceWorker spec of the frontend class.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	NoMicroFrontEndInterceptors bool `json:"noMicroFrontEndInterceptors,omitempty"`
 }
 
 // SWInterceptor defines a module to be loaded by service worker to intercept the fetch requests.
@@ -291,10 +270,13 @@ type SWInterceptor struct {
 	// ModuleUrl is the URL of the module to be loaded by service worker.
 	// The module needs to make default export of object with function "intercept" of type
 	//
-	// ( request: Request, event: ExtendableEvent, options?: any ) => Promise<Response> | Response | null;
+	// ( request: Request, event: ExtendableEvent) => Promise<Response> | undefined;
 	//
-	// that takes request and fetch event as parameters and return either  a promise of response or a response
-	// if interceptor can intercept the request or null if it cannot.
+	// that takes request and fetch event as parameters and return either  a promise of response or
+	// if interceptor can intercept the request or undefined if it cannot.
+	//
+	// Optionally, the default export of the module may also include function "activate()=> Promise<void>"
+	// that will be called when the interceptor is activated.
 	//
 	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
