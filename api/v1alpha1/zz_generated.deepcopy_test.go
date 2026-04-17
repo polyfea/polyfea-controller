@@ -88,6 +88,42 @@ func TestMatcher_DeepCopy(t *testing.T) {
 	}
 }
 
+func TestMatcher_DeepCopyInto_NestedFields(t *testing.T) {
+	original := &Matcher{
+		ContextName: "nav",
+		AllOf:       []Matcher{{Path: "/allof"}},
+		AnyOf:       []Matcher{{Role: "admin"}},
+		NoneOf:      []Matcher{{ContextName: "forbidden"}},
+	}
+	copied := original.DeepCopy()
+
+	// Verify the copy has the same values
+	if len(copied.AllOf) != 1 || copied.AllOf[0].Path != "/allof" {
+		t.Errorf("AllOf not deep copied correctly: %+v", copied.AllOf)
+	}
+	if len(copied.AnyOf) != 1 || copied.AnyOf[0].Role != "admin" {
+		t.Errorf("AnyOf not deep copied correctly: %+v", copied.AnyOf)
+	}
+	if len(copied.NoneOf) != 1 || copied.NoneOf[0].ContextName != "forbidden" {
+		t.Errorf("NoneOf not deep copied correctly: %+v", copied.NoneOf)
+	}
+
+	// Verify independence: mutating the copy does not affect the original
+	copied.AllOf[0].Path = "/mutated"
+	copied.AnyOf[0].Role = "mutated"
+	copied.NoneOf[0].ContextName = "mutated"
+
+	if original.AllOf[0].Path != "/allof" {
+		t.Error("deep copy of AllOf shares underlying slice with original")
+	}
+	if original.AnyOf[0].Role != "admin" {
+		t.Error("deep copy of AnyOf shares underlying slice with original")
+	}
+	if original.NoneOf[0].ContextName != "forbidden" {
+		t.Error("deep copy of NoneOf shares underlying slice with original")
+	}
+}
+
 func TestMetaTag_DeepCopy(t *testing.T) {
 	mt := &MetaTag{Name: "description", Content: TestConst}
 	if mt.DeepCopy() == nil {
