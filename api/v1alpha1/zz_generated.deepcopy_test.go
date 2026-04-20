@@ -233,7 +233,7 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 		StaticResources: []StaticResources{{Kind: "script", Path: "/test.js"}},
 		FrontendClass:   ptr("default"),
 		DependsOn:       []string{"dep1"},
-		CacheOptions:    &PWACache{},
+		ServiceWorker:   &MicroFrontendServiceWorker{},
 		ImportMap:       &ImportMap{},
 	}
 	if spec.DeepCopy() == nil {
@@ -268,12 +268,12 @@ func TestObjectReference_DeepCopy(t *testing.T) {
 	}
 }
 
-func TestPWACache_DeepCopy(t *testing.T) {
-	cache := &PWACache{
+func TestMicrofrontendServiceWorker_DeepCopy(t *testing.T) {
+	sw := &MicroFrontendServiceWorker{
 		PreCache:    []PreCacheEntry{{URL: ptr("/test")}},
 		CacheRoutes: []CacheRoute{{Pattern: ptr("/*")}},
 	}
-	if cache.DeepCopy() == nil {
+	if sw.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")
 	}
 }
@@ -306,9 +306,8 @@ func TestPreCacheEntry_DeepCopy(t *testing.T) {
 
 func TestProgressiveWebApp_DeepCopy(t *testing.T) {
 	pwa := &ProgressiveWebApp{
-		WebAppManifest:             &WebAppManifest{},
-		CacheOptions:               &PWACache{},
-		PolyfeaSWReconcileInterval: ptr(int32(1800000)),
+		WebAppManifest: &WebAppManifest{},
+		ServiceWorker:  &ServiceWorker{},
 	}
 	if pwa.DeepCopy() == nil {
 		t.Error("DeepCopy returned nil")

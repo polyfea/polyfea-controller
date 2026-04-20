@@ -212,7 +212,7 @@ type ServiceWorker struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
 	// +kubebuilder:validation:Optional
-	Scope string `json:"scope,omitempty"`
+	Scope *string `json:"scope,omitempty"`
 
 	// PreCache lists the URLs of	 resources to be pre-cached when the PWA is installed.
 	// +kubebuilder:validation:MaxItems=1024
@@ -255,7 +255,7 @@ type ServiceWorker struct {
 	// and only load the interceptors specified in the ServiceWorker spec of the frontend class.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
-	NoMicroFrontEndInterceptors bool `json:"noMicroFrontEndInterceptors,omitempty"`
+	NoMicroFrontEndInterceptors *bool `json:"noMicroFrontEndInterceptors,omitempty"`
 }
 
 // SWInterceptor defines a module to be loaded by service worker to intercept the fetch requests.
@@ -265,7 +265,7 @@ type SWInterceptor struct {
 	// It will be used for logging and debugging purposes.
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Name string `json:"name,omitempty"`
+	Name *string `json:"name,omitempty"`
 
 	// ModuleUrl is the URL of the module to be loaded by service worker.
 	// The module needs to make default export of object with function "intercept" of type
@@ -316,7 +316,9 @@ type CacheRoute struct {
 	Pattern *string `json:"pattern"`
 
 	// Destination is the optional destination URL for this caching strategy.
-	// You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+	// The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
+	// May be absolute path (starting with /) in which case it is path to the root of the host,
+	// or absolute URL (starting with http:// or https://) in which case it is used as is.
 	// +optional
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

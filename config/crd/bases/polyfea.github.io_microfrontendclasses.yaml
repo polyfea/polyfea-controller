@@ -130,9 +130,10 @@ spec:
                   It includes specifications for the web app manifest and cache options, which are crucial for the PWA's functionality and performance.
                   This field is optional and can be omitted if not needed.
                 properties:
-                  cacheOptions:
-                    description: CacheOptions specifies the cache settings for the
-                      PWA, including pre-caching and runtime caching.
+                  serviceWorker:
+                    description: ServiceWorker defines the configuration for the service
+                      worker of the PWA, including scope, pre-caching, and caching
+                      strategies.
                     properties:
                       cacheRoutes:
                         description: CacheRoutes specifies the caching strategies
@@ -145,7 +146,9 @@ spec:
                             destination:
                               description: |-
                                 Destination is the optional destination URL for this caching strategy.
-                                You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+                                The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
+                                May be absolute path (starting with /) in which case it is path to the root of the host,
+                                or absolute URL (starting with http:// or https://) in which case it is used as is.
                               maxLength: 256
                               type: string
                             maxAgeSeconds:
@@ -205,9 +208,58 @@ spec:
                           type: object
                         maxItems: 64
                         type: array
+                      interceptors:
+                        description: Interceptors specifies the list of modules to
+                          be loaded by service worker to intercept the fetch requests.
+                        items:
+                          description: SWInterceptor defines a module to be loaded
+                            by service worker to intercept the fetch requests.
+                          properties:
+                            moduleUrl:
+                              description: |-
+                                ModuleUrl is the URL of the module to be loaded by service worker.
+                                The module needs to make default export of object with function "intercept" of type
+
+                                ( request: Request, event: ExtendableEvent) => Promise<Response> | undefined;
+
+                                that takes request and fetch event as parameters and return either  a promise of response or
+                                if interceptor can intercept the request or undefined if it cannot.
+
+                                Optionally, the default export of the module may also include function "activate()=> Promise<void>"
+                                that will be called when the interceptor is activated.
+                              maxLength: 2048
+                              type: string
+                            name:
+                              description: |-
+                                Name of the interceptor, needs to be unique among the interceptors of the same service worker.
+                                It will be used for logging and debugging purposes.
+                              maxLength: 256
+                              type: string
+                            priority:
+                              description: |-
+                                Priority defines the execution order of the interceptors, the interceptor with higher priority will be executed first.
+                                If not set, it defaults to 0. Order of interceptors with the same priority is not guaranteed.
+                              format: int32
+                              type: integer
+                          type: object
+                        maxItems: 16
+                        type: array
+                      noMicroFrontEndInterceptors:
+                        description: |-
+                          NoMicroFrontEndInterceptors indicates whether to disable the loading at microfrontend level.
+                          By default, the Microfronted resources may specify own interceptors to be loaded by the service worker,
+                          but setting this field to true will disable loading of the interceptors specified by the Microfronted resources
+                          and only load the interceptors specified in the ServiceWorker spec of the frontend class.
+                        type: boolean
+                      polyfeaSWReconcileInterval:
+                        default: 1800000
+                        description: Time for reconciliation of the service worker
+                          connfiguration strategies from the frontend side in miliseconds.
+                        format: int32
+                        type: integer
                       preCache:
-                        description: PreCache lists the URLs or resources to be pre-cached
-                          when the PWA is installed.
+                        description: "PreCache lists the URLs of\t resources to be
+                          pre-cached when the PWA is installed."
                         items:
                           description: |-
                             PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
@@ -228,15 +280,22 @@ spec:
                           required:
                           - url
                           type: object
-                        maxItems: 256
+                        maxItems: 1024
                         type: array
+                      precacheFromJson:
+                        description: PrecacheFromJson specifies a URL to fetch the
+                          pre-cache list from. The URL needs to return a JSON array
+                          of PreCacheEntry objects.
+                        maxLength: 2048
+                        type: string
+                      scope:
+                        description: |-
+                          Scope of the service worker defines the set of URLs that the service worker will control.
+                          If not set, it defaults to the base URL of the frontend class.
+                          The scopes that are above the base URL of the frontend class needs to set header "Service-Worker-Allowed" with the value  that includes the scope.
+                        maxLength: 1024
+                        type: string
                     type: object
-                  polyfeaSWReconcileInterval:
-                    default: 1800000
-                    description: Time for reconciliation of the strategies from the
-                      frontend side.
-                    format: int32
-                    type: integer
                   webAppManifest:
                     description: WebAppManifest represents the web app manifest file
                       for the PWA.
