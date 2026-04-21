@@ -51,7 +51,7 @@ func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, 
 			ModulePath:      modulePath,
 			StaticResources: staticResources,
 			FrontendClass:   frontendClass,
-			CacheOptions:    nil,
+			ServiceWorker:   nil,
 		},
 	}
 }

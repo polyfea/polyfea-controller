@@ -247,7 +247,7 @@ func createExpectedWebAppManifest() *v1alpha1.WebAppManifest {
 func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 	mfc := createTestMicroFrontendClass("polyfea", "/some")
 	mfc.Spec.ProgressiveWebApp = &v1alpha1.ProgressiveWebApp{
-		CacheOptions: &v1alpha1.PWACache{
+		ServiceWorker: &v1alpha1.ServiceWorker{
 			PreCache: []v1alpha1.PreCacheEntry{
 				{
 					URL: &[]string{"/test-class"}[0],
@@ -263,7 +263,7 @@ func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 	}
 
 	mf := createTestMicroFrontend("polyfea1", []string{}, "polyfea", true)
-	mf.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test"}[0],
@@ -272,7 +272,7 @@ func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 	}
 
 	mf2 := createTestMicroFrontend("polyfea2", []string{}, "polyfea", true)
-	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf2.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test2"}[0],
@@ -292,18 +292,18 @@ func createExpectedProxyConfigResponse() *ProxyConfigResponse {
 				URL: &[]string{"/test-class"}[0],
 			},
 			{
-				URL: buildPreCachePath(mf, *mf.Spec.CacheOptions.PreCache[0].URL),
+				URL: buildPreCachePath(mf, *mf.Spec.ServiceWorker.PreCache[0].URL),
 			},
 			{
-				URL: buildPreCachePath(mf2, *mf2.Spec.CacheOptions.PreCache[0].URL),
+				URL: buildPreCachePath(mf2, *mf2.Spec.ServiceWorker.PreCache[0].URL),
 			},
 		},
 		Routes: []CacheRouteResponse{
 			{
-				CacheRoute: mfc.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes[0],
+				CacheRoute: mfc.Spec.ProgressiveWebApp.ServiceWorker.CacheRoutes[0],
 			},
 			{
-				CacheRoute: mf2.Spec.CacheOptions.CacheRoutes[0],
+				CacheRoute: mf2.Spec.ServiceWorker.CacheRoutes[0],
 				Prefix:     buildPreCachePath(mf2, ""),
 			},
 		},
@@ -325,7 +325,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 			StartUrl: &[]string{"/"}[0],
 			Display:  &[]string{"standalone"}[0],
 		},
-		CacheOptions: &v1alpha1.PWACache{
+		ServiceWorker: &v1alpha1.ServiceWorker{
 			PreCache: []v1alpha1.PreCacheEntry{
 				{
 					URL: &[]string{"/test-class"}[0],
@@ -345,7 +345,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 	microFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
 
 	mf := createTestMicroFrontend("polyfea1", []string{}, "polyfea", true)
-	mf.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test"}[0],
@@ -358,7 +358,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 	}
 
 	mf2 := createTestMicroFrontend("polyfea2", []string{}, "polyfea", true)
-	mf2.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf2.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test2"}[0],
@@ -377,7 +377,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 	}
 
 	mf3 := createTestMicroFrontend("polyfea3", []string{}, "polyfea", false)
-	mf3.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf3.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test3"}[0],
@@ -390,7 +390,7 @@ func polyfeaPWAApiSetupRouter() http.Handler {
 	}
 
 	mf4 := createTestMicroFrontend("polyfea4", []string{}, "someother", false)
-	mf4.Spec.CacheOptions = &v1alpha1.PWACache{
+	mf4.Spec.ServiceWorker = &v1alpha1.MicroFrontendServiceWorker{
 		PreCache: []v1alpha1.PreCacheEntry{
 			{
 				URL: &[]string{"/test4"}[0],
