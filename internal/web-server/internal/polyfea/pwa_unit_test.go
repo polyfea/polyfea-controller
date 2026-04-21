@@ -29,7 +29,6 @@ func TestServeAppWebManifestReturnsExpectedManifest(t *testing.T) {
 			Display:  &[]string{"standalone"}[0],
 		},
 	}
-
 	expected := mfc.Spec.ProgressiveWebApp.WebAppManifest
 
 	// Act
