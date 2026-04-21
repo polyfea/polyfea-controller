@@ -226,7 +226,6 @@ func (pwa *ProgressiveWebApplication) collectPreCacheByJson(sw *v1alpha1.Service
 		wg.Add(1)
 		idx := fetchIndex
 		fetchIndex++
-		mf := mf
 		go func() {
 			defer wg.Done()
 			resolvedURL := mf.Spec.Service.ResolveServiceURL(mf.Namespace) + "/" + strings.TrimLeft(mf.Spec.ServiceWorker.PrecacheFromJson, "/")
@@ -345,8 +344,8 @@ func (pwa *ProgressiveWebApplication) collectInterceptors(sw *v1alpha1.ServiceWo
 	return interceptors
 }
 
-func fetchPrecacheFromJsonURL(ctx context.Context, url string) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+func fetchPrecacheFromJsonURL(ctx context.Context, jsonUrl string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jsonUrl, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +354,9 @@ func fetchPrecacheFromJsonURL(ctx context.Context, url string) ([]string, error)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	var paths []string
 	if err := json.NewDecoder(resp.Body).Decode(&paths); err != nil {
@@ -365,8 +366,8 @@ func fetchPrecacheFromJsonURL(ctx context.Context, url string) ([]string, error)
 	return paths, nil
 }
 
-func buildPreCachePath(mf *v1alpha1.MicroFrontend, url string) *string {
-	path := "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/" + strings.TrimLeft(url, "/")
+func buildPreCachePath(mf *v1alpha1.MicroFrontend, reference string) *string {
+	path := "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/" + strings.TrimLeft(reference, "/")
 	return &path
 }
 
