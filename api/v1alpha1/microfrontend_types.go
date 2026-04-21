@@ -102,9 +102,12 @@ type MicroFrontendSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	DependsOn []string `json:"dependsOn,omitempty"`
 
-	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
+	// ServiceWorker defines the configuration for the service worker of a Progressive Web Application (PWA) specific to this microfrontend.
+	// The property has effect only if the microfrontend is served through the controller's proxy (Proxy: true), otherwise it is ignored.
+	// +optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
+	// +kubebuilder:validation:Optional
+	ServiceWorker *MicroFrontendServiceWorker `json:"serviceWorker,omitempty"`
 
 	// ImportMap defines module specifier mappings for this microfrontend.
 	// Entries are merged at the MicroFrontendClass level using optional (global, skip-if-exists)
@@ -123,6 +126,49 @@ type MicroFrontendSpec struct {
 	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9_.-]+$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	CacheBustingHash string `json:"cacheBustingHash,omitempty"`
+}
+
+// MicroFrontendServiceWorker defines the configuration for the service worker of a Progressive Web Application (PWA) specific to a microfrontend.
+type MicroFrontendServiceWorker struct {
+
+	// PreCache lists the paths of resources to be pre-cached when the PWA is installed.
+	// Paths is concatenated to the microfrontend's ResolvedUrl (path that results from resolving Microfrontend.Spec.Service)
+	// and then proxied by polyfea controller. Resources denoted in the list will be
+	// added to the PreCache list and precached by the service worker at its activation.
+	// +kubebuilder:validation:MaxItems=1024
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	PreCache []PreCacheEntry `json:"preCache,omitempty"`
+
+	// PrecacheFromJson specifies a path to fetch the pre-cache list  from.
+	// The path needs to return a JSON array of paths that will be concatenated to the microfrontend's
+	// ResolvedUrl (path that results from resolving Microfrontend.Spec.Service)
+	// and then proxied by polyfea controller. Resources denoted in the fetched pre-cache list will be
+	// added to the PreCache list and precached by the service worker at its activation.
+	// +kubebuilder:validation:MaxLength=2048
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	PrecacheFromJson string `json:"precacheFromJson,omitempty"`
+
+	// CacheRoutes specifies the caching strategies for different URL patterns.
+	// The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
+	// May be absolute path (starting with /) in which case it is path to the root of the host,
+	// or absolute URL (starting with http:// or https://) in which case it is used as is.
+	// +kubebuilder:validation:MaxItems=64
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
+
+	// Interceptors specifies the list of modules to be loaded by service worker to intercept the fetch requests.
+	// Interceptors' moduleURL is considered to be relative to the microfrontend's service URL
+	// +kubebuilder:validation:MaxItems=16
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	Interceptors []SWInterceptor `json:"interceptors,omitempty"`
 }
 
 // StaticResources defines the static resources that should be loaded before this micro frontend.

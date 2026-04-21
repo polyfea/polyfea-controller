@@ -139,14 +139,11 @@ type ProgressiveWebApp struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	WebAppManifest *WebAppManifest `json:"webAppManifest"`
 
-	// CacheOptions specifies the cache settings for the PWA, including pre-caching and runtime caching.
+	// ServiceWorker defines the configuration for the service worker of the PWA, including scope, pre-caching, and caching strategies.
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	CacheOptions *PWACache `json:"cacheOptions,omitempty"`
-
-	// Time for reconciliation of the strategies from the frontend side.
-	// +kubebuilder:default=1800000
-	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Optional
+	ServiceWorker *ServiceWorker `json:"serviceWorker,omitempty"`
 }
 
 // WebAppManifest represents the web app manifest file for the PWA.
@@ -205,18 +202,92 @@ type PWAIcon struct {
 	Purpose *string `json:"purpose,omitempty"`
 }
 
-// PWACache defines the caching options for a Progressive Web Application (PWA).
-// This struct includes configurations for both pre-caching and runtime caching strategies, which are essential for improving the performance and offline capabilities of the PWA.
-type PWACache struct {
-	// PreCache lists the URLs or resources to be pre-cached when the PWA is installed.
-	// +kubebuilder:validation:MaxItems=256
+// ServiceWorker defines the configuration for the service worker of a Progressive Web Application (PWA).
+type ServiceWorker struct {
+
+	// Scope of the service worker defines the set of URLs that the service worker will control.
+	// If not set, it defaults to the base URL of the frontend class.
+	// The scopes that are above the base URL of the frontend class needs to set header "Service-Worker-Allowed" with the value  that includes the scope.
+	// +kubebuilder:validation:MaxLength=1024
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	Scope *string `json:"scope,omitempty"`
+
+	// PreCache lists the URLs of	 resources to be pre-cached when the PWA is installed.
+	// +kubebuilder:validation:MaxItems=1024
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
 	PreCache []PreCacheEntry `json:"preCache,omitempty"`
+
+	// PrecacheFromJson specifies a URL to fetch the pre-cache list from. The URL needs to return a JSON array of PreCacheEntry objects.
+	// +kubebuilder:validation:MaxLength=2048
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	PrecacheFromJson string `json:"precacheFromJson,omitempty"`
 
 	// CacheRoutes specifies the caching strategies for different URL patterns.
 	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
 	CacheRoutes []CacheRoute `json:"cacheRoutes,omitempty"`
+
+	// Interceptors specifies the list of modules to be loaded by service worker to intercept the fetch requests.
+	// +kubebuilder:validation:MaxItems=16
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	Interceptors []SWInterceptor `json:"interceptors,omitempty"`
+
+	// Time for reconciliation of the service worker connfiguration strategies from the frontend side in miliseconds.
+	// +kubebuilder:default=1800000
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	PolyfeaSWReconcileInterval *int32 `json:"polyfeaSWReconcileInterval,omitempty"`
+
+	// NoMicroFrontEndInterceptors indicates whether to disable the loading at microfrontend level.
+	// By default, the Microfronted resources may specify own interceptors to be loaded by the service worker,
+	// but setting this field to true will disable loading of the interceptors specified by the Microfronted resources
+	// and only load the interceptors specified in the ServiceWorker spec of the frontend class.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	NoMicroFrontEndInterceptors *bool `json:"noMicroFrontEndInterceptors,omitempty"`
+}
+
+// SWInterceptor defines a module to be loaded by service worker to intercept the fetch requests.
+type SWInterceptor struct {
+
+	// Name of the interceptor, needs to be unique among the interceptors of the same service worker.
+	// It will be used for logging and debugging purposes.
+	// +kubebuilder:validation:MaxLength=256
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name *string `json:"name,omitempty"`
+
+	// ModuleUrl is the URL of the module to be loaded by service worker.
+	// The module needs to make default export of object with function "intercept" of type
+	//
+	// ( request: Request, event: ExtendableEvent) => Promise<Response> | undefined;
+	//
+	// that takes request and fetch event as parameters and return either  a promise of response or
+	// if interceptor can intercept the request or undefined if it cannot.
+	//
+	// Optionally, the default export of the module may also include function "activate()=> Promise<void>"
+	// that will be called when the interceptor is activated.
+	//
+	// +kubebuilder:validation:MaxLength=2048
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	ModuleUrl string `json:"moduleUrl,omitempty"`
+
+	// Priority defines the execution order of the interceptors, the interceptor with higher priority will be executed first.
+	// If not set, it defaults to 0. Order of interceptors with the same priority is not guaranteed.
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	// +optional
+	// +kubebuilder:validation:Optional
+	Priority *int32 `json:"priority,omitempty"`
 }
 
 // PreCacheEntry represents an individual entry in the pre-cache list for a Progressive Web Application (PWA).
@@ -245,7 +316,9 @@ type CacheRoute struct {
 	Pattern *string `json:"pattern"`
 
 	// Destination is the optional destination URL for this caching strategy.
-	// You can find the list of possible values here: https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
+	// The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
+	// May be absolute path (starting with /) in which case it is path to the root of the host,
+	// or absolute URL (starting with http:// or https://) in which case it is used as is.
 	// +optional
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec

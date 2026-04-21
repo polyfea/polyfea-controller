@@ -32,6 +32,7 @@ type TemplateData struct {
 	EnablePWA         bool
 	ReconcileInterval int32
 	ImportMapJson     template.HTML
+	SWScope           string
 }
 
 //go:embed .resources/index.html
@@ -114,8 +115,17 @@ func (s *SinglePageApplication) HandleSinglePageApplication(w http.ResponseWrite
 		ImportMapJson: template.HTML(importMapJson),
 	}
 
-	if microFrontendClass.Spec.ProgressiveWebApp != nil && microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval != nil {
-		templateVars.ReconcileInterval = *microFrontendClass.Spec.ProgressiveWebApp.PolyfeaSWReconcileInterval
+	if microFrontendClass.Spec.ProgressiveWebApp != nil &&
+		microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker != nil {
+		if microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker.PolyfeaSWReconcileInterval != nil {
+			templateVars.ReconcileInterval = *microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker.PolyfeaSWReconcileInterval
+		}
+		if microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker.Scope != nil && *microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker.Scope != "" {
+			templateVars.SWScope = *microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker.Scope
+		} else {
+			templateVars.SWScope = basePath
+		}
+
 	}
 
 	templatedHtml, err := templateHtml(html, &templateVars)

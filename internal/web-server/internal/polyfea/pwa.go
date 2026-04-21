@@ -1,9 +1,14 @@
 package polyfea
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	_ "embed"
 
@@ -27,8 +32,9 @@ type CacheRouteResponse struct {
 }
 
 type ProxyConfigResponse struct {
-	PreCache []v1alpha1.PreCacheEntry `json:"precache"`
-	Routes   []CacheRouteResponse     `json:"routes"`
+	PreCache     []v1alpha1.PreCacheEntry `json:"precache"`
+	Routes       []CacheRouteResponse     `json:"routes"`
+	Interceptors []v1alpha1.SWInterceptor `json:"interceptors"`
 }
 
 type ProgressiveWebApplication struct {
@@ -129,77 +135,244 @@ func (pwa *ProgressiveWebApplication) serveResource(w http.ResponseWriter, r *ht
 }
 
 func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha1.MicroFrontendClass) (*ProxyConfigResponse, error) {
-	var preCache []v1alpha1.PreCacheEntry
-	var routes []CacheRouteResponse
-
-	empty := &ProxyConfigResponse{PreCache: []v1alpha1.PreCacheEntry{}, Routes: []CacheRouteResponse{}}
+	empty := &ProxyConfigResponse{PreCache: []v1alpha1.PreCacheEntry{}, Routes: []CacheRouteResponse{}, Interceptors: []v1alpha1.SWInterceptor{}}
 
 	if microFrontendClass.Spec.ProgressiveWebApp == nil {
 		return empty, nil
 	}
 
-	if microFrontendClass.Spec.ProgressiveWebApp.CacheOptions == nil {
+	sw := microFrontendClass.Spec.ProgressiveWebApp.ServiceWorker
+	if sw == nil {
 		return empty, nil
-	}
-
-	if microFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes != nil {
-		for _, route := range microFrontendClass.Spec.ProgressiveWebApp.CacheOptions.CacheRoutes {
-			routes = append(routes, CacheRouteResponse{
-				CacheRoute: route,
-			})
-		}
-	}
-
-	if microFrontendClass.Spec.ProgressiveWebApp.CacheOptions.PreCache != nil {
-		for _, entry := range microFrontendClass.Spec.ProgressiveWebApp.CacheOptions.PreCache {
-			preCache = append(preCache, v1alpha1.PreCacheEntry{
-				URL:      entry.URL,
-				Revision: entry.Revision,
-			})
-		}
 	}
 
 	relevantMicroFrontends, err := pwa.microFrontendRepository.List(func(mf *v1alpha1.MicroFrontend) bool {
 		return mf.Spec.FrontendClass != nil && *mf.Spec.FrontendClass == microFrontendClass.Name &&
 			mf.Spec.Proxy != nil && *mf.Spec.Proxy
 	})
-
 	if err != nil {
 		pwa.logger.Error(err, "Failed to get microfrontends")
 		return nil, err
 	}
 
-	for _, mf := range relevantMicroFrontends {
-		if mf.Spec.CacheOptions == nil {
+	preCache := pwa.collectPreCache(sw, relevantMicroFrontends)
+	preCache = append(preCache, pwa.collectPreCacheByJson(sw, relevantMicroFrontends)...)
+	routes := pwa.collectCacheRoutes(sw, relevantMicroFrontends)
+	interceptors := pwa.collectInterceptors(sw, relevantMicroFrontends)
+
+	return &ProxyConfigResponse{
+		PreCache:     preCache,
+		Routes:       routes,
+		Interceptors: interceptors,
+	}, nil
+}
+
+func (pwa *ProgressiveWebApplication) collectPreCache(sw *v1alpha1.ServiceWorker, microFrontends []*v1alpha1.MicroFrontend) []v1alpha1.PreCacheEntry {
+	var preCache []v1alpha1.PreCacheEntry
+
+	for _, entry := range sw.PreCache {
+		preCache = append(preCache, v1alpha1.PreCacheEntry{
+			URL:      entry.URL,
+			Revision: entry.Revision,
+		})
+	}
+
+	for _, mf := range microFrontends {
+		if mf.Spec.ServiceWorker == nil {
 			continue
 		}
-
-		if mf.Spec.CacheOptions.PreCache != nil {
-			for _, entry := range mf.Spec.CacheOptions.PreCache {
-				preCache = append(preCache, v1alpha1.PreCacheEntry{
-					URL:      buildPreCachePath(mf, *entry.URL),
-					Revision: entry.Revision,
-				})
-			}
+		for _, entry := range mf.Spec.ServiceWorker.PreCache {
+			preCache = append(preCache, v1alpha1.PreCacheEntry{
+				URL:      buildPreCachePath(mf, *entry.URL),
+				Revision: entry.Revision,
+			})
 		}
+	}
 
-		if mf.Spec.CacheOptions.CacheRoutes != nil {
-			for _, route := range mf.Spec.CacheOptions.CacheRoutes {
-				routes = append(routes, CacheRouteResponse{
-					CacheRoute: route,
-					Prefix:     buildPreCachePath(mf, ""),
-				})
+	return preCache
+}
+
+func (pwa *ProgressiveWebApplication) collectPreCacheByJson(sw *v1alpha1.ServiceWorker, microFrontends []*v1alpha1.MicroFrontend) []v1alpha1.PreCacheEntry {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var precacheMap sync.Map
+	var wg sync.WaitGroup
+	fetchIndex := 0
+
+	if sw.PrecacheFromJson != "" {
+		wg.Add(1)
+		idx := fetchIndex
+		fetchIndex++
+		go func() {
+			defer wg.Done()
+			entries, err := fetchPrecacheFromJsonURL(ctx, sw.PrecacheFromJson)
+			if err != nil {
+				pwa.logger.Error(err, "Failed to fetch precache from JSON", "url", sw.PrecacheFromJson)
+				return
+			}
+			var result []v1alpha1.PreCacheEntry
+			for _, p := range entries {
+				result = append(result, v1alpha1.PreCacheEntry{URL: &p})
+			}
+			precacheMap.Store(idx, result)
+		}()
+	}
+
+	for _, mf := range microFrontends {
+		if mf.Spec.ServiceWorker == nil || mf.Spec.ServiceWorker.PrecacheFromJson == "" {
+			continue
+		}
+		wg.Add(1)
+		idx := fetchIndex
+		fetchIndex++
+		go func() {
+			defer wg.Done()
+			resolvedURL := mf.Spec.Service.ResolveServiceURL(mf.Namespace) + "/" + strings.TrimLeft(mf.Spec.ServiceWorker.PrecacheFromJson, "/")
+			entries, err := fetchPrecacheFromJsonURL(ctx, resolvedURL)
+			if err != nil {
+				pwa.logger.Error(err, "Failed to fetch precache from JSON",
+					"url", resolvedURL, "microfrontend", mf.Name, "namespace", mf.Namespace)
+				return
+			}
+			var result []v1alpha1.PreCacheEntry
+			for _, p := range entries {
+				resolved := buildPreCachePath(mf, p)
+				result = append(result, v1alpha1.PreCacheEntry{URL: resolved})
+			}
+			precacheMap.Store(idx, result)
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		pwa.logger.Error(ctx.Err(), "Timeout waiting for precache JSON fetches")
+	}
+
+	var preCache []v1alpha1.PreCacheEntry
+	precacheMap.Range(func(_, value any) bool {
+		if entries, ok := value.([]v1alpha1.PreCacheEntry); ok {
+			preCache = append(preCache, entries...)
+		}
+		return true
+	})
+
+	return preCache
+}
+
+func (pwa *ProgressiveWebApplication) collectCacheRoutes(sw *v1alpha1.ServiceWorker, microFrontends []*v1alpha1.MicroFrontend) []CacheRouteResponse {
+	var routes []CacheRouteResponse
+
+	for _, route := range sw.CacheRoutes {
+		routes = append(routes, CacheRouteResponse{
+			CacheRoute: route,
+		})
+	}
+
+	for _, mf := range microFrontends {
+		if mf.Spec.ServiceWorker == nil {
+			continue
+		}
+		for _, route := range mf.Spec.ServiceWorker.CacheRoutes {
+			routes = append(routes, CacheRouteResponse{
+				CacheRoute: route,
+				Prefix:     rebaseCacheRoute(mf, ""),
+			})
+		}
+	}
+
+	return routes
+}
+
+func (pwa *ProgressiveWebApplication) collectInterceptors(sw *v1alpha1.ServiceWorker, microFrontends []*v1alpha1.MicroFrontend) []v1alpha1.SWInterceptor {
+	var interceptors []v1alpha1.SWInterceptor
+
+	for _, interceptor := range sw.Interceptors {
+		interceptors = append(interceptors, v1alpha1.SWInterceptor{
+			Name:      interceptor.Name,
+			ModuleUrl: interceptor.ModuleUrl,
+			Priority:  interceptor.Priority,
+		})
+	}
+
+	allowMfeInterceptors := true
+	if sw.NoMicroFrontEndInterceptors != nil {
+		allowMfeInterceptors = !*sw.NoMicroFrontEndInterceptors
+	}
+	if allowMfeInterceptors {
+		for _, mf := range microFrontends {
+			if mf.Spec.ServiceWorker != nil {
+				for _, interceptor := range mf.Spec.ServiceWorker.Interceptors {
+					resolvedModuleUrl := buildPreCachePath(mf, interceptor.ModuleUrl)
+					interceptors = append(interceptors, v1alpha1.SWInterceptor{
+						Name:      interceptor.Name,
+						ModuleUrl: *resolvedModuleUrl,
+						Priority:  interceptor.Priority,
+					})
+				}
 			}
 		}
 	}
 
-	return &ProxyConfigResponse{
-		PreCache: preCache,
-		Routes:   routes,
-	}, nil
+	slices.SortFunc(interceptors, func(a, b v1alpha1.SWInterceptor) int {
+		var ap, bp int32
+		if a.Priority != nil {
+			ap = *a.Priority
+		}
+		if b.Priority != nil {
+			bp = *b.Priority
+		}
+		if ap < bp {
+			return 1
+		} else if ap > bp {
+			return -1
+		}
+		return 0
+	})
+
+	for i := range interceptors {
+		interceptors[i].Priority = nil
+	}
+
+	return interceptors
 }
 
-func buildPreCachePath(mf *v1alpha1.MicroFrontend, url string) *string {
-	path := "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/" + strings.TrimLeft(url, "/")
+func fetchPrecacheFromJsonURL(ctx context.Context, jsonUrl string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, jsonUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	var paths []string
+	if err := json.NewDecoder(resp.Body).Decode(&paths); err != nil {
+		return nil, err
+	}
+
+	return paths, nil
+}
+
+func buildPreCachePath(mf *v1alpha1.MicroFrontend, reference string) *string {
+	path := "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/" + strings.TrimLeft(reference, "/")
 	return &path
+}
+
+func rebaseCacheRoute(mf *v1alpha1.MicroFrontend, reference string) *string {
+	base := &url.URL{Path: "polyfea/proxy/" + mf.Namespace + "/" + mf.Name + "/" + hashOrDefault(mf.Spec.CacheBustingHash) + "/"}
+	resolved := strings.TrimPrefix(base.ResolveReference(&url.URL{Path: reference}).String(), "/") // if path then still relative to base href of mfe class
+	return &resolved
 }
