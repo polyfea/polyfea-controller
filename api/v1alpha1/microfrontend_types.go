@@ -153,9 +153,9 @@ type MicroFrontendServiceWorker struct {
 	PrecacheFromJson string `json:"precacheFromJson,omitempty"`
 
 	// CacheRoutes specifies the caching strategies for different URL patterns.
-	// The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
-	// May be absolute path (starting with /) in which case it is path to the root of the host,
-	// or absolute URL (starting with http:// or https://) in which case it is used as is.
+	// Only routes that are served by the nicrofrontend (i.e. prefixed with the microfrontend's ResolvedUrl)
+	// will be matched. Routes outside of the microfrontend's scope needs to be configured
+	// in the MicroFrontendClass or handled by microfrontend's interceptor to be effective.
 	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
