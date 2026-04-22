@@ -280,10 +280,16 @@ func (pwa *ProgressiveWebApplication) collectCacheRoutes(sw *v1alpha1.ServiceWor
 		if mf.Spec.ServiceWorker == nil {
 			continue
 		}
+		prefix := rebaseCacheRoute(mf, "")
+
 		for _, route := range mf.Spec.ServiceWorker.CacheRoutes {
+			localPrefix := prefix
+			if route.AbsolutePattern != nil && *route.AbsolutePattern {
+				localPrefix = nil
+			}
 			routes = append(routes, CacheRouteResponse{
 				CacheRoute: route,
-				Prefix:     rebaseCacheRoute(mf, ""),
+				Prefix:     localPrefix,
 			})
 		}
 	}

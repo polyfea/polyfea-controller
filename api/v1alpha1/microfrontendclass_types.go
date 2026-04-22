@@ -311,14 +311,23 @@ type PreCacheEntry struct {
 // This struct allows for fine-tuned control over how different network requests are handled, enhancing performance, reliability, and offline capabilities based on the application's requirements.
 type CacheRoute struct {
 	// Pattern is the URL pattern to which this caching strategy applies.
+	// +optional
 	// +kubebuilder:validation:MaxLength=2048
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Pattern *string `json:"pattern"`
 
-	// Destination is the optional destination URL for this caching strategy.
-	// The  Destination path of a cache route is resolved to the proxied path to the resolved Microfrontend.Spec.Service,
-	// May be absolute path (starting with /) in which case it is path to the root of the host,
-	// or absolute URL (starting with http:// or https://) in which case it is used as is.
+	// AbsolutePattern indicates whether the pattern for microfrontend route is an absolute URL
+	// or it shall be applied only for paths served by the specific microfrontend's service.
+	// If false or not set then the pattern is treated as relative to the microfrontend service reference and only
+	// requests served by the microfrontend service will be matched against the pattern.
+	// If true, the pattern is treated as an absolute URL and will be matched against
+	// the full request URL regardless of the microfrontend service reference.
+	// This property has no effect when used at the MicroFrontendClass level, where the pattern is always treated as absolute.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	AbsolutePattern *bool `json:"absolutePattern,omitempty"`
+
+	// See https://developer.mozilla.org/en-US/docs/Web/API/Request/destination for more details about the destination field and its possible values.
 	// +optional
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -349,6 +358,9 @@ type CacheRoute struct {
 	// +kubebuilder:validation:MaxItems=20
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Statuses []int32 `json:"statuses,omitempty"`
+
+	// Name of the cache where the response will be stored if strategy uses the cache. Also name of BrodcastChannel used for cache update notifications in case of stal-with. It
+	CacheName *string `json:"cacheName,omitempty"`
 }
 
 // MicroFrontendClassStatus defines the observed state of MicroFrontendClass

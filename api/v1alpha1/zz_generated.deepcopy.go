@@ -49,6 +49,11 @@ func (in *CacheRoute) DeepCopyInto(out *CacheRoute) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.AbsolutePattern != nil {
+		in, out := &in.AbsolutePattern, &out.AbsolutePattern
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Destination != nil {
 		in, out := &in.Destination, &out.Destination
 		*out = new(string)
@@ -78,6 +83,11 @@ func (in *CacheRoute) DeepCopyInto(out *CacheRoute) {
 		in, out := &in.Statuses, &out.Statuses
 		*out = make([]int32, len(*in))
 		copy(*out, *in)
+	}
+	if in.CacheName != nil {
+		in, out := &in.CacheName, &out.CacheName
+		*out = new(string)
+		**out = **in
 	}
 }
 
