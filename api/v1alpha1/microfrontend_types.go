@@ -152,10 +152,7 @@ type MicroFrontendServiceWorker struct {
 	// +kubebuilder:validation:Optional
 	PrecacheFromJson string `json:"precacheFromJson,omitempty"`
 
-	// CacheRoutes specifies the caching strategies for different URL patterns.
-	// Only routes that are served by the nicrofrontend (i.e. prefixed with the microfrontend's ResolvedUrl)
-	// will be matched. Routes outside of the microfrontend's scope needs to be configured
-	// in the MicroFrontendClass or handled by microfrontend's interceptor to be effective.
+	// CacheRoutes specifies the caching strategies for different URL patterns
 	// +kubebuilder:validation:MaxItems=64
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	// +optional
