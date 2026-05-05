@@ -334,6 +334,12 @@ type CacheRoute struct {
 	Destination *string `json:"destination,omitempty"`
 
 	// Strategy defines the caching strategy to be used for this URL pattern. It defaults to "cache-first".
+	//
+	// If the strategy is "stale-while-revalidate", the service worker will serve the cached response immediately
+	// (if available) and then fetch an updated response in the background to update the cache for future requests.
+	// background-update-plugin is used in this case to handle the background update process.
+	// @link https://developer.chrome.com/docs/workbox/modules/workbox-broadcast-update
+	//
 	// +kubebuilder:default=cache-first
 	// +kubebuilder:validation:Enum=cache-first;network-first;cache-only;network-only;stale-while-revalidate;
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
@@ -359,7 +365,7 @@ type CacheRoute struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Statuses []int32 `json:"statuses,omitempty"`
 
-	// Name of the cache where the response will be stored if strategy uses the cache. Also name of BrodcastChannel used for cache update notifications in case of stal-with. It
+	// Name of the cache where the response will be stored if strategy uses the cache.
 	CacheName *string `json:"cacheName,omitempty"`
 }
 
