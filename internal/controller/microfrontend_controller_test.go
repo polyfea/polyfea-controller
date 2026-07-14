@@ -229,12 +229,11 @@ var _ = Describe("MicroFrontend Controller", func() {
 				ensureMicroFrontendDeleted(testCtx)
 				ensureMicroFrontendClassDeleted(testCtx)
 
-				// Create MicroFrontendClass
+				// Create MicroFrontendClass (cluster-scoped, so no namespace)
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -271,8 +270,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 						createdMicroFrontend.Status.FrontendClassRef.Accepted
 				}, timeout, interval).Should(BeTrue())
 
-				By("Updating MicroFrontendClass to 'Same' namespace policy")
-				mfcLookupKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendNamespace}
+				By("Updating MicroFrontendClass to a namespace list that still includes the MicroFrontend's namespace")
+				mfcLookupKey := types.NamespacedName{Name: mfcName}
 				updatedMfc := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					// Re-fetch to get latest resourceVersion
@@ -280,12 +279,13 @@ var _ = Describe("MicroFrontend Controller", func() {
 						return err
 					}
 					updatedMfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
-						From: v1alpha1.NamespaceFromSame,
+						From:       v1alpha1.NamespaceFromNamespaces,
+						Namespaces: []string{MicroFrontendNamespace},
 					}
 					return k8sClient.Update(testCtx, updatedMfc)
 				}, timeout, interval).Should(Succeed())
 
-				By("Verifying MicroFrontend is still accepted (same namespace)")
+				By("Verifying MicroFrontend is still accepted (its namespace is listed)")
 				Eventually(func() bool {
 					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
 					if err != nil {
@@ -328,8 +328,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
 			})
 
-			It("Should accept MicroFrontend when MicroFrontendClass is in different namespace and allows 'All' policy", func() {
-				By("Creating a MicroFrontendClass in a different namespace with 'All' policy")
+			It("Should accept a MicroFrontend from any namespace when the cluster-scoped class allows 'All'", func() {
+				By("Creating a cluster-scoped MicroFrontendClass with 'All' policy")
 				testCtx := context.Background()
 
 				ensureMicroFrontendDeleted(testCtx)
@@ -338,7 +338,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				otherNamespace := "other-namespace"
 
-				// Ensure the target namespace exists for the test
+				// The MicroFrontend lives in a namespace of its own; the class does not.
 				ns := &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{Name: otherNamespace},
 				}
@@ -346,8 +346,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: otherNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -369,12 +368,13 @@ var _ = Describe("MicroFrontend Controller", func() {
 					&mfcName,
 					nil,
 				)
+				microFrontend.Namespace = otherNamespace
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
-				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: otherNamespace}
 				createdMicroFrontend := &v1alpha1.MicroFrontend{}
 
-				By("Verifying MicroFrontend is accepted despite class being in different namespace")
+				By("Verifying the MicroFrontend binds to the class from its own namespace")
 				Eventually(func() bool {
 					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
 					if err != nil {
@@ -382,15 +382,13 @@ var _ = Describe("MicroFrontend Controller", func() {
 					}
 					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
 						createdMicroFrontend.Status.FrontendClassRef != nil &&
+						createdMicroFrontend.Status.FrontendClassRef.Name == mfcName &&
 						createdMicroFrontend.Status.FrontendClassRef.Accepted
 				}, timeout, interval).Should(BeTrue())
 
 				By("Cleaning up")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
 				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
-				// Remove the test namespace
-				nsObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: otherNamespace}}
-				Expect(k8sClient.Delete(testCtx, nsObj)).Should(Succeed())
 			})
 
 			It("Should remove rejected MicroFrontends from repository", func() {
@@ -404,8 +402,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -498,8 +495,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -560,8 +556,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),

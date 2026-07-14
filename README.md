@@ -20,6 +20,8 @@ By enabling strong separation of concerns, the polyfea-controller improves flexi
 
 This Custom Resource Definition (CRD) enables developers to define and manage **MicroFrontendClass** resources within a Kubernetes cluster. A MicroFrontendClass describes how a microfrontend should behave when served through the platform.
 
+MicroFrontendClass is **cluster-scoped**: it owns a URL prefix on the cluster's ingress surface, so its name is unique across the whole cluster and it is created without a namespace. Which namespaces may attach MicroFrontends to it is controlled by its [namespace policy](#namespace-policy) rather than by the namespace it lives in.
+
 Each MicroFrontendClass specifies a **baseUri**, which determines the URL prefix it applies to. All incoming requests whose paths begin with this baseUri will use the configuration of the corresponding MicroFrontendClass. This includes injecting additional response headers, applying the appropriate Content Security Policy (CSP), and rendering configured meta tags.
 
 #### Specification Overview
@@ -37,12 +39,11 @@ A MicroFrontendClass supports the following configuration properties:
 
 #### Namespace Policy
 
-MicroFrontendClass supports **namespace policies** to control which namespaces can attach MicroFrontends to the class. This feature enables multi-tenancy and security isolation, similar to the Kubernetes Gateway API.
+Because a MicroFrontendClass is cluster-scoped, any MicroFrontend in any namespace can reference it by name. **Namespace policies** control which of those namespaces are actually allowed to attach, enabling multi-tenancy and security isolation similar to the Kubernetes Gateway API.
 
-Three policy types are available:
+Two policy types are available:
 
 * **All** (default): Allows MicroFrontends from any namespace to bind to this class
-* **Same**: Allows only MicroFrontends from the same namespace as the MicroFrontendClass
 * **FromNamespaces**: Allows MicroFrontends from a specified list of namespaces
 
 Example configurations:
@@ -53,7 +54,6 @@ apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: public-frontend
-  namespace: platform
 spec:
   baseUri: "https://example.com"
   title: "Public Frontend"
@@ -62,17 +62,18 @@ spec:
 ```
 
 ```yaml
-# Allow only same namespace
+# Allow a single namespace, isolating the class to one team
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: isolated-frontend
-  namespace: team-a
 spec:
   baseUri: "https://team-a.example.com"
   title: "Team A Frontend"
   namespacePolicy:
-    from: Same
+    from: FromNamespaces
+    namespaces:
+      - team-a
 ```
 
 ```yaml
@@ -81,7 +82,6 @@ apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: multi-tenant-frontend
-  namespace: platform
 spec:
   baseUri: "https://app.example.com"
   title: "Multi-tenant Frontend"
@@ -95,7 +95,7 @@ spec:
 
 When a MicroFrontend attempts to bind to a MicroFrontendClass but doesn't satisfy the namespace policy, it will be rejected with a clear status message explaining why.
 
-**Automatic Reconciliation**: When a MicroFrontendClass namespace policy is updated, all MicroFrontends referencing that class are automatically reconciled to reflect the new policy. This ensures namespace restrictions are enforced immediately without manual intervention. See [Namespace Policy Reconciliation](docs/NAMESPACE_POLICY_RECONCILIATION.md) for details.
+**Automatic Reconciliation**: When a MicroFrontendClass namespace policy is updated, all MicroFrontends referencing that class are automatically reconciled to reflect the new policy. This ensures namespace restrictions are enforced immediately without manual intervention.
 
 #### Required Fields
 
@@ -275,7 +275,6 @@ status:
   resolvedServiceURL: "http://my-service.default.svc.cluster.local:80"
   frontendClassRef:
     name: polyfea-controller-default
-    namespace: platform
     accepted: true
   observedGeneration: 1
 ```
@@ -301,7 +300,6 @@ status:
   rejectionReason: "Namespace not allowed by MicroFrontendClass namespace policy"
   frontendClassRef:
     name: production-frontend
-    namespace: platform
     accepted: false
   observedGeneration: 1
 ```

@@ -228,16 +228,10 @@ type Port struct {
 
 // MicroFrontendClassReference contains information about the MicroFrontendClass binding
 type MicroFrontendClassReference struct {
-	// Name of the MicroFrontendClass
+	// Name of the cluster-scoped MicroFrontendClass
 	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=status
 	Name string `json:"name"`
-
-	// Namespace of the MicroFrontendClass
-	// +optional
-	// +kubebuilder:validation:MaxLength=63
-	// +operator-sdk:csv:customresourcedefinitions:type=status
-	Namespace string `json:"namespace,omitempty"`
 
 	// Accepted indicates if this MicroFrontend is accepted by the class's namespace policy
 	// +operator-sdk:csv:customresourcedefinitions:type=status

@@ -1,5 +1,5 @@
 //#region \0rolldown/runtime.js
-var e = (e, t) => () => (t || e((t = { exports: {} }).exports, t), t.exports);
+var e = (e, t) => () => (t || (e((t = { exports: {} }).exports, t), e = null), t.exports);
 //#endregion
 //#region node_modules/workbox-core/_version.js
 try {
@@ -508,7 +508,7 @@ var O = (e) => e && typeof e == "object" ? e : { handle: e }, k = class {
 			if (n && !(t.origin !== location.origin && n.index !== 0)) return n.slice(1);
 		}, t, n);
 	}
-}, ee = class {
+}, j = class {
 	constructor() {
 		this._routes = /* @__PURE__ */ new Map(), this._defaultHandlerMap = /* @__PURE__ */ new Map();
 	}
@@ -614,17 +614,26 @@ var O = (e) => e && typeof e == "object" ? e : { handle: e }, k = class {
 };
 //#endregion
 //#region node_modules/workbox-core/registerQuotaErrorCallback.js
-function te(e) {
+function M(e) {
 	b.add(e);
 }
 //#endregion
 //#region node_modules/workbox-core/_private/dontWaitFor.js
-function j(e) {
+function N(e) {
 	e.then(() => {});
 }
 //#endregion
+//#region node_modules/workbox-core/_private/resultingClientExists.js
+var P = 2e3;
+async function ee(e) {
+	if (!e) return;
+	let t = await self.clients.matchAll({ type: "window" }), n = new Set(t.map((e) => e.id)), r, i = performance.now();
+	for (; performance.now() - i < P && (t = await self.clients.matchAll({ type: "window" }), r = t.find((t) => e ? t.id === e : !n.has(t.id)), !r);) await S(100);
+	return r;
+}
+//#endregion
 //#region node_modules/workbox-core/setCacheNameDetails.js
-function M(e) {
+function te(e) {
 	o.updateDetails(e);
 }
 //#endregion
@@ -649,9 +658,9 @@ var ne = class extends T {
 		if (!r) throw new n("no-response", { url: e.url });
 		return r;
 	}
-}, N = { cacheWillUpdate: async ({ response: e }) => e.status === 200 || e.status === 0 ? e : null }, ie = class extends T {
+}, ie = { cacheWillUpdate: async ({ response: e }) => e.status === 200 || e.status === 0 ? e : null }, ae = class extends T {
 	constructor(e = {}) {
-		super(e), this.plugins.some((e) => "cacheWillUpdate" in e) || this.plugins.unshift(N), this._networkTimeoutSeconds = e.networkTimeoutSeconds || 0;
+		super(e), this.plugins.some((e) => "cacheWillUpdate" in e) || this.plugins.unshift(ie), this._networkTimeoutSeconds = e.networkTimeoutSeconds || 0;
 	}
 	async _handle(e, t) {
 		let r = [], i = [], a;
@@ -694,7 +703,7 @@ var ne = class extends T {
 		}
 		return e && clearTimeout(e), (i || !a) && (a = await r.cacheMatch(t)), a;
 	}
-}, ae = class extends T {
+}, oe = class extends T {
 	constructor(e = {}) {
 		super(e), this._networkTimeoutSeconds = e.networkTimeoutSeconds || 0;
 	}
@@ -716,9 +725,9 @@ var ne = class extends T {
 		});
 		return i;
 	}
-}, oe = class extends T {
+}, se = class extends T {
 	constructor(e = {}) {
-		super(e), this.plugins.some((e) => "cacheWillUpdate" in e) || this.plugins.unshift(N);
+		super(e), this.plugins.some((e) => "cacheWillUpdate" in e) || this.plugins.unshift(ie);
 	}
 	async _handle(e, t) {
 		let r = t.fetchAndCachePut(e).catch(() => {});
@@ -735,9 +744,9 @@ var ne = class extends T {
 		});
 		return i;
 	}
-}, se = (e, t) => t.some((t) => e instanceof t), ce, le;
-function ue() {
-	return ce ||= [
+}, ce = (e, t) => t.some((t) => e instanceof t), le, ue;
+function de() {
+	return le ||= [
 		IDBDatabase,
 		IDBObjectStore,
 		IDBIndex,
@@ -745,31 +754,31 @@ function ue() {
 		IDBTransaction
 	];
 }
-function de() {
-	return le ||= [
+function fe() {
+	return ue ||= [
 		IDBCursor.prototype.advance,
 		IDBCursor.prototype.continue,
 		IDBCursor.prototype.continuePrimaryKey
 	];
 }
-var P = /* @__PURE__ */ new WeakMap(), F = /* @__PURE__ */ new WeakMap(), I = /* @__PURE__ */ new WeakMap(), L = /* @__PURE__ */ new WeakMap(), R = /* @__PURE__ */ new WeakMap();
-function fe(e) {
+var F = /* @__PURE__ */ new WeakMap(), I = /* @__PURE__ */ new WeakMap(), L = /* @__PURE__ */ new WeakMap(), R = /* @__PURE__ */ new WeakMap(), z = /* @__PURE__ */ new WeakMap();
+function pe(e) {
 	let t = new Promise((t, n) => {
 		let r = () => {
 			e.removeEventListener("success", i), e.removeEventListener("error", a);
 		}, i = () => {
-			t(B(e.result)), r();
+			t(V(e.result)), r();
 		}, a = () => {
 			n(e.error), r();
 		};
 		e.addEventListener("success", i), e.addEventListener("error", a);
 	});
 	return t.then((t) => {
-		t instanceof IDBCursor && P.set(t, e);
-	}).catch(() => {}), R.set(t, e), t;
+		t instanceof IDBCursor && F.set(t, e);
+	}).catch(() => {}), z.set(t, e), t;
 }
-function pe(e) {
-	if (F.has(e)) return;
+function me(e) {
+	if (I.has(e)) return;
 	let t = new Promise((t, n) => {
 		let r = () => {
 			e.removeEventListener("complete", i), e.removeEventListener("error", a), e.removeEventListener("abort", a);
@@ -780,16 +789,16 @@ function pe(e) {
 		};
 		e.addEventListener("complete", i), e.addEventListener("error", a), e.addEventListener("abort", a);
 	});
-	F.set(e, t);
+	I.set(e, t);
 }
-var z = {
+var B = {
 	get(e, t, n) {
 		if (e instanceof IDBTransaction) {
-			if (t === "done") return F.get(e);
-			if (t === "objectStoreNames") return e.objectStoreNames || I.get(e);
+			if (t === "done") return I.get(e);
+			if (t === "objectStoreNames") return e.objectStoreNames || L.get(e);
 			if (t === "store") return n.objectStoreNames[1] ? void 0 : n.objectStore(n.objectStoreNames[0]);
 		}
-		return B(e[t]);
+		return V(e[t]);
 	},
 	set(e, t, n) {
 		return e[t] = n, !0;
@@ -798,70 +807,70 @@ var z = {
 		return e instanceof IDBTransaction && (t === "done" || t === "store") ? !0 : t in e;
 	}
 };
-function me(e) {
-	z = e(z);
-}
 function he(e) {
-	return e === IDBDatabase.prototype.transaction && !("objectStoreNames" in IDBTransaction.prototype) ? function(t, ...n) {
-		let r = e.call(V(this), t, ...n);
-		return I.set(r, t.sort ? t.sort() : [t]), B(r);
-	} : de().includes(e) ? function(...t) {
-		return e.apply(V(this), t), B(P.get(this));
-	} : function(...t) {
-		return B(e.apply(V(this), t));
-	};
+	B = e(B);
 }
 function ge(e) {
-	return typeof e == "function" ? he(e) : (e instanceof IDBTransaction && pe(e), se(e, ue()) ? new Proxy(e, z) : e);
+	return e === IDBDatabase.prototype.transaction && !("objectStoreNames" in IDBTransaction.prototype) ? function(t, ...n) {
+		let r = e.call(H(this), t, ...n);
+		return L.set(r, t.sort ? t.sort() : [t]), V(r);
+	} : fe().includes(e) ? function(...t) {
+		return e.apply(H(this), t), V(F.get(this));
+	} : function(...t) {
+		return V(e.apply(H(this), t));
+	};
 }
-function B(e) {
-	if (e instanceof IDBRequest) return fe(e);
-	if (L.has(e)) return L.get(e);
-	let t = ge(e);
-	return t !== e && (L.set(e, t), R.set(t, e)), t;
+function _e(e) {
+	return typeof e == "function" ? ge(e) : (e instanceof IDBTransaction && me(e), ce(e, de()) ? new Proxy(e, B) : e);
 }
-var V = (e) => R.get(e);
+function V(e) {
+	if (e instanceof IDBRequest) return pe(e);
+	if (R.has(e)) return R.get(e);
+	let t = _e(e);
+	return t !== e && (R.set(e, t), z.set(t, e)), t;
+}
+var H = (e) => z.get(e);
 //#endregion
 //#region node_modules/idb/build/index.js
-function H(e, t, { blocked: n, upgrade: r, blocking: i, terminated: a } = {}) {
-	let o = indexedDB.open(e, t), s = B(o);
+function U(e, t, { blocked: n, upgrade: r, blocking: i, terminated: a } = {}) {
+	let o = indexedDB.open(e, t), s = V(o);
 	return r && o.addEventListener("upgradeneeded", (e) => {
-		r(B(o.result), e.oldVersion, e.newVersion, B(o.transaction), e);
+		r(V(o.result), e.oldVersion, e.newVersion, V(o.transaction), e);
 	}), n && o.addEventListener("blocked", (e) => n(e.oldVersion, e.newVersion, e)), s.then((e) => {
 		a && e.addEventListener("close", () => a()), i && e.addEventListener("versionchange", (e) => i(e.oldVersion, e.newVersion, e));
 	}).catch(() => {}), s;
 }
-function _e(e, { blocked: t } = {}) {
+function ve(e, { blocked: t } = {}) {
 	let n = indexedDB.deleteDatabase(e);
-	return t && n.addEventListener("blocked", (e) => t(e.oldVersion, e)), B(n).then(() => void 0);
+	return t && n.addEventListener("blocked", (e) => t(e.oldVersion, e)), V(n).then(() => void 0);
 }
-var ve = [
+var ye = [
 	"get",
 	"getKey",
 	"getAll",
 	"getAllKeys",
 	"count"
-], ye = [
+], be = [
 	"put",
 	"add",
 	"delete",
 	"clear"
-], U = /* @__PURE__ */ new Map();
-function W(e, t) {
+], W = /* @__PURE__ */ new Map();
+function G(e, t) {
 	if (!(e instanceof IDBDatabase && !(t in e) && typeof t == "string")) return;
-	if (U.get(t)) return U.get(t);
-	let n = t.replace(/FromIndex$/, ""), r = t !== n, i = ye.includes(n);
-	if (!(n in (r ? IDBIndex : IDBObjectStore).prototype) || !(i || ve.includes(n))) return;
+	if (W.get(t)) return W.get(t);
+	let n = t.replace(/FromIndex$/, ""), r = t !== n, i = be.includes(n);
+	if (!(n in (r ? IDBIndex : IDBObjectStore).prototype) || !(i || ye.includes(n))) return;
 	let a = async function(e, ...t) {
 		let a = this.transaction(e, i ? "readwrite" : "readonly"), o = a.store;
 		return r && (o = o.index(t.shift())), (await Promise.all([o[n](...t), i && a.done]))[0];
 	};
-	return U.set(t, a), a;
+	return W.set(t, a), a;
 }
-me((e) => ({
+he((e) => ({
 	...e,
-	get: (t, n, r) => W(t, n) || e.get(t, n, r),
-	has: (t, n) => !!W(t, n) || e.has(t, n)
+	get: (t, n, r) => G(t, n) || e.get(t, n, r),
+	has: (t, n) => !!G(t, n) || e.has(t, n)
 }));
 //#endregion
 //#region node_modules/workbox-expiration/_version.js
@@ -870,52 +879,52 @@ try {
 } catch {}
 //#endregion
 //#region node_modules/workbox-expiration/models/CacheTimestampsModel.js
-var be = "workbox-expiration", G = "cache-entries", K = (e) => {
+var xe = "workbox-expiration", K = "cache-entries", q = (e) => {
 	let t = new URL(e, location.href);
 	return t.hash = "", t.href;
-}, xe = class {
+}, Se = class {
 	constructor(e) {
 		this._db = null, this._cacheName = e;
 	}
 	_upgradeDb(e) {
-		let t = e.createObjectStore(G, { keyPath: "id" });
+		let t = e.createObjectStore(K, { keyPath: "id" });
 		t.createIndex("cacheName", "cacheName", { unique: !1 }), t.createIndex("timestamp", "timestamp", { unique: !1 });
 	}
 	_upgradeDbAndDeleteOldDbs(e) {
-		this._upgradeDb(e), this._cacheName && _e(this._cacheName);
+		this._upgradeDb(e), this._cacheName && ve(this._cacheName);
 	}
 	async setTimestamp(e, t) {
-		e = K(e);
+		e = q(e);
 		let n = {
 			url: e,
 			timestamp: t,
 			cacheName: this._cacheName,
 			id: this._getId(e)
-		}, r = (await this.getDb()).transaction(G, "readwrite", { durability: "relaxed" });
+		}, r = (await this.getDb()).transaction(K, "readwrite", { durability: "relaxed" });
 		await r.store.put(n), await r.done;
 	}
 	async getTimestamp(e) {
-		return (await (await this.getDb()).get(G, this._getId(e)))?.timestamp;
+		return (await (await this.getDb()).get(K, this._getId(e)))?.timestamp;
 	}
 	async expireEntries(e, t) {
-		let n = await this.getDb(), r = await n.transaction(G).store.index("timestamp").openCursor(null, "prev"), i = [], a = 0;
+		let n = await this.getDb(), r = await n.transaction(K).store.index("timestamp").openCursor(null, "prev"), i = [], a = 0;
 		for (; r;) {
 			let n = r.value;
 			n.cacheName === this._cacheName && (e && n.timestamp < e || t && a >= t ? i.push(r.value) : a++), r = await r.continue();
 		}
 		let o = [];
-		for (let e of i) await n.delete(G, e.id), o.push(e.url);
+		for (let e of i) await n.delete(K, e.id), o.push(e.url);
 		return o;
 	}
 	_getId(e) {
-		return this._cacheName + "|" + K(e);
+		return this._cacheName + "|" + q(e);
 	}
 	async getDb() {
-		return this._db ||= await H(be, 1, { upgrade: this._upgradeDbAndDeleteOldDbs.bind(this) }), this._db;
+		return this._db ||= await U(xe, 1, { upgrade: this._upgradeDbAndDeleteOldDbs.bind(this) }), this._db;
 	}
-}, Se = class {
+}, Ce = class {
 	constructor(e, t = {}) {
-		this._isRunning = !1, this._rerunRequested = !1, this._maxEntries = t.maxEntries, this._maxAgeSeconds = t.maxAgeSeconds, this._matchOptions = t.matchOptions, this._cacheName = e, this._timestampModel = new xe(e);
+		this._isRunning = !1, this._rerunRequested = !1, this._maxEntries = t.maxEntries, this._maxAgeSeconds = t.maxAgeSeconds, this._matchOptions = t.matchOptions, this._cacheName = e, this._timestampModel = new Se(e);
 	}
 	async expireEntries() {
 		if (this._isRunning) {
@@ -925,7 +934,7 @@ var be = "workbox-expiration", G = "cache-entries", K = (e) => {
 		this._isRunning = !0;
 		let e = this._maxAgeSeconds ? Date.now() - this._maxAgeSeconds * 1e3 : 0, t = await this._timestampModel.expireEntries(e, this._maxEntries), n = await self.caches.open(this._cacheName);
 		for (let e of t) await n.delete(e, this._matchOptions);
-		this._isRunning = !1, this._rerunRequested && (this._rerunRequested = !1, j(this.expireEntries()));
+		this._isRunning = !1, this._rerunRequested && (this._rerunRequested = !1, N(this.expireEntries()));
 	}
 	async updateTimestamp(e) {
 		await this._timestampModel.setTimestamp(e, Date.now());
@@ -939,12 +948,12 @@ var be = "workbox-expiration", G = "cache-entries", K = (e) => {
 	async delete() {
 		this._rerunRequested = !1, await this._timestampModel.expireEntries(Infinity);
 	}
-}, Ce = class {
+}, we = class {
 	constructor(e = {}) {
 		this.cachedResponseWillBeUsed = async ({ event: e, request: t, cacheName: n, cachedResponse: r }) => {
 			if (!r) return null;
 			let i = this._isResponseDateFresh(r), a = this._getCacheExpiration(n);
-			j(a.expireEntries());
+			N(a.expireEntries());
 			let o = a.updateTimestamp(t.url);
 			if (e) try {
 				e.waitUntil(o);
@@ -953,12 +962,12 @@ var be = "workbox-expiration", G = "cache-entries", K = (e) => {
 		}, this.cacheDidUpdate = async ({ cacheName: e, request: t }) => {
 			let n = this._getCacheExpiration(e);
 			await n.updateTimestamp(t.url), await n.expireEntries();
-		}, this._config = e, this._maxAgeSeconds = e.maxAgeSeconds, this._cacheExpirations = /* @__PURE__ */ new Map(), e.purgeOnQuotaError && te(() => this.deleteCacheAndMetadata());
+		}, this._config = e, this._maxAgeSeconds = e.maxAgeSeconds, this._cacheExpirations = /* @__PURE__ */ new Map(), e.purgeOnQuotaError && M(() => this.deleteCacheAndMetadata());
 	}
 	_getCacheExpiration(e) {
 		if (e === o.getRuntimeName()) throw new n("expire-custom-caches-only");
 		let t = this._cacheExpirations.get(e);
-		return t || (t = new Se(e, this._config), this._cacheExpirations.set(e, t)), t;
+		return t || (t = new Ce(e, this._config), this._cacheExpirations.set(e, t)), t;
 	}
 	_isResponseDateFresh(e) {
 		if (!this._maxAgeSeconds) return !0;
@@ -982,7 +991,7 @@ try {
 } catch {}
 //#endregion
 //#region node_modules/workbox-cacheable-response/CacheableResponse.js
-var we = class {
+var Te = class {
 	constructor(e = {}) {
 		this._statuses = e.statuses, this._headers = e.headers;
 	}
@@ -990,9 +999,9 @@ var we = class {
 		let t = !0;
 		return this._statuses && (t = this._statuses.includes(e.status)), this._headers && t && (t = Object.keys(this._headers).some((t) => e.headers.get(t) === this._headers[t])), t;
 	}
-}, Te = class {
+}, Ee = class {
 	constructor(e) {
-		this.cacheWillUpdate = async ({ response: e }) => this._cacheableResponse.isResponseCacheable(e) ? e : null, this._cacheableResponse = new we(e);
+		this.cacheWillUpdate = async ({ response: e }) => this._cacheableResponse.isResponseCacheable(e) ? e : null, this._cacheableResponse = new Te(e);
 	}
 };
 //#endregion
@@ -1002,7 +1011,7 @@ try {
 } catch {}
 //#endregion
 //#region node_modules/workbox-background-sync/lib/QueueDb.js
-var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De = class {
+var De = 3, Oe = "workbox-background-sync", J = "requests", Y = "queueName", ke = class {
 	constructor() {
 		this._db = null;
 	}
@@ -1032,17 +1041,17 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 		return (await (await this.getDb()).transaction(J).store.index(Y).openCursor(e, t))?.value;
 	}
 	async getDb() {
-		return this._db ||= await H(Ee, q, { upgrade: this._upgradeDb }), this._db;
+		return this._db ||= await U(Oe, De, { upgrade: this._upgradeDb }), this._db;
 	}
 	_upgradeDb(e, t) {
-		t > 0 && t < q && e.objectStoreNames.contains(J) && e.deleteObjectStore(J), e.createObjectStore(J, {
+		t > 0 && t < De && e.objectStoreNames.contains(J) && e.deleteObjectStore(J), e.createObjectStore(J, {
 			autoIncrement: !0,
 			keyPath: "id"
 		}).createIndex(Y, Y, { unique: !1 });
 	}
-}, Oe = class {
+}, Ae = class {
 	constructor(e) {
-		this._queueName = e, this._queueDb = new De();
+		this._queueName = e, this._queueDb = new ke();
 	}
 	async pushEntry(e) {
 		delete e.id, e.queueName = this._queueName, await this._queueDb.addEntry(e);
@@ -1069,7 +1078,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	async _removeEntry(e) {
 		return e && await this.deleteEntry(e.id), e;
 	}
-}, ke = [
+}, je = [
 	"method",
 	"referrer",
 	"referrerPolicy",
@@ -1079,7 +1088,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	"redirect",
 	"integrity",
 	"keepalive"
-], Ae = class e {
+], Me = class e {
 	static async fromRequest(t) {
 		let n = {
 			url: t.url,
@@ -1087,7 +1096,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 		};
 		t.method !== "GET" && (n.body = await t.clone().arrayBuffer());
 		for (let [e, r] of t.headers.entries()) n.headers[e] = r;
-		for (let e of ke) t[e] !== void 0 && (n[e] = t[e]);
+		for (let e of je) t[e] !== void 0 && (n[e] = t[e]);
 		return new e(n);
 	}
 	constructor(e) {
@@ -1103,16 +1112,16 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	clone() {
 		return new e(this.toObject());
 	}
-}, je = "workbox-background-sync", Me = 1440 * 7, X = /* @__PURE__ */ new Set(), Ne = (e) => {
+}, Ne = "workbox-background-sync", Pe = 1440 * 7, X = /* @__PURE__ */ new Set(), Fe = (e) => {
 	let t = {
-		request: new Ae(e.requestData).toRequest(),
+		request: new Me(e.requestData).toRequest(),
 		timestamp: e.timestamp
 	};
 	return e.metadata && (t.metadata = e.metadata), t;
-}, Pe = class {
+}, Ie = class {
 	constructor(e, { forceSyncFallback: t, onSync: r, maxRetentionTime: i } = {}) {
 		if (this._syncInProgress = !1, this._requestsAddedDuringSync = !1, X.has(e)) throw new n("duplicate-queue-name", { name: e });
-		X.add(e), this._name = e, this._onSync = r || this.replayRequests, this._maxRetentionTime = i || Me, this._forceSyncFallback = !!t, this._queueStore = new Oe(this._name), this._addSyncListener();
+		X.add(e), this._name = e, this._onSync = r || this.replayRequests, this._maxRetentionTime = i || Pe, this._forceSyncFallback = !!t, this._queueStore = new Ae(this._name), this._addSyncListener();
 	}
 	get name() {
 		return this._name;
@@ -1133,7 +1142,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 		let e = await this._queueStore.getAll(), t = Date.now(), n = [];
 		for (let r of e) {
 			let e = this._maxRetentionTime * 60 * 1e3;
-			t - r.timestamp > e ? await this._queueStore.deleteEntry(r.id) : n.push(Ne(r));
+			t - r.timestamp > e ? await this._queueStore.deleteEntry(r.id) : n.push(Fe(r));
 		}
 		return n;
 	}
@@ -1142,7 +1151,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	}
 	async _addRequest({ request: e, metadata: t, timestamp: n = Date.now() }, r) {
 		let i = {
-			requestData: (await Ae.fromRequest(e.clone())).toObject(),
+			requestData: (await Me.fromRequest(e.clone())).toObject(),
 			timestamp: n
 		};
 		switch (t && (i.metadata = t), r) {
@@ -1167,7 +1176,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 		}
 		if (n) {
 			let r = this._maxRetentionTime * 60 * 1e3;
-			return t - n.timestamp > r ? this._removeRequest(e) : Ne(n);
+			return t - n.timestamp > r ? this._removeRequest(e) : Fe(n);
 		} else return;
 	}
 	async replayRequests() {
@@ -1180,12 +1189,12 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	}
 	async registerSync() {
 		if ("sync" in self.registration && !this._forceSyncFallback) try {
-			await self.registration.sync.register(`${je}:${this._name}`);
+			await self.registration.sync.register(`${Ne}:${this._name}`);
 		} catch {}
 	}
 	_addSyncListener() {
 		"sync" in self.registration && !this._forceSyncFallback ? self.addEventListener("sync", (e) => {
-			e.tag === `${je}:${this._name}` && e.waitUntil((async () => {
+			e.tag === `${Ne}:${this._name}` && e.waitUntil((async () => {
 				this._syncInProgress = !0;
 				let t;
 				try {
@@ -1201,54 +1210,120 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	static get _queueNames() {
 		return X;
 	}
-}, Fe = class {
+}, Le = class {
 	constructor(e, t) {
 		this.fetchDidFail = async ({ request: e }) => {
 			await this._queue.pushRequest({ request: e });
-		}, this._queue = new Pe(e, t);
+		}, this._queue = new Ie(e, t);
 	}
-}, Ie = class e extends A {
+};
+//#endregion
+//#region node_modules/workbox-broadcast-update/_version.js
+try {
+	self["workbox:broadcast-update:7.3.0"] && _();
+} catch {}
+//#endregion
+//#region node_modules/workbox-broadcast-update/responsesAreSame.js
+var Re = (e, t, n) => n.some((n) => e.headers.has(n) && t.headers.has(n)) ? n.every((n) => {
+	let r = e.headers.has(n) === t.headers.has(n), i = e.headers.get(n) === t.headers.get(n);
+	return r && i;
+}) : !0, ze = "CACHE_UPDATED", Be = "workbox-broadcast-update", Ve = [
+	"content-length",
+	"etag",
+	"last-modified"
+], He = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+function Ue(e) {
+	return {
+		cacheName: e.cacheName,
+		updatedURL: e.request.url
+	};
+}
+var We = class {
+	constructor({ generatePayload: e, headersToCheck: t, notifyAllClients: n } = {}) {
+		this._headersToCheck = t || Ve, this._generatePayload = e || Ue, this._notifyAllClients = n ?? !0;
+	}
+	async notifyIfUpdated(e) {
+		if (e.oldResponse && !Re(e.oldResponse, e.newResponse, this._headersToCheck)) {
+			let t = {
+				type: ze,
+				meta: Be,
+				payload: this._generatePayload(e)
+			};
+			if (e.request.mode === "navigate") {
+				let t;
+				e.event instanceof FetchEvent && (t = e.event.resultingClientId), (!await ee(t) || He) && await S(3500);
+			}
+			if (this._notifyAllClients) {
+				let e = await self.clients.matchAll({ type: "window" });
+				for (let n of e) n.postMessage(t);
+			} else e.event instanceof FetchEvent && (await self.clients.get(e.event.clientId))?.postMessage(t);
+		}
+	}
+}, Ge = class {
+	constructor(e) {
+		this.cacheDidUpdate = async (e) => {
+			N(this._broadcastUpdate.notifyIfUpdated(e));
+		}, this._broadcastUpdate = new We(e);
+	}
+}, Ke = class e extends A {
 	constructor(e) {
 		let t = new RegExp(e.pattern || ".*"), n = e.prefix || "";
 		if (n) {
 			let e = decodeURIComponent(new URL(globalThis.location.href).searchParams.get("base-path") || "");
-			e ||= new URL(self.registration.scope).pathname, n = new URL(n, `http://host${e}/`).pathname;
+			e ||= new URL(self.registration.scope).pathname, n = new URL(n, `http://host${e.replace(/\/$/, "")}/`).pathname;
 		}
 		let r, i = [];
-		switch (e.strategy !== "network-only" && i.push(new Te({ statuses: e.statuses || [
+		e.strategy !== "network-only" && i.push(new Ee({ statuses: e.statuses || [
 			0,
 			200,
 			201,
 			202,
 			204
-		] })), e.maxAgeSeconds && i.push(new Ce({ maxAgeSeconds: e.maxAgeSeconds })), e.syncRetentionMinutes && i.push(new Fe("polyfea", { maxRetentionTime: e.syncRetentionMinutes })), e.strategy) {
+		] })), e.maxAgeSeconds && i.push(new we({ maxAgeSeconds: e.maxAgeSeconds })), e.syncRetentionMinutes && i.push(new Le("polyfea", { maxRetentionTime: e.syncRetentionMinutes })), e.strategy === "stale-while-revalidate" && i.push(new Ge());
+		let a = e.cacheName || "polyfea-run-time-v1";
+		switch (e.strategy) {
 			case "cache-first":
-				r = new ne({ plugins: i });
+				r = new ne({
+					cacheName: a,
+					plugins: i
+				});
 				break;
 			case "cache-only":
-				r = new re({ plugins: i });
+				r = new re({
+					cacheName: a,
+					plugins: i
+				});
 				break;
 			case "network-first":
-				r = new ie({ plugins: i });
+				r = new ae({
+					cacheName: a,
+					plugins: i
+				});
 				break;
 			case "network-only":
-				r = new ae({ plugins: i });
-				break;
-			case "stale-while-revalidate":
 				r = new oe({ plugins: i });
 				break;
+			case "stale-while-revalidate":
+				r = new se({
+					cacheName: a,
+					plugins: i
+				});
+				break;
 			default:
-				r = new ne({ plugins: i });
+				r = new ne({
+					cacheName: a,
+					plugins: i
+				});
 				break;
 		}
 		super(t, r, e.method || "GET");
-		let a = this.match;
-		this.match = (t) => e.destination && t.request.destination !== e.destination || e.prefix && !t.url.pathname.startsWith(e.prefix) ? !1 : a(t);
+		let o = this.match;
+		this.match = (t) => e.destination && t.request.destination !== e.destination || n && !t.url.pathname.startsWith(n) ? !1 : o(t);
 	}
 	static from(t) {
 		return new e(t);
 	}
-}, Le = /* @__PURE__ */ e(((e, t) => {
+}, qe = /* @__PURE__ */ e(((e, t) => {
 	function n(e) {
 		try {
 			return JSON.stringify(e);
@@ -1313,9 +1388,9 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 		return f === -1 ? e : (f < p && (u += e.slice(f)), u);
 	}
 })), Z = (/* @__PURE__ */ e(((e, t) => {
-	var n = Le();
+	var n = qe();
 	t.exports = f;
-	var r = j().console || {}, i = {
+	var r = N().console || {}, i = {
 		mapHttpRequest: E,
 		mapHttpResponse: E,
 		wrapRequestSerializer: D,
@@ -1459,8 +1534,8 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	}, f.stdSerializers = i, f.stdTimeFunctions = Object.assign({}, {
 		nullTime: k,
 		epochTime: A,
-		unixTime: ee,
-		isoTime: te
+		unixTime: j,
+		isoTime: M
 	});
 	function h(e) {
 		let t = [];
@@ -1498,13 +1573,13 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 				if (t.serialize && (x(c, this._serialize, this.serializers, this._stdErrSerialize), d = !0), t.asObject || t.formatters) {
 					let e = b(this, i, c, s, t);
 					if (t.reportCaller && e && e.length > 0 && e[0] && typeof e[0] == "object") try {
-						let t = M();
+						let t = P();
 						t && (e[0].caller = t);
 					} catch {}
 					o.call(l, ...e);
 				} else {
 					if (t.reportCaller) try {
-						let e = M();
+						let e = P();
 						e && c.push(e);
 					} catch {}
 					o.apply(l, c);
@@ -1588,14 +1663,14 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	function A() {
 		return Date.now();
 	}
-	function ee() {
+	function j() {
 		return Math.round(Date.now() / 1e3);
 	}
-	function te() {
+	function M() {
 		return new Date(Date.now()).toISOString();
 	}
 	/* istanbul ignore next */
-	function j() {
+	function N() {
 		function e(e) {
 			return e !== void 0 && e;
 		}
@@ -1612,7 +1687,7 @@ var q = 3, Ee = "workbox-background-sync", J = "requests", Y = "queueName", De =
 	}
 	t.exports.default = f, t.exports.pino = f;
 	/* istanbul ignore next */
-	function M() {
+	function P() {
 		let e = (/* @__PURE__ */ Error()).stack;
 		if (!e) return null;
 		let t = e.split("\n");
@@ -1669,7 +1744,7 @@ var $ = (0, Z.pino)({
 //#region src/sw.ts
 new class {
 	constructor(e = self) {
-		this.scope = e, this.router = new ee(), this.interceptors = [], M({
+		this.scope = e, this.router = new j(), this.interceptors = [], this.routesRestored = !1, te({
 			prefix: "polyfea",
 			suffix: "v1",
 			precache: "install-time",
@@ -1682,38 +1757,93 @@ new class {
 		this.scope.addEventListener("install", (e) => this.install(e)), this.scope.addEventListener("activate", (e) => this.activate(e)), this.scope.addEventListener("fetch", (e) => this.handleFetch(e));
 	}
 	async reconcileRoutes(e = !1) {
+		if (!this.routesRestored) {
+			this.routesRestored = !0;
+			let e = await this.getStoredConfig();
+			e && await this.applyConfig(e);
+		}
 		let t = await this.getLastReconciliationTime(), n = 0;
-		if (t && (n = Date.now() + 1e3 - parseInt(t)), !e && n && n < this.reconcilationInterval) {
+		if (t && (n = Date.now() - parseInt(t)), !e && n && n < this.reconcilationInterval) {
 			$.debug("Skipping reconciliation - data are fresh ");
 			return;
 		}
 		let r = decodeURIComponent(new URL(globalThis.location.href).searchParams.get("caching-config") || "./polyfea-caching.json");
 		try {
-			let e = await fetch(r);
-			if (e.status < 300) {
-				let t = await e.json();
-				this.precacheController.addToCacheList((t.precache || []).filter((e) => {
-					let t = typeof e == "string" ? e : e.url;
-					return !this.precacheController.getCacheKeyForURL(t);
-				})), this.router.routes.clear(), t.routes?.map(Ie.from).forEach((e) => this.router.registerRoute(e)), this.interceptors = [];
-				for (let e of t.interceptors || []) try {
-					let t = await import(e.module);
-					t && t.default && t.default.interceptor ? this.interceptors.push(Object.assign(t.default, {
-						name: e.name,
-						intercept: (n, r) => {
-							let i = t.default.interceptor(n, r, e.options);
-							return i && $.debug(`Request ${n.url} handled by interceptor: ${e.name}`), i;
-						}
-					})) : $.warn(`Interceptor module ${e.module} does not have a default export with an interceptor function`);
-				} catch (t) {
-					$.warn({ err: t }, `Failed to load interceptor module ${e.module}`);
-				}
-				$.info(`Service worker reconciled: precached ${t.precache?.length || 0} files and added ${t.routes?.length || 0} routes`);
+			let t = await fetch(r);
+			if (t.status < 300) {
+				let n = await t.json();
+				await this.applyConfig(n, e), await this.setStoredConfig(n), await this.setLastReconciliationTime(Date.now().toString()), $.info(`Service worker reconciled: precached ${n.precache?.length || 0} files and added ${n.routes?.length || 0} routes`);
 			}
-			await this.setLastReconciliationTime(Date.now().toString());
 		} catch (e) {
 			$.warn({ err: e }, "Failed to reconcile routes");
 		}
+	}
+	async applyConfig(e, t = !1) {
+		let n = (e.precache || []).filter((e) => {
+			let t = typeof e == "string" ? e : e.url;
+			return !this.precacheController.getCacheKeyForURL(t);
+		});
+		if (this.precacheController.addToCacheList(n), !t && n.length > 0) try {
+			let e = await caches.open("polyfea-install-time-v1"), t = n.map(async (t) => {
+				let n = typeof t == "string" ? t : t.url, r = this.precacheController.getCacheKeyForURL(n);
+				if (r && !await e.match(r)) {
+					let t = await fetch(n);
+					t.ok && await e.put(r, t);
+				}
+			});
+			await Promise.all(t), $.debug("Dynamically populated missing items into install-time cache");
+		} catch (e) {
+			$.error({ err: e }, "Failed to dynamically populate install-time cache");
+		}
+		this.router.routes.clear(), e.routes?.map(Ke.from).forEach((e) => this.router.registerRoute(e)), this.interceptors = [];
+		for (let t of e.interceptors || []) try {
+			let e = await import(t.module);
+			if (e && e.default && e.default.interceptor) {
+				let n = t.name, r = t.options;
+				this.interceptors.push(Object.assign({}, e.default, {
+					name: n,
+					intercept: (t, i) => {
+						let a = e.default.interceptor(t, i, r);
+						return a && $.debug(`Request ${t.url} handled by interceptor: ${n}`), a;
+					}
+				}));
+			} else $.warn(`Interceptor module ${t.module} does not have a default export with an interceptor function`);
+		} catch (e) {
+			$.warn({ err: e }, `Failed to load interceptor module ${t.module}`);
+		}
+	}
+	async getStoredConfig() {
+		return new Promise((e, t) => {
+			let n = indexedDB.open("polyfeaDB", 1);
+			n.onerror = () => t(n.error), n.onupgradeneeded = () => {
+				n.result.createObjectStore("reconciliationTime", { keyPath: "id" });
+			}, n.onsuccess = () => {
+				let t = n.result.transaction("reconciliationTime", "readonly").objectStore("reconciliationTime").get("cachedConfig");
+				t.onerror = () => e(null), t.onsuccess = () => {
+					let n = t.result?.value;
+					if (n) try {
+						e(JSON.parse(n));
+					} catch {
+						e(null);
+					}
+					else e(null);
+				};
+			};
+		});
+	}
+	async setStoredConfig(e) {
+		return new Promise((t, n) => {
+			let r = indexedDB.open("polyfeaDB", 1);
+			r.onerror = () => n(r.error), r.onupgradeneeded = () => {
+				r.result.createObjectStore("reconciliationTime", { keyPath: "id" });
+			}, r.onsuccess = () => {
+				let i = r.result.transaction("reconciliationTime", "readwrite").objectStore("reconciliationTime").put({
+					id: "cachedConfig",
+					value: JSON.stringify(e)
+				});
+				i.onerror = () => n(i.error), i.onsuccess = () => t();
+			};
+		});
 	}
 	async getLastReconciliationTime() {
 		return new Promise((e, t) => {
@@ -1722,7 +1852,7 @@ new class {
 				n.result.createObjectStore("reconciliationTime", { keyPath: "id" });
 			}, n.onsuccess = () => {
 				let t = n.result.transaction("reconciliationTime", "readonly").objectStore("reconciliationTime").get("lastReconciliationTime");
-				t.onerror = () => e(null), t.onsuccess = () => e(t.result?.value);
+				t.onerror = () => e(null), t.onsuccess = () => e(t.result?.value ?? null);
 			};
 		});
 	}
@@ -1758,10 +1888,10 @@ new class {
 	}
 	handleFetch(e) {
 		let { request: t } = e, n = $.child({ request: t });
-		this.reconcileRoutes().catch((e) => n.warn({ err: e }, "Failed to reconcile routes during fetch"));
+		setTimeout(() => this.reconcileRoutes().catch((e) => n.warn({ err: e }, "Failed to reconcile routes during fetch")), 0);
 		let r = this.precacheController.getCacheKeyForURL(t.url);
 		if (r) {
-			n.debug(`Responded from precache: ${t.url}`), e.respondWith(caches.match(r));
+			n.debug(`Responded from precache: ${t.url}`), e.respondWith(caches.match(r).then((e) => e ?? fetch(t)));
 			return;
 		}
 		let i = this.tryInterceptors(e);
@@ -1781,7 +1911,7 @@ new class {
 	tryInterceptors(e) {
 		for (let t of this.interceptors) try {
 			let n = t.intercept(e.request, e);
-			if (n) return n || void 0;
+			if (n) return n;
 		} catch (n) {
 			$.error({ error: n }, `Interceptor ${t.name} failed for ${e.request.url}`);
 		}

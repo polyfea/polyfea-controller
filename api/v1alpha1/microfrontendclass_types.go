@@ -21,15 +21,12 @@ import (
 )
 
 // NamespacePolicyType defines namespace selection behavior
-// +kubebuilder:validation:Enum=All;Same;FromNamespaces
+// +kubebuilder:validation:Enum=All;FromNamespaces
 type NamespacePolicyType string
 
 const (
 	// NamespaceFromAll allows MicroFrontends from all namespaces
 	NamespaceFromAll NamespacePolicyType = "All"
-
-	// NamespaceFromSame allows only MicroFrontends from the same namespace as the MicroFrontendClass
-	NamespaceFromSame NamespacePolicyType = "Same"
 
 	// NamespaceFromNamespaces allows MicroFrontends from specific namespaces listed in Namespaces field
 	NamespaceFromNamespaces NamespacePolicyType = "FromNamespaces"
@@ -38,7 +35,6 @@ const (
 // NamespacePolicy defines which namespaces can attach MicroFrontends to this class
 type NamespacePolicy struct {
 	// From defines namespace selection behavior
-	// +kubebuilder:validation:Enum=All;Same;FromNamespaces
 	// +kubebuilder:default=All
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	From NamespacePolicyType `json:"from"`
@@ -402,6 +398,7 @@ type MicroFrontendClassStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:scope=Cluster
 // +kubebuilder:subresource:status
 
 // MicroFrontendClass is the Schema for the microfrontendclasses API
@@ -436,8 +433,6 @@ func (mfc *MicroFrontendClass) IsNamespaceAllowed(namespace string) bool {
 	switch mfc.Spec.NamespacePolicy.From {
 	case NamespaceFromAll:
 		return true
-	case NamespaceFromSame:
-		return namespace == mfc.Namespace
 	case NamespaceFromNamespaces:
 		for _, ns := range mfc.Spec.NamespacePolicy.Namespaces {
 			if ns == namespace {

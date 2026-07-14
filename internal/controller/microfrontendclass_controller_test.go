@@ -24,6 +24,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +34,11 @@ import (
 )
 
 const (
-	MicroFrontendClassName      = "test-microfrontendclass"
-	MicroFrontendClassNamespace = "default"
+	MicroFrontendClassName = "test-microfrontendclass"
 )
 
+// MicroFrontendClass is cluster-scoped, so it is created without a namespace and
+// looked up by name alone.
 func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClass {
 	return &v1alpha1.MicroFrontendClass{
 		TypeMeta: metav1.TypeMeta{
@@ -43,8 +46,7 @@ func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClas
 			Kind:       "MicroFrontendClass",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      MicroFrontendClassName,
-			Namespace: MicroFrontendClassNamespace,
+			Name: MicroFrontendClassName,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			Title:   title,
@@ -53,8 +55,12 @@ func setupMicroFrontendClass(title, baseUri *string) *v1alpha1.MicroFrontendClas
 	}
 }
 
+func microFrontendClassKey() types.NamespacedName {
+	return types.NamespacedName{Name: MicroFrontendClassName}
+}
+
 func ensureMicroFrontendClassDeleted(ctx context.Context) {
-	ensureResourceDeleted(ctx, &v1alpha1.MicroFrontendClass{}, types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace})
+	ensureResourceDeleted(ctx, &v1alpha1.MicroFrontendClass{}, microFrontendClassKey())
 }
 
 var _ = Describe("MicroFrontendClass Controller", func() {
@@ -91,7 +97,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, lookupKey, created) == nil
@@ -116,7 +122,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				mfc := setupMicroFrontendClass(ptr("Test"), ptr("/base"))
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, lookupKey, created) == nil
@@ -185,7 +191,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				// No namespace policy specified
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, lookupKey, created) == nil
@@ -209,7 +215,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() bool {
 					return k8sClient.Get(testCtx, lookupKey, created) == nil
@@ -234,39 +240,28 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
 			})
 
-			It("Should respect 'Same' namespace policy", func() {
+			It("Should be cluster-scoped and reachable without a namespace", func() {
 				testCtx := context.Background()
 				ensureMicroFrontendClassDeleted(testCtx)
 
-				mfc := setupMicroFrontendClass(ptr("Test Same Policy"), ptr("/same"))
-				mfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
-					From: v1alpha1.NamespaceFromSame,
-				}
+				mfc := setupMicroFrontendClass(ptr("Test Cluster Scoped"), ptr("/cluster"))
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
-					return k8sClient.Get(testCtx, lookupKey, created)
+					return k8sClient.Get(testCtx, types.NamespacedName{Name: MicroFrontendClassName}, created)
 				}, timeout, interval).Should(Succeed())
 
-				// Should only allow the same namespace (default)
-				Expect(created.IsNamespaceAllowed("default")).Should(BeTrue())
+				// The API server must not have assigned it a namespace.
+				Expect(created.Namespace).Should(BeEmpty())
 
-				// Should reject other namespaces
-				Expect(created.IsNamespaceAllowed("team-a")).Should(BeFalse())
-				Expect(created.IsNamespaceAllowed("team-b")).Should(BeFalse())
-				Expect(created.IsNamespaceAllowed("production")).Should(BeFalse())
-				Expect(created.IsNamespaceAllowed("other-namespace")).Should(BeFalse())
-
-				// Verify status is updated
-				Eventually(func() string {
-					err := k8sClient.Get(testCtx, lookupKey, created)
-					if err != nil {
-						return ""
-					}
-					return created.Status.Phase
-				}, timeout, interval).Should(Equal(v1alpha1.MicroFrontendClassPhaseReady))
+				// The kind must be registered as root-scoped, not namespaced.
+				mapping, err := k8sClient.RESTMapper().RESTMapping(
+					schema.GroupKind{Group: v1alpha1.GroupVersion.Group, Kind: "MicroFrontendClass"},
+					v1alpha1.GroupVersion.Version,
+				)
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(mapping.Scope.Name()).Should(Equal(meta.RESTScopeNameRoot))
 
 				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
 			})
@@ -286,7 +281,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					return k8sClient.Get(testCtx, lookupKey, created)
@@ -326,7 +321,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					return k8sClient.Get(testCtx, lookupKey, created)
@@ -351,7 +346,7 @@ var _ = Describe("MicroFrontendClass Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).Should(Succeed())
 
-				lookupKey := types.NamespacedName{Name: MicroFrontendClassName, Namespace: MicroFrontendClassNamespace}
+				lookupKey := microFrontendClassKey()
 				created := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					return k8sClient.Get(testCtx, lookupKey, created)

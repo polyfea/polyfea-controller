@@ -12,7 +12,7 @@ spec:
     listKind: MicroFrontendClassList
     plural: microfrontendclasses
     singular: microfrontendclass
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
@@ -101,17 +101,11 @@ spec:
                   Defaults to allowing all namespaces
                 properties:
                   from:
-                    allOf:
-                    - enum:
-                      - All
-                      - Same
-                      - FromNamespaces
-                    - enum:
-                      - All
-                      - Same
-                      - FromNamespaces
                     default: All
                     description: From defines namespace selection behavior
+                    enum:
+                    - All
+                    - FromNamespaces
                     type: string
                   namespaces:
                     description: |-
@@ -155,9 +149,7 @@ spec:
                               type: boolean
                             cacheName:
                               description: Name of the cache where the response will
-                                be stored if strategy uses the cache. Also name of
-                                BrodcastChannel used for cache update notifications
-                                in case of stal-with. It
+                                be stored if strategy uses the cache.
                               type: string
                             destination:
                               description: See https://developer.mozilla.org/en-US/docs/Web/API/Request/destination
@@ -203,8 +195,13 @@ spec:
                               type: array
                             strategy:
                               default: cache-first
-                              description: Strategy defines the caching strategy to
-                                be used for this URL pattern. It defaults to "cache-first".
+                              description: |-
+                                Strategy defines the caching strategy to be used for this URL pattern. It defaults to "cache-first".
+
+                                If the strategy is "stale-while-revalidate", the service worker will serve the cached response immediately
+                                (if available) and then fetch an updated response in the background to update the cache for future requests.
+                                background-update-plugin is used in this case to handle the background update process.
+                                @link https://developer.chrome.com/docs/workbox/modules/workbox-broadcast-update
                               enum:
                               - cache-first
                               - network-first
