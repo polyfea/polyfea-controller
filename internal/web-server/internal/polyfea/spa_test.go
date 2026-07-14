@@ -288,8 +288,7 @@ func TestBuildImportMapWithNoMicrofrontends(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      TestClassName,
-			Namespace: "default",
+			Name: TestClassName,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -345,8 +344,7 @@ func TestBuildImportMapWithSingleMicrofrontend(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -439,8 +437,7 @@ func TestBuildImportMapFirstRegisteredWins(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -507,8 +504,7 @@ func TestBuildImportMapWithScopedEntries(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -607,8 +603,7 @@ func TestBuildImportMapOptionalSkipsDuplicates(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -677,8 +672,7 @@ func TestBuildImportMapExcludesRejectedMicrofrontends(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -740,8 +734,7 @@ func TestImportMapJSONFormatting(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -803,8 +796,7 @@ func TestSinglePageApplicationImportMapRendering(t *testing.T) {
 	className := TestClassName
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri:   ptr("/"),
@@ -947,8 +939,7 @@ func TestImportMapAbsoluteURLsNotProxied(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1020,8 +1011,7 @@ func TestImportMapNonProxiedService(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1111,8 +1101,7 @@ func TestBuildImportMapMultipleMFsWithScopedEntries(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1186,8 +1175,7 @@ func TestBuildImportMapScopedAbsoluteURLsNotProxied(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1252,8 +1240,7 @@ func TestBuildImportMapScopedNonProxiedService(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1343,8 +1330,7 @@ func TestBuildImportMapCrossNamespaceScoped(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "ns-a",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1408,8 +1394,7 @@ func TestBuildImportMapNilImportMapSkipped(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),
@@ -1467,8 +1452,7 @@ func TestBuildImportMapMixedOptionalAndScoped(t *testing.T) {
 
 	mfc := &v1alpha1.MicroFrontendClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      className,
-			Namespace: "default",
+			Name: className,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri: ptr("/"),

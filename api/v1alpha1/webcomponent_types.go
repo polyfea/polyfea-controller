@@ -216,7 +216,3 @@ type WebComponentList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []WebComponent `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&WebComponent{}, &WebComponentList{})
-}
