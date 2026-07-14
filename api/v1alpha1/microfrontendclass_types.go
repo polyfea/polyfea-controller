@@ -419,10 +419,6 @@ type MicroFrontendClassList struct {
 	Items           []MicroFrontendClass `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&MicroFrontendClass{}, &MicroFrontendClassList{})
-}
-
 // IsNamespaceAllowed checks if a namespace is allowed by the NamespacePolicy
 func (mfc *MicroFrontendClass) IsNamespaceAllowed(namespace string) bool {
 	// If no policy is set, default to allowing all namespaces

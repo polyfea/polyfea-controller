@@ -298,10 +298,6 @@ type MicroFrontendList struct {
 	Items           []MicroFrontend `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&MicroFrontend{}, &MicroFrontendList{})
-}
-
 // ResolveServiceURL resolves the ServiceReference to a complete URL
 // For in-cluster services (when Name is set), it constructs the URL from name, namespace, port, and scheme
 // For external services (when URI is set), it returns the URI directly
