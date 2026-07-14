@@ -239,8 +239,7 @@ func (s *SinglePageApplication) getEligibleMicrofrontends(microFrontendClass *v1
 		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
 			return false
 		}
-		return mf.Status.FrontendClassRef.Name == microFrontendClass.Name &&
-			mf.Status.FrontendClassRef.Namespace == microFrontendClass.Namespace
+		return mf.Status.FrontendClassRef.Name == microFrontendClass.Name
 	})
 }
 

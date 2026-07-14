@@ -16,10 +16,10 @@ const (
 
 func ptr[T any](v T) *T { return &v }
 
-// FindMicroFrontendClassByName looks up a MicroFrontendClass by name in the specified namespace.
-func FindMicroFrontendClassByName(ctx context.Context, c client.Client, name, namespace string) (*polyfeav1alpha1.MicroFrontendClass, error) {
+// FindMicroFrontendClassByName looks up a cluster-scoped MicroFrontendClass by name.
+func FindMicroFrontendClassByName(ctx context.Context, c client.Client, name string) (*polyfeav1alpha1.MicroFrontendClass, error) {
 	mfc := &polyfeav1alpha1.MicroFrontendClass{}
-	err := c.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, mfc)
+	err := c.Get(ctx, client.ObjectKey{Name: name}, mfc)
 	if err != nil {
 		return nil, err
 	}

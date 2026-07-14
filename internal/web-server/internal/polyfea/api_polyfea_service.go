@@ -158,7 +158,7 @@ func (s *PolyfeaApiService) getMicroFrontendsForClass(frontendClass *v1alpha1.Mi
 		if ref == nil {
 			return false
 		}
-		return ref.Accepted && ref.Name == frontendClass.Name && ref.Namespace == frontendClass.Namespace
+		return ref.Accepted && ref.Name == frontendClass.Name
 	})
 }
 

@@ -122,7 +122,7 @@ func createTestMicrofrontend() *v1alpha1.MicroFrontend {
 				Kind: "test",
 				Path: "test",
 			}},
-			FrontendClass: v1alpha1.NamespacedReference{Name: "test"},
+			FrontendClass: "test",
 			DependsOn:     []string{"test"},
 		},
 	}

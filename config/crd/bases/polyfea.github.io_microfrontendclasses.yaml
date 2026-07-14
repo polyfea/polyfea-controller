@@ -12,7 +12,7 @@ spec:
     listKind: MicroFrontendClassList
     plural: microfrontendclasses
     singular: microfrontendclass
-  scope: Namespaced
+  scope: Cluster
   versions:
   - name: v1alpha1
     schema:
@@ -101,17 +101,11 @@ spec:
                   Defaults to allowing all namespaces
                 properties:
                   from:
-                    allOf:
-                    - enum:
-                      - All
-                      - Same
-                      - FromNamespaces
-                    - enum:
-                      - All
-                      - Same
-                      - FromNamespaces
                     default: All
                     description: From defines namespace selection behavior
+                    enum:
+                    - All
+                    - FromNamespaces
                     type: string
                   namespaces:
                     description: |-

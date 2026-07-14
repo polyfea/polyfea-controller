@@ -159,25 +159,12 @@ spec:
                 maxItems: 64
                 type: array
               frontendClass:
-                default:
-                  name: polyfea-controller-default
+                default: polyfea-controller-default
                 description: |-
-                  FrontendClass is a reference to the MicroFrontendClass to bind to.
-                  If Namespace is omitted, the MicroFrontend's own namespace is assumed.
-                properties:
-                  name:
-                    description: Name of the referenced resource.
-                    maxLength: 253
-                    type: string
-                  namespace:
-                    description: |-
-                      Namespace of the referenced resource.
-                      Defaults to the namespace of the referencing resource if not specified.
-                    maxLength: 63
-                    type: string
-                required:
-                - name
-                type: object
+                  FrontendClass is the name of the cluster-scoped MicroFrontendClass to bind to.
+                  Binding is subject to the class's namespace policy.
+                maxLength: 253
+                type: string
               importMap:
                 description: |-
                   ImportMap defines module specifier mappings for this microfrontend.
@@ -392,12 +379,8 @@ spec:
                       by the class's namespace policy
                     type: boolean
                   name:
-                    description: Name of the MicroFrontendClass
+                    description: Name of the cluster-scoped MicroFrontendClass
                     maxLength: 253
-                    type: string
-                  namespace:
-                    description: Namespace of the MicroFrontendClass
-                    maxLength: 63
                     type: string
                 required:
                 - accepted

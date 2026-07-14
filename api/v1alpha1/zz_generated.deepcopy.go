@@ -447,7 +447,6 @@ func (in *MicroFrontendSpec) DeepCopyInto(out *MicroFrontendSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.FrontendClass.DeepCopyInto(&out.FrontendClass)
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn
 		*out = make([]string, len(*in))

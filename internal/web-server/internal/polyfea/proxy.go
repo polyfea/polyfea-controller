@@ -128,7 +128,7 @@ func (p *PolyfeaProxy) getMicrofrontendClass(microfrontend *v1alpha1.MicroFronte
 		if ref == nil {
 			return false
 		}
-		return mfc.Name == ref.Name && mfc.Namespace == ref.Namespace
+		return mfc.Name == ref.Name
 	})
 
 	if err != nil {

@@ -35,7 +35,7 @@ const (
 	MicroFrontendNamespace = "default"
 )
 
-func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass v1alpha1.NamespacedReference, staticResources []v1alpha1.StaticResources) *v1alpha1.MicroFrontend {
+func setupMicroFrontend(service *v1alpha1.ServiceReference, modulePath *string, proxy *bool, frontendClass string, staticResources []v1alpha1.StaticResources) *v1alpha1.MicroFrontend {
 	return &v1alpha1.MicroFrontend{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "polyfea.github.io/v1alpha1",
@@ -84,7 +84,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("module.jsm"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: MicroFrontendClassName},
+					MicroFrontendClassName,
 					[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -128,7 +128,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 						service,
 						modulePath,
 						&proxy,
-						v1alpha1.NamespacedReference{Name: MicroFrontendClassName},
+						MicroFrontendClassName,
 						[]v1alpha1.StaticResources{{Path: "static", Kind: "script"}},
 					)
 					if shouldSucceed {
@@ -161,7 +161,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("module.jsm"),
 					nil,
-					v1alpha1.NamespacedReference{Name: DefaultFrontendClassName},
+					DefaultFrontendClassName,
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
@@ -175,7 +175,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(createdMicroFrontend.Spec.Service.Name).Should(Equal(ptr("test-service")))
 				Expect(createdMicroFrontend.Spec.Service.Namespace).Should(Equal(ptr("test-namespace")))
 				Expect(*createdMicroFrontend.Spec.Proxy).Should(BeTrue())
-				Expect(createdMicroFrontend.Spec.FrontendClass.Name).Should(Equal(DefaultFrontendClassName))
+				Expect(createdMicroFrontend.Spec.FrontendClass).Should(Equal(DefaultFrontendClassName))
 				Expect(createdMicroFrontend.Spec.StaticResources).Should(BeNil())
 				Expect(createdMicroFrontend.Spec.DependsOn).Should(BeNil())
 
@@ -198,7 +198,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("modules/app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: MicroFrontendClassName},
+					MicroFrontendClassName,
 					[]v1alpha1.StaticResources{{Path: "styles/main.css", Kind: "stylesheet"}},
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -233,8 +233,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -252,7 +251,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName},
+					mfcName,
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -271,8 +270,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 						createdMicroFrontend.Status.FrontendClassRef.Accepted
 				}, timeout, interval).Should(BeTrue())
 
-				By("Updating MicroFrontendClass to 'Same' namespace policy")
-				mfcLookupKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendNamespace}
+				By("Updating MicroFrontendClass to allow only the MicroFrontend's own namespace")
+				mfcLookupKey := types.NamespacedName{Name: mfcName}
 				updatedMfc := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					// Re-fetch to get latest resourceVersion
@@ -280,12 +279,13 @@ var _ = Describe("MicroFrontend Controller", func() {
 						return err
 					}
 					updatedMfc.Spec.NamespacePolicy = &v1alpha1.NamespacePolicy{
-						From: v1alpha1.NamespaceFromSame,
+						From:       v1alpha1.NamespaceFromNamespaces,
+						Namespaces: []string{MicroFrontendNamespace},
 					}
 					return k8sClient.Update(testCtx, updatedMfc)
 				}, timeout, interval).Should(Succeed())
 
-				By("Verifying MicroFrontend is still accepted (same namespace)")
+				By("Verifying MicroFrontend is still accepted (its namespace is listed)")
 				Eventually(func() bool {
 					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
 					if err != nil {
@@ -328,8 +328,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
 			})
 
-			It("Should accept MicroFrontend when MicroFrontendClass is in different namespace and allows 'All' policy", func() {
-				By("Creating a MicroFrontendClass in a different namespace with 'All' policy")
+			It("Should accept a MicroFrontend from any namespace when the class allows 'All'", func() {
+				By("Creating a cluster-scoped MicroFrontendClass with 'All' policy")
 				testCtx := context.Background()
 
 				ensureMicroFrontendDeleted(testCtx)
@@ -346,8 +346,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: otherNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -359,6 +358,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
 
+				By("Creating a MicroFrontend in a namespace other than the controller's default")
 				proxy := true
 				microFrontend := setupMicroFrontend(
 					&v1alpha1.ServiceReference{
@@ -366,15 +366,16 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName, Namespace: ptr(otherNamespace)},
+					mfcName,
 					nil,
 				)
+				microFrontend.Namespace = otherNamespace
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
-				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
+				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: otherNamespace}
 				createdMicroFrontend := &v1alpha1.MicroFrontend{}
 
-				By("Verifying MicroFrontend is accepted despite class being in different namespace")
+				By("Verifying MicroFrontend is accepted by the cluster-scoped class")
 				Eventually(func() bool {
 					err := k8sClient.Get(testCtx, microFrontendLookupKey, createdMicroFrontend)
 					if err != nil {
@@ -401,8 +402,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -423,7 +423,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName},
+					mfcName,
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
@@ -448,7 +448,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(repoMf).Should(BeNil()) // Should be nil since it's not in repository
 
 				By("Updating MicroFrontendClass to allow 'default' namespace")
-				mfcLookupKey := types.NamespacedName{Name: mfcName, Namespace: MicroFrontendNamespace}
+				mfcLookupKey := types.NamespacedName{Name: mfcName}
 				updatedMfc := &v1alpha1.MicroFrontendClass{}
 				Eventually(func() error {
 					if err := k8sClient.Get(testCtx, mfcLookupKey, updatedMfc); err != nil {
@@ -483,15 +483,15 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(k8sClient.Delete(testCtx, updatedMfc)).Should(Succeed())
 			})
 
-			It("Should bind to own-namespace class when name-only reference used", func() {
-				By("Creating MFC in default namespace with All policy")
+			It("Should bind to the cluster-scoped class by name", func() {
+				By("Creating a cluster-scoped MFC with All policy")
 				testCtx := context.Background()
 				ensureMicroFrontendDeleted(testCtx)
 				ensureMicroFrontendClassDeleted(testCtx)
 
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
-					ObjectMeta: metav1.ObjectMeta{Name: mfcName, Namespace: MicroFrontendNamespace},
+					ObjectMeta: metav1.ObjectMeta{Name: mfcName},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri:         ptr("https://test.example.com"),
 						Title:           ptr("Test Frontend"),
@@ -500,18 +500,18 @@ var _ = Describe("MicroFrontend Controller", func() {
 				}
 				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
 
-				By("Creating MF with name-only FrontendClass reference")
+				By("Creating MF referencing the class by name")
 				proxy := true
 				microFrontend := setupMicroFrontend(
 					&v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName}, // no Namespace set
+					mfcName,
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
-				By("Verifying MF binds to own-namespace class")
+				By("Verifying MF binds to the cluster-scoped class")
 				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
 				createdMicroFrontend := &v1alpha1.MicroFrontend{}
 				Eventually(func() bool {
@@ -521,7 +521,8 @@ var _ = Describe("MicroFrontend Controller", func() {
 					}
 					return createdMicroFrontend.Status.Phase == v1alpha1.MicroFrontendPhaseReady &&
 						createdMicroFrontend.Status.FrontendClassRef != nil &&
-						createdMicroFrontend.Status.FrontendClassRef.Namespace == MicroFrontendNamespace
+						createdMicroFrontend.Status.FrontendClassRef.Name == mfcName &&
+						createdMicroFrontend.Status.FrontendClassRef.Accepted
 				}, timeout, interval).Should(BeTrue())
 
 				By("Cleaning up")
@@ -529,39 +530,23 @@ var _ = Describe("MicroFrontend Controller", func() {
 				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
 			})
 
-			It("Should fail when class exists only in other namespace and no explicit namespace set", func() {
-				By("Creating MFC in other-namespace only")
+			It("Should fail when the referenced class does not exist", func() {
 				testCtx := context.Background()
 				ensureMicroFrontendDeleted(testCtx)
 				ensureMicroFrontendClassDeleted(testCtx)
 
-				mfcName := MicroFrontendClassName
-				otherNamespace := "other-namespace"
-				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: otherNamespace}}
-				_ = k8sClient.Create(testCtx, ns) // may already exist
-
-				mfc := &v1alpha1.MicroFrontendClass{
-					ObjectMeta: metav1.ObjectMeta{Name: mfcName, Namespace: otherNamespace},
-					Spec: v1alpha1.MicroFrontendClassSpec{
-						BaseUri:         ptr("https://test.example.com"),
-						Title:           ptr("Other NS Frontend"),
-						NamespacePolicy: &v1alpha1.NamespacePolicy{From: v1alpha1.NamespaceFromAll},
-					},
-				}
-				Expect(k8sClient.Create(testCtx, mfc)).To(Succeed())
-
-				By("Creating MF in default with name-only reference (no namespace specified)")
+				By("Creating MF referencing a class that was never created")
 				proxy := true
 				microFrontend := setupMicroFrontend(
 					&v1alpha1.ServiceReference{URI: ptr("https://example.com")},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName}, // no Namespace — looks in own namespace
+					"no-such-class",
 					nil,
 				)
 				Expect(k8sClient.Create(testCtx, microFrontend)).To(Succeed())
 
-				By("Verifying MF enters Failed state since class doesn't exist in default")
+				By("Verifying MF enters Failed state")
 				microFrontendLookupKey := types.NamespacedName{Name: MicroFrontendName, Namespace: MicroFrontendNamespace}
 				createdMicroFrontend := &v1alpha1.MicroFrontend{}
 				Eventually(func() bool {
@@ -574,7 +559,6 @@ var _ = Describe("MicroFrontend Controller", func() {
 
 				By("Cleaning up")
 				Expect(k8sClient.Delete(testCtx, createdMicroFrontend)).Should(Succeed())
-				Expect(k8sClient.Delete(testCtx, mfc)).Should(Succeed())
 			})
 		})
 
@@ -589,8 +573,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -607,7 +590,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName},
+					mfcName,
 					nil,
 				)
 				microFrontend.Spec.ImportMap = &v1alpha1.ImportMap{
@@ -651,8 +634,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 				mfcName := MicroFrontendClassName
 				mfc := &v1alpha1.MicroFrontendClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      mfcName,
-						Namespace: MicroFrontendNamespace,
+						Name: mfcName,
 					},
 					Spec: v1alpha1.MicroFrontendClassSpec{
 						BaseUri: ptr("https://test.example.com"),
@@ -669,7 +651,7 @@ var _ = Describe("MicroFrontend Controller", func() {
 					},
 					ptr("app.js"),
 					&proxy,
-					v1alpha1.NamespacedReference{Name: mfcName},
+					mfcName,
 					nil,
 				)
 				microFrontend.Spec.ImportMap = &v1alpha1.ImportMap{

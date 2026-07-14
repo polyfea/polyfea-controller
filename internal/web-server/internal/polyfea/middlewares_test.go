@@ -190,15 +190,14 @@ func basePathStrippingMiddlewareRouter() http.Handler {
 
 func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 	testData := []struct {
-		name      string
-		namespace string
-		baseUri   *string
+		name    string
+		baseUri *string
 	}{
-		{"default", "default", ptr("/")},
-		{"some", "somes", ptr("/someBasePath/")},
-		{"expected", "expecteds", ptr("/expected/base/path")},
-		{"fea", "feas", ptr("/fea/")},
-		{"feature", "features", ptr("/feature/")},
+		{"default", ptr("/")},
+		{"some", ptr("/someBasePath/")},
+		{"expected", ptr("/expected/base/path")},
+		{"fea", ptr("/fea/")},
+		{"feature", ptr("/feature/")},
 	}
 
 	mfcRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontendClass]()
@@ -206,8 +205,7 @@ func setupMfcRepository() repository.Repository[*v1alpha1.MicroFrontendClass] {
 	for _, data := range testData {
 		err := mfcRepository.Store(&v1alpha1.MicroFrontendClass{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      data.name,
-				Namespace: data.namespace,
+				Name: data.name,
 			},
 			Spec: v1alpha1.MicroFrontendClassSpec{
 				BaseUri: data.baseUri,

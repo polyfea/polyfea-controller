@@ -1056,7 +1056,7 @@ func createTestMicroFrontend(objectName string, dependsOn []string, frontendClas
 				Scheme:    &serviceScheme,
 			},
 			Proxy:         &[]bool{proxy}[0],
-			FrontendClass: v1alpha1.NamespacedReference{Name: frontendClass},
+			FrontendClass: frontendClass,
 			DependsOn:     dependsOn,
 			ModulePath:    &[]string{"test-module"}[0],
 			StaticResources: []v1alpha1.StaticResources{{
@@ -1074,9 +1074,8 @@ func createTestMicroFrontend(objectName string, dependsOn []string, frontendClas
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:      frontendClass,
-				Namespace: "default",
-				Accepted:  true,
+				Name:     frontendClass,
+				Accepted: true,
 			},
 			Phase: v1alpha1.MicroFrontendPhaseReady,
 		},
@@ -1086,8 +1085,7 @@ func createTestMicroFrontend(objectName string, dependsOn []string, frontendClas
 func createTestMicroFrontendClass(frontendClassName string, baseUri string) *v1alpha1.MicroFrontendClass {
 	return &v1alpha1.MicroFrontendClass{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      frontendClassName,
-			Namespace: "default",
+			Name: frontendClassName,
 		},
 		Spec: v1alpha1.MicroFrontendClassSpec{
 			BaseUri:         &[]string{baseUri}[0],
@@ -1174,7 +1172,7 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 				URI: &externalServiceURI,
 			},
 			Proxy:         &[]bool{false}[0],
-			FrontendClass: v1alpha1.NamespacedReference{Name: "test-frontend-class"},
+			FrontendClass: "test-frontend-class",
 			DependsOn:     []string{},
 			ModulePath:    &[]string{"modules/app.js"}[0],
 			StaticResources: []v1alpha1.StaticResources{{
@@ -1192,9 +1190,8 @@ func TestPolyfeaApiServiceGetContextAreaWithExternalServiceNoProxy(t *testing.T)
 		},
 		Status: v1alpha1.MicroFrontendStatus{
 			FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-				Name:      "test-frontend-class",
-				Namespace: "default",
-				Accepted:  true,
+				Name:     "test-frontend-class",
+				Accepted: true,
 			},
 			Phase: v1alpha1.MicroFrontendPhaseReady,
 		},
@@ -1291,9 +1288,8 @@ func TestPolyfeaApiServiceGetContextAreaExcludesRejectedMicroFrontends(t *testin
 	acceptedMicroFrontend := createTestMicroFrontend("accepted-microfrontend", []string{}, "test-frontend-class", true)
 	acceptedMicroFrontend.Status = v1alpha1.MicroFrontendStatus{
 		FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-			Name:      "test-frontend-class",
-			Namespace: "default",
-			Accepted:  true,
+			Name:     "test-frontend-class",
+			Accepted: true,
 		},
 		Phase: v1alpha1.MicroFrontendPhaseReady,
 	}
@@ -1306,9 +1302,8 @@ func TestPolyfeaApiServiceGetContextAreaExcludesRejectedMicroFrontends(t *testin
 	rejectedMicroFrontend := createTestMicroFrontend("rejected-microfrontend", []string{}, "test-frontend-class", true)
 	rejectedMicroFrontend.Status = v1alpha1.MicroFrontendStatus{
 		FrontendClassRef: &v1alpha1.MicroFrontendClassReference{
-			Name:      "test-frontend-class",
-			Namespace: "default",
-			Accepted:  false,
+			Name:     "test-frontend-class",
+			Accepted: false,
 		},
 		Phase:           v1alpha1.MicroFrontendPhaseRejected,
 		RejectionReason: "Namespace not allowed by MicroFrontendClass namespace policy",

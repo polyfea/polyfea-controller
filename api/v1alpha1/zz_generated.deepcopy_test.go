@@ -231,7 +231,7 @@ func TestMicroFrontendSpec_DeepCopy(t *testing.T) {
 		Proxy:           ptr(true),
 		ModulePath:      ptr("/module.js"),
 		StaticResources: []StaticResources{{Kind: "script", Path: "/test.js"}},
-		FrontendClass:   NamespacedReference{Name: "default"},
+		FrontendClass:   "default",
 		DependsOn:       []string{"dep1"},
 		CacheOptions:    &PWACache{},
 		ImportMap:       &ImportMap{},

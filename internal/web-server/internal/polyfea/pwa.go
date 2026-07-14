@@ -163,8 +163,7 @@ func (pwa *ProgressiveWebApplication) getProxyConfig(microFrontendClass *v1alpha
 		if mf.Status.FrontendClassRef == nil || !mf.Status.FrontendClassRef.Accepted {
 			return false
 		}
-		if mf.Status.FrontendClassRef.Name != microFrontendClass.Name ||
-			mf.Status.FrontendClassRef.Namespace != microFrontendClass.Namespace {
+		if mf.Status.FrontendClassRef.Name != microFrontendClass.Name {
 			return false
 		}
 		return mf.Spec.Proxy != nil && *mf.Spec.Proxy

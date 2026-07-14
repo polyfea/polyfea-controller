@@ -163,18 +163,14 @@ func (r *MicroFrontendReconciler) resolveServiceURL(mf *polyfeav1alpha1.MicroFro
 func (r *MicroFrontendReconciler) processFrontendClass(ctx context.Context, mf *polyfeav1alpha1.MicroFrontend) bool {
 	logger := log.FromContext(ctx)
 
-	ref := mf.Spec.FrontendClass
-	classNamespace := mf.Namespace
-	if ref.Namespace != nil && *ref.Namespace != "" {
-		classNamespace = *ref.Namespace
-	}
+	name := mf.Spec.FrontendClass
 
-	mfc, err := FindMicroFrontendClassByName(ctx, r.Client, ref.Name, classNamespace)
+	mfc, err := FindMicroFrontendClassByName(ctx, r.Client, name)
 	if err != nil {
-		return r.handleFrontendClassNotFound(mf, ref.Name, err, logger)
+		return r.handleFrontendClassNotFound(mf, name, err, logger)
 	}
 
-	return r.validateNamespacePolicy(mf, mfc, ref.Name, logger)
+	return r.validateNamespacePolicy(mf, mfc, name, logger)
 }
 
 // handleFrontendClassNotFound handles the case when MicroFrontendClass is not found.
@@ -190,7 +186,7 @@ func (r *MicroFrontendReconciler) handleFrontendClassNotFound(mf *polyfeav1alpha
 	} else {
 		polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeFrontendClassBound,
 			metav1.ConditionFalse, polyfeav1alpha1.ReasonFrontendClassNotFound,
-			"MicroFrontendClass not found in namespace")
+			"MicroFrontendClass not found")
 		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
 		statusUpdated = true
 	}
@@ -203,11 +199,10 @@ func (r *MicroFrontendReconciler) validateNamespacePolicy(mf *polyfeav1alpha1.Mi
 	statusUpdated := false
 	accepted := mfc.IsNamespaceAllowed(mf.Namespace)
 
-	if r.shouldUpdateFrontendClassRef(mf, frontendClassName, mfc.Namespace, accepted) {
+	if r.shouldUpdateFrontendClassRef(mf, frontendClassName, accepted) {
 		mf.Status.FrontendClassRef = &polyfeav1alpha1.MicroFrontendClassReference{
-			Name:      frontendClassName,
-			Namespace: mfc.Namespace,
-			Accepted:  accepted,
+			Name:     frontendClassName,
+			Accepted: accepted,
 		}
 		statusUpdated = true
 	}
@@ -225,10 +220,9 @@ func (r *MicroFrontendReconciler) validateNamespacePolicy(mf *polyfeav1alpha1.Mi
 }
 
 // shouldUpdateFrontendClassRef checks if FrontendClassRef needs to be updated.
-func (r *MicroFrontendReconciler) shouldUpdateFrontendClassRef(mf *polyfeav1alpha1.MicroFrontend, name, namespace string, accepted bool) bool {
+func (r *MicroFrontendReconciler) shouldUpdateFrontendClassRef(mf *polyfeav1alpha1.MicroFrontend, name string, accepted bool) bool {
 	return mf.Status.FrontendClassRef == nil ||
 		mf.Status.FrontendClassRef.Name != name ||
-		mf.Status.FrontendClassRef.Namespace != namespace ||
 		mf.Status.FrontendClassRef.Accepted != accepted
 }
 
@@ -357,40 +351,25 @@ func (r *MicroFrontendReconciler) findMicroFrontendsForClass(ctx context.Context
 
 	var requests []reconcile.Request
 	for _, mf := range mfList.Items {
+		// Enqueue if the MicroFrontend either wants this class (spec) or is currently
+		// bound to it (status). The latter catches MicroFrontends that must be unbound
+		// when the class they were attached to stops accepting their namespace.
 		statusRef := mf.Status.FrontendClassRef
-		if statusRef != nil {
-			// Already bound — only trigger if bound to this exact MFC
-			if statusRef.Name == mfc.Name && statusRef.Namespace == mfc.Namespace {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: client.ObjectKey{
-						Name:      mf.Name,
-						Namespace: mf.Namespace,
-					},
-				})
-				logger.Info("Enqueueing MicroFrontend for reconciliation due to class change",
-					"microfrontend", mf.Name,
-					"namespace", mf.Namespace,
-					"class", mfc.Name)
-			}
-		} else {
-			// Not yet bound — trigger if spec name and resolved namespace match
-			resolvedNS := mf.Namespace
-			if mf.Spec.FrontendClass.Namespace != nil {
-				resolvedNS = *mf.Spec.FrontendClass.Namespace
-			}
-			if mf.Spec.FrontendClass.Name == mfc.Name && resolvedNS == mfc.Namespace {
-				requests = append(requests, reconcile.Request{
-					NamespacedName: client.ObjectKey{
-						Name:      mf.Name,
-						Namespace: mf.Namespace,
-					},
-				})
-				logger.Info("Enqueueing unbound MicroFrontend for reconciliation",
-					"microfrontend", mf.Name,
-					"namespace", mf.Namespace,
-					"class", mfc.Name)
-			}
+		boundToClass := statusRef != nil && statusRef.Name == mfc.Name
+		if mf.Spec.FrontendClass != mfc.Name && !boundToClass {
+			continue
 		}
+
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKey{
+				Name:      mf.Name,
+				Namespace: mf.Namespace,
+			},
+		})
+		logger.Info("Enqueueing MicroFrontend for reconciliation due to class change",
+			"microfrontend", mf.Name,
+			"namespace", mf.Namespace,
+			"class", mfc.Name)
 	}
 
 	logger.Info("Enqueued MicroFrontends for reconciliation", "count", len(requests), "class", mfc.Name)

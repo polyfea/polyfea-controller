@@ -35,14 +35,28 @@ A MicroFrontendClass supports the following configuration properties:
 - **userHeader**: The header containing the user identifier. Defaults to x-auth-request-user.
 - **progressiveWebApp**: Configures optional Progressive Web App (PWA) capabilities. This includes defining the web app manifest, setting up pre-cache and runtime caching strategies, and specifying how frequently the service worker should reconcile changes. If omitted, PWA support is disabled.
 
+#### Cluster Scope
+
+MicroFrontendClass is a **cluster-scoped** resource, like `IngressClass` or `StorageClass`. It is not created in a namespace, and MicroFrontends reference it by name alone. This reflects how the class actually behaves: the web server routes requests by matching `spec.baseUri` prefixes across every class in the cluster, so a class was never really confined to a namespace.
+
+The intended ownership model is that a cluster administrator owns the shell — `baseUri`, CSP, headers, PWA manifest — while teams own MicroFrontends and WebComponents in their own namespaces. The namespace policy below is the administrator's control over who may attach.
+
+> **Breaking change.** MicroFrontendClass was previously namespaced. Kubernetes cannot convert a CRD between namespaced and cluster scope in place, so upgrading requires deleting and recreating the CRD, which **destroys all existing MicroFrontendClass objects**. `MicroFrontend.spec.frontendClass` also changed from an object (`{name, namespace}`) back to a plain string, so MicroFrontends must be re-applied as well. Export anything you need to keep first:
+>
+> ```bash
+> kubectl get microfrontendclasses -A -o yaml > microfrontendclasses.backup.yaml
+> kubectl delete crd microfrontendclasses.polyfea.github.io
+> make install   # or re-apply the new CRDs
+> # re-apply your classes without metadata.namespace, then re-apply your MicroFrontends
+> ```
+
 #### Namespace Policy
 
 MicroFrontendClass supports **namespace policies** to control which namespaces can attach MicroFrontends to the class. This feature enables multi-tenancy and security isolation, similar to the Kubernetes Gateway API.
 
-Three policy types are available:
+Two policy types are available:
 
 * **All** (default): Allows MicroFrontends from any namespace to bind to this class
-* **Same**: Allows only MicroFrontends from the same namespace as the MicroFrontendClass
 * **FromNamespaces**: Allows MicroFrontends from a specified list of namespaces
 
 Example configurations:
@@ -53,7 +67,6 @@ apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: public-frontend
-  namespace: platform
 spec:
   baseUri: "https://example.com"
   title: "Public Frontend"
@@ -62,17 +75,18 @@ spec:
 ```
 
 ```yaml
-# Allow only same namespace
+# Allow a single team's namespace
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: isolated-frontend
-  namespace: team-a
 spec:
   baseUri: "https://team-a.example.com"
   title: "Team A Frontend"
   namespacePolicy:
-    from: Same
+    from: FromNamespaces
+    namespaces:
+      - team-a
 ```
 
 ```yaml
@@ -81,7 +95,6 @@ apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: multi-tenant-frontend
-  namespace: platform
 spec:
   baseUri: "https://app.example.com"
   title: "Multi-tenant Frontend"
@@ -95,7 +108,7 @@ spec:
 
 When a MicroFrontend attempts to bind to a MicroFrontendClass but doesn't satisfy the namespace policy, it will be rejected with a clear status message explaining why.
 
-**Automatic Reconciliation**: When a MicroFrontendClass namespace policy is updated, all MicroFrontends referencing that class are automatically reconciled to reflect the new policy. This ensures namespace restrictions are enforced immediately without manual intervention. See [Namespace Policy Reconciliation](docs/NAMESPACE_POLICY_RECONCILIATION.md) for details.
+**Automatic Reconciliation**: When a MicroFrontendClass namespace policy is updated, all MicroFrontends referencing that class are automatically reconciled to reflect the new policy. This ensures namespace restrictions are enforced immediately without manual intervention.
 
 #### Required Fields
 
@@ -114,7 +127,7 @@ A MicroFrontend resource includes the following properties:
 * **cacheControl**: The cache-control header applied to the microfrontend when the caching strategy is set to `cache`.
 * **cacheStrategy**: The caching strategy to use for this microfrontend. Defaults to `none`.
 * **dependsOn**: A list of other microfrontends that must be loaded before this one.
-* **frontendClass**: The name of the MicroFrontendClass that defines shared configuration (headers, CSP, PWA settings, etc.). Defaults to `polyfea-controller-default`.
+* **frontendClass**: The name of the cluster-scoped MicroFrontendClass that defines shared configuration (headers, CSP, PWA settings, etc.). Defaults to `polyfea-controller-default`. Binding is subject to the class's namespace policy.
 * **modulePath**: The relative path to the microfrontend’s module file within the referenced service.
 * **proxy**: Determines whether the controller proxies the loading of modules and web component resources. Defaults to `true`.
 * **service**: A reference to the service hosting the microfrontend's module and CSS files. This can be either:
@@ -217,7 +230,7 @@ A WebComponent resource supports the following properties:
 * **attributes**: A list of attribute key/value pairs applied to the final HTML element. The value may contain any valid JSON type.
 * **displayRules**: Conditions that determine when the component should be loaded. The list is evaluated using OR semantics.
 * **element**: The HTML tag name for the component (e.g., `my-menu-item`).
-* **microFrontend**: (Optional) The MicroFrontend providing this component. If omitted, the controller assumes the component is already loaded or native.
+* **microFrontend**: (Optional) A reference to the MicroFrontend providing this component, given as `name` plus an optional `namespace`. MicroFrontends are namespaced, so `namespace` may be used to reference one in another namespace; it defaults to the WebComponent's own namespace. If the whole field is omitted, the controller assumes the component is already loaded or native.
 * **priority**: Controls ordering when multiple components match. Higher values indicate higher priority. Defaults to `0`.
 * **style**: Inline style definitions applied to the component.
 
@@ -275,7 +288,6 @@ status:
   resolvedServiceURL: "http://my-service.default.svc.cluster.local:80"
   frontendClassRef:
     name: polyfea-controller-default
-    namespace: platform
     accepted: true
   observedGeneration: 1
 ```
@@ -301,7 +313,6 @@ status:
   rejectionReason: "Namespace not allowed by MicroFrontendClass namespace policy"
   frontendClassRef:
     name: production-frontend
-    namespace: platform
     accepted: false
   observedGeneration: 1
 ```

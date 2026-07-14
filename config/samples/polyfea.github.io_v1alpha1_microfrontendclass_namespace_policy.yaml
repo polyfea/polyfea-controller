@@ -1,8 +1,9 @@
+# MicroFrontendClass is cluster-scoped, so it carries no namespace of its own.
+# The namespace policy is what decides which namespaces may attach MicroFrontends to it.
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: microfrontendclass-with-namespace-policy
-  namespace: default
 spec:
   baseUri: "https://example.com"
   title: "Example Frontend with Namespace Policy"
@@ -17,20 +18,20 @@ spec:
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
-  name: microfrontendclass-same-namespace
-  namespace: default
+  name: microfrontendclass-single-namespace
 spec:
   baseUri: "https://example2.com"
-  title: "Example Frontend - Same Namespace Only"
-  # This namespace policy allows MicroFrontends from the same namespace only
+  title: "Example Frontend - Single Namespace Only"
+  # Restrict the class to a single team's namespace
   namespacePolicy:
-    from: Same
+    from: FromNamespaces
+    namespaces:
+      - team-a
 ---
 apiVersion: polyfea.github.io/v1alpha1
 kind: MicroFrontendClass
 metadata:
   name: microfrontendclass-all-namespaces
-  namespace: default
 spec:
   baseUri: "https://example3.com"
   title: "Example Frontend - All Namespaces"

@@ -6,8 +6,10 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: webcomponent-sample
 spec:
-  # Reference to a microfrontend from which the webcomponent would be served
-  microFrontend: "microfrontend-sample"
+  # Reference to a microfrontend from which the webcomponent would be served.
+  # namespace is optional and defaults to the WebComponent's own namespace.
+  microFrontend:
+    name: "microfrontend-sample"
   
   # The HTML element tag name
   element: "my-web-component"

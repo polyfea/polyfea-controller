@@ -125,7 +125,7 @@ func (r *MicroFrontendClassReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 		for _, mf := range mfList.Items {
 			ref := mf.Status.FrontendClassRef
-			if ref == nil || ref.Name != mfc.Name || ref.Namespace != mfc.Namespace {
+			if ref == nil || ref.Name != mfc.Name {
 				continue
 			}
 			if ref.Accepted {
@@ -209,6 +209,6 @@ func (r *MicroFrontendClassReconciler) findMicroFrontendClassForMicroFrontend(ct
 		return nil
 	}
 	return []reconcile.Request{
-		{NamespacedName: types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}},
+		{NamespacedName: types.NamespacedName{Name: ref.Name}},
 	}
 }
