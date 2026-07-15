@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -81,18 +83,65 @@ type WebComponentSpec struct {
 	Style []Style `json:"style,omitempty"`
 }
 
-// Attribute defines a key-value pair that allows you to assign specific attributes to the element. The name field is used as the attribute name, while the value field can be any valid JSON type.
+// MicroFrontendPath references a path served by a MicroFrontend's proxy. The controller
+// resolves it to ./polyfea/proxy/<namespace>/<microfrontend>/<hash>/<path> at serve time,
+// injecting the current cache-busting hash so authors never hardcode the internal URL.
+type MicroFrontendPath struct {
+	// MicroFrontend to resolve the path against. Defaults to the MicroFrontend referenced
+	// by the parent resource, in that resource's namespace, when omitted.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	MicroFrontend *NamespacedReference `json:"microfrontend,omitempty"`
+
+	// Path relative to the MicroFrontend's service root.
+	// +kubebuilder:validation:MaxLength=2048
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Path string `json:"path"`
+}
+
+// Attribute defines a key-value pair that allows you to assign specific attributes to the element.
+// Exactly one of value or microfrontendPath must be set: value assigns a literal (any valid JSON
+// type), while microfrontendPath resolves to a URL served by a MicroFrontend's proxy.
 type Attribute struct {
 	// The name of the attribute.
 	// +kubebuilder:validation:MaxLength=256
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
 	Name string `json:"name"`
 
-	// The value of the attribute.
+	// The literal value of the attribute. Mutually exclusive with microfrontendPath.
+	// +optional
 	// +kubebuilder:validation:XPreserveUnknownFields
 	// +kubebuilder:validation:Schemaless
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	Value runtime.RawExtension `json:"value"`
+	Value runtime.RawExtension `json:"value,omitempty"`
+
+	// A reference to a path served by a MicroFrontend, resolved to a proxied URL at serve
+	// time. Mutually exclusive with value.
+	// +optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	MicroFrontendPath *MicroFrontendPath `json:"microfrontendPath,omitempty"`
+}
+
+// Validate reports an error if the attribute does not set exactly one of value or
+// microfrontendPath. This constraint cannot be expressed as a CEL rule because value is a
+// schemaless field, so it is enforced by the controllers at reconcile time.
+func (a *Attribute) Validate() error {
+	hasValue := len(a.Value.Raw) > 0
+	hasPath := a.MicroFrontendPath != nil
+	if hasValue == hasPath {
+		return fmt.Errorf("attribute %q must set exactly one of value or microfrontendPath", a.Name)
+	}
+	return nil
+}
+
+// ValidateAttributes returns the first validation error among the given attributes, or nil.
+func ValidateAttributes(attributes []Attribute) error {
+	for i := range attributes {
+		if err := attributes[i].Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Style defines the styles that should be applied to the webcomponent.

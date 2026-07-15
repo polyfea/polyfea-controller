@@ -69,7 +69,8 @@ func (s *PolyfeaApiService) GetContextArea(w http.ResponseWriter, r *http.Reques
 
 	webComponents = s.limitWebComponents(webComponents, params.Take)
 	microFrontendsToLoad := []string{}
-	result.Elements = s.convertWebComponentsToResponse(webComponents, &microFrontendsToLoad)
+	resolveHash := s.microFrontendHashResolver()
+	result.Elements = s.convertWebComponentsToResponse(webComponents, &microFrontendsToLoad, resolveHash)
 
 	allMicroFrontends, err := s.loadAllMicroFrontends(microFrontendsToLoad, s.microFrontendRepository, []string{})
 	if err != nil {
@@ -77,7 +78,7 @@ func (s *PolyfeaApiService) GetContextArea(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result.Microfrontends = s.convertMicroFrontendsToResponse(allMicroFrontends)
+	result.Microfrontends = s.convertMicroFrontendsToResponse(allMicroFrontends, resolveHash)
 
 	s.finalizeResponse(w, logger, span, frontendClass, result, ctx)
 }
@@ -219,7 +220,23 @@ func (s *PolyfeaApiService) limitWebComponents(webComponents []*v1alpha1.WebComp
 	return webComponents
 }
 
-func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1alpha1.WebComponent, microFrontendsToLoad *[]string) []generated.ElementSpec {
+// microFrontendHashResolver returns a lookup from (namespace, name) to a MicroFrontend's
+// cache-busting hash, built once from the repository. Unknown coordinates yield "" so that
+// buildProxyPath's hashOrDefault falls back to "nohash".
+func (s *PolyfeaApiService) microFrontendHashResolver() func(namespace, name string) string {
+	hashes := make(map[string]string)
+	all, err := s.microFrontendRepository.List(func(*v1alpha1.MicroFrontend) bool { return true })
+	if err == nil {
+		for _, mf := range all {
+			hashes[mf.Namespace+"/"+mf.Name] = mf.Spec.CacheBustingHash
+		}
+	}
+	return func(namespace, name string) string {
+		return hashes[namespace+"/"+name]
+	}
+}
+
+func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1alpha1.WebComponent, microFrontendsToLoad *[]string, resolveHash func(namespace, name string) string) []generated.ElementSpec {
 	result := make([]generated.ElementSpec, 0, len(webComponents))
 	for _, webComponent := range webComponents {
 		var microfrontendName string
@@ -230,21 +247,21 @@ func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1al
 		result = append(result, generated.ElementSpec{
 			Microfrontend: strToPtr(microfrontendName),
 			TagName:       *webComponent.Spec.Element,
-			Attributes:    convertAttributes(webComponent.Spec.Attributes),
+			Attributes:    convertAttributes(webComponent.Spec.Attributes, webComponent.Spec.MicroFrontend, webComponent.Namespace, resolveHash),
 			Style:         convertStyles(webComponent.Spec.Style),
 		})
 	}
 	return result
 }
 
-func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []*v1alpha1.MicroFrontend) *map[string]generated.MicrofrontendSpec {
+func (s *PolyfeaApiService) convertMicroFrontendsToResponse(allMicroFrontends []*v1alpha1.MicroFrontend, resolveHash func(namespace, name string) string) *map[string]generated.MicrofrontendSpec {
 	result := make(map[string]generated.MicrofrontendSpec)
 	for _, microFrontend := range allMicroFrontends {
 		result[microFrontend.Name] = generated.MicrofrontendSpec{
 
 			DependsOn: arrToPtr(microFrontend.Spec.DependsOn),
 			Module:    buildModulePath(microFrontend.Namespace, microFrontend.Name, *microFrontend.Spec.ModulePath, microFrontend.Spec.CacheBustingHash, *microFrontend.Spec.Proxy, microFrontend.Spec.Service),
-			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources, microFrontend.Spec.Service, microFrontend.Spec.CacheBustingHash),
+			Resources: convertMicrofrontendResources(microFrontend.Namespace, microFrontend.Name, microFrontend.Spec.StaticResources, microFrontend.Spec.Service, microFrontend.Spec.CacheBustingHash, resolveHash),
 		}
 	}
 	return &result

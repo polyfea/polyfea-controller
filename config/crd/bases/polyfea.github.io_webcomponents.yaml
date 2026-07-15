@@ -45,21 +45,52 @@ spec:
                   as the attribute name, while the value field can be any valid JSON
                   type.
                 items:
-                  description: Attribute defines a key-value pair that allows you
-                    to assign specific attributes to the element. The name field is
-                    used as the attribute name, while the value field can be any valid
-                    JSON type.
+                  description: |-
+                    Attribute defines a key-value pair that allows you to assign specific attributes to the element.
+                    Exactly one of value or microfrontendPath must be set: value assigns a literal (any valid JSON
+                    type), while microfrontendPath resolves to a URL served by a MicroFrontend's proxy.
                   properties:
+                    microfrontendPath:
+                      description: |-
+                        A reference to a path served by a MicroFrontend, resolved to a proxied URL at serve
+                        time. Mutually exclusive with value.
+                      properties:
+                        microfrontend:
+                          description: |-
+                            MicroFrontend to resolve the path against. Defaults to the MicroFrontend referenced
+                            by the parent resource, in that resource's namespace, when omitted.
+                          properties:
+                            name:
+                              description: Name of the referenced resource.
+                              maxLength: 253
+                              type: string
+                            namespace:
+                              description: |-
+                                Namespace of the referenced resource.
+                                Defaults to the namespace of the referencing resource if not specified.
+                              maxLength: 63
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        path:
+                          description: Path relative to the MicroFrontend's service
+                            root.
+                          maxLength: 2048
+                          type: string
+                      required:
+                      - path
+                      type: object
                     name:
                       description: The name of the attribute.
                       maxLength: 256
                       type: string
                     value:
-                      description: The value of the attribute.
+                      description: The literal value of the attribute. Mutually exclusive
+                        with microfrontendPath.
                       x-kubernetes-preserve-unknown-fields: true
                   required:
                   - name
-                  - value
                   type: object
                 maxItems: 64
                 type: array

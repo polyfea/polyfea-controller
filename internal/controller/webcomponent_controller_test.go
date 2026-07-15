@@ -133,6 +133,59 @@ var _ = Describe("WebComponent Controller", func() {
 					AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}, {ContextName: "user"}},
 				}},
 			}, true),
+			Entry("attribute with value only is valid", polyfeav1alpha1.WebComponentSpec{
+				Element: &[]string{"my-menu-item"}[0],
+				DisplayRules: []polyfeav1alpha1.DisplayRules{{
+					AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}},
+				}},
+				Attributes: []polyfeav1alpha1.Attribute{
+					{Name: "config-src", Value: runtime.RawExtension{Raw: []byte(`"literal"`)}},
+				},
+			}, true),
+			Entry("attribute with microfrontendPath only is valid", polyfeav1alpha1.WebComponentSpec{
+				Element: &[]string{"my-menu-item"}[0],
+				DisplayRules: []polyfeav1alpha1.DisplayRules{{
+					AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}},
+				}},
+				Attributes: []polyfeav1alpha1.Attribute{
+					{Name: "config-src", MicroFrontendPath: &polyfeav1alpha1.MicroFrontendPath{Path: "assets/config.json"}},
+				},
+			}, true),
+		)
+
+		// value/microfrontendPath mutual exclusivity is enforced by the controller (not CEL,
+		// since value is schemaless): the object is admitted, then marked Failed.
+		DescribeTable("Invalid attribute combinations are marked Failed",
+			func(attr polyfeav1alpha1.Attribute) {
+				testCtx := context.Background()
+				ensureWebComponentDeleted(testCtx)
+
+				webComponent := makeWebComponentRef(nil)
+				webComponent.Spec.Attributes = []polyfeav1alpha1.Attribute{attr}
+				Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+				webComponentLookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+				created := &polyfeav1alpha1.WebComponent{}
+				Eventually(func() bool {
+					if err := k8sClient.Get(testCtx, webComponentLookupKey, created); err != nil {
+						return false
+					}
+					condition := polyfeav1alpha1.GetCondition(created.Status.Conditions, polyfeav1alpha1.ConditionTypeReady)
+					return created.Status.Phase == polyfeav1alpha1.WebComponentPhaseFailed &&
+						condition != nil && condition.Status == metav1.ConditionFalse &&
+						condition.Reason == polyfeav1alpha1.ReasonInvalidConfiguration
+				}, timeout, interval).Should(BeTrue())
+
+				Expect(k8sClient.Delete(testCtx, created)).Should(Succeed())
+			},
+			Entry("both value and microfrontendPath", polyfeav1alpha1.Attribute{
+				Name:              "config-src",
+				Value:             runtime.RawExtension{Raw: []byte(`"literal"`)},
+				MicroFrontendPath: &polyfeav1alpha1.MicroFrontendPath{Path: "assets/config.json"},
+			}),
+			Entry("neither value nor microfrontendPath", polyfeav1alpha1.Attribute{
+				Name: "config-src",
+			}),
 		)
 
 		It("Should create with defaults when optional fields are missing", func() {
