@@ -172,7 +172,7 @@ func (s *PolyfeaApiService) getWebComponents(name, path string, userRoles []stri
 		microFrontendsNamesForClass = append(microFrontendsNamesForClass, mf.Name)
 	}
 	return s.webComponentRepository.List(func(mf *v1alpha1.WebComponent) bool {
-		return selectMatchingWebComponents(mf, name, path, userRoles) && (mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, *mf.Spec.MicroFrontend))
+		return selectMatchingWebComponents(mf, name, path, userRoles) && (mf.Spec.MicroFrontend == nil || slices.Contains(microFrontendsNamesForClass, mf.Spec.MicroFrontend.Name))
 	})
 }
 
@@ -224,8 +224,8 @@ func (s *PolyfeaApiService) convertWebComponentsToResponse(webComponents []*v1al
 	for _, webComponent := range webComponents {
 		var microfrontendName string
 		if webComponent.Spec.MicroFrontend != nil {
-			*microFrontendsToLoad = append(*microFrontendsToLoad, *webComponent.Spec.MicroFrontend)
-			microfrontendName = *webComponent.Spec.MicroFrontend
+			*microFrontendsToLoad = append(*microFrontendsToLoad, webComponent.Spec.MicroFrontend.Name)
+			microfrontendName = webComponent.Spec.MicroFrontend.Name
 		}
 		result = append(result, generated.ElementSpec{
 			Microfrontend: strToPtr(microfrontendName),

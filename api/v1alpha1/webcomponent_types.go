@@ -21,13 +21,37 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
+// NamespacedReference refers to a named resource, optionally in a specific namespace.
+// If Namespace is omitted, the referencing resource's own namespace is assumed.
+type NamespacedReference struct {
+	// Name of the referenced resource.
+	// +kubebuilder:validation:MaxLength=253
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Name string `json:"name"`
+
+	// Namespace of the referenced resource.
+	// Defaults to the namespace of the referencing resource if not specified.
+	// +optional
+	// +kubebuilder:validation:MaxLength=63
+	// +operator-sdk:csv:customresourcedefinitions:type=spec
+	Namespace *string `json:"namespace,omitempty"`
+}
+
+// NamespaceOr returns the reference's namespace, falling back to def when unset.
+func (r *NamespacedReference) NamespaceOr(def string) string {
+	if r.Namespace != nil && *r.Namespace != "" {
+		return *r.Namespace
+	}
+	return def
+}
+
 // WebComponentSpec defines the desired state of WebComponent
 type WebComponentSpec struct {
 	// Reference to a microfrontend from which the webcomponent would be served.
+	// If Namespace is omitted, the WebComponent's own namespace is assumed.
 	// +optional
-	// +kubebuilder:validation:MaxLength=253
 	// +operator-sdk:csv:customresourcedefinitions:type=spec
-	MicroFrontend *string `json:"microFrontend,omitempty"`
+	MicroFrontend *NamespacedReference `json:"microFrontend,omitempty"`
 
 	// The HTML element tag name to be used when the matcher is matched.
 	// +kubebuilder:example="my-menu-item"

@@ -394,7 +394,7 @@ func TestWebComponentList_DeepCopy(t *testing.T) {
 
 func TestWebComponentSpec_DeepCopy(t *testing.T) {
 	spec := &WebComponentSpec{
-		MicroFrontend: ptr("mf"),
+		MicroFrontend: &NamespacedReference{Name: "mf", Namespace: ptr("other-ns")},
 		Element:       ptr("my-element"),
 		Attributes:    []Attribute{{Name: TestConst, Value: runtime.RawExtension{Raw: []byte(`"value"`)}}},
 		DisplayRules:  []DisplayRules{{AllOf: []Matcher{{Path: "/"}}}},

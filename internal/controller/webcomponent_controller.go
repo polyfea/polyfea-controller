@@ -26,7 +26,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	polyfeav1alpha1 "github.com/polyfea/polyfea-controller/api/v1alpha1"
 	"github.com/polyfea/polyfea-controller/internal/repository"
@@ -111,19 +113,17 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Context, webComponent *polyfeav1alpha1.WebComponent, logger logr.Logger) bool {
 	statusUpdated := false
 
-	if webComponent.Spec.MicroFrontend == nil || *webComponent.Spec.MicroFrontend == "" {
+	if webComponent.Spec.MicroFrontend == nil || webComponent.Spec.MicroFrontend.Name == "" {
 		statusUpdated = r.handleNoMicroFrontendRef(webComponent, logger)
 		return statusUpdated
 	}
 
-	mfName := *webComponent.Spec.MicroFrontend
+	mfName := webComponent.Spec.MicroFrontend.Name
+	mfNamespace := webComponent.Spec.MicroFrontend.NamespaceOr(webComponent.Namespace)
 
-	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, webComponent.Namespace)
+	mf, err := FindMicroFrontendByName(ctx, r.Client, mfName, mfNamespace)
 	mfFound := err == nil
-	mfNamespace := webComponent.Namespace
-	if mfFound {
-		mfNamespace = mf.Namespace
-	} else if !apierrors.IsNotFound(err) {
+	if !mfFound && !apierrors.IsNotFound(err) {
 		logger.Error(err, "Failed to get MicroFrontend", "name", mfName)
 		polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeMicroFrontendResolved,
 			metav1.ConditionFalse, polyfeav1alpha1.ReasonError, "Error retrieving MicroFrontend")
@@ -248,5 +248,54 @@ func (r *WebComponentReconciler) finalizeOperationsForWebComponent(webComponent 
 func (r *WebComponentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&polyfeav1alpha1.WebComponent{}).
+		Watches(
+			&polyfeav1alpha1.MicroFrontend{},
+			handler.EnqueueRequestsFromMapFunc(r.findWebComponentsForMicroFrontend),
+		).
 		Complete(r)
+}
+
+// findWebComponentsForMicroFrontend returns reconcile requests for all WebComponents
+// that reference the given MicroFrontend, either by spec (resolving the effective
+// namespace) or by an existing status reference. The latter catches WebComponents that
+// must be un-resolved when the MicroFrontend they were bound to is deleted or re-pointed.
+func (r *WebComponentReconciler) findWebComponentsForMicroFrontend(ctx context.Context, obj client.Object) []reconcile.Request {
+	mf, ok := obj.(*polyfeav1alpha1.MicroFrontend)
+	if !ok {
+		return nil
+	}
+
+	logger := log.FromContext(ctx)
+
+	wcList := &polyfeav1alpha1.WebComponentList{}
+	if err := r.List(ctx, wcList, client.InNamespace("")); err != nil {
+		logger.Error(err, "Failed to list WebComponents for MicroFrontend change")
+		return nil
+	}
+
+	var requests []reconcile.Request
+	for _, wc := range wcList.Items {
+		specRef := wc.Spec.MicroFrontend
+		specMatch := specRef != nil &&
+			specRef.Name == mf.Name &&
+			specRef.NamespaceOr(wc.Namespace) == mf.Namespace
+
+		statusRef := wc.Status.MicroFrontendRef
+		statusMatch := statusRef != nil &&
+			statusRef.Name == mf.Name &&
+			statusRef.Namespace == mf.Namespace
+
+		if !specMatch && !statusMatch {
+			continue
+		}
+
+		requests = append(requests, reconcile.Request{
+			NamespacedName: client.ObjectKey{
+				Name:      wc.Name,
+				Namespace: wc.Namespace,
+			},
+		})
+	}
+
+	return requests
 }

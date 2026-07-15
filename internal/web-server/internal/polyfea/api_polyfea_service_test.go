@@ -1005,11 +1005,9 @@ func createTestContextArea(expectedElements []generated.ElementSpec, expectedMic
 
 func createTestWebComponent(objectName string, microFrontendName string, displayRules []v1alpha1.DisplayRules, priority *int32) *v1alpha1.WebComponent {
 
-	var mfn *string
-	if len(microFrontendName) == 0 {
-		mfn = nil
-	} else {
-		mfn = &microFrontendName
+	var mfn *v1alpha1.NamespacedReference
+	if len(microFrontendName) != 0 {
+		mfn = &v1alpha1.NamespacedReference{Name: microFrontendName}
 	}
 
 	return &v1alpha1.WebComponent{
