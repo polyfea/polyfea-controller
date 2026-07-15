@@ -40,6 +40,45 @@ func ensureWebComponentDeleted(ctx context.Context) {
 	ensureResourceDeleted(ctx, &polyfeav1alpha1.WebComponent{}, types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace})
 }
 
+// makeMicroFrontend builds a minimal valid MicroFrontend in the given namespace.
+func makeMicroFrontend(name, namespace string) *polyfeav1alpha1.MicroFrontend {
+	return &polyfeav1alpha1.MicroFrontend{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "polyfea.github.io/v1alpha1",
+			Kind:       "MicroFrontend",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec: polyfeav1alpha1.MicroFrontendSpec{
+			Service: &polyfeav1alpha1.ServiceReference{
+				Name:      &[]string{"test-service"}[0],
+				Namespace: &namespace,
+				Port:      &[]int32{80}[0],
+				Scheme:    &[]string{"http"}[0],
+			},
+			ModulePath: &[]string{"/module"}[0],
+		},
+	}
+}
+
+// makeWebComponentRef builds a WebComponent in WebComponentNamespace referencing the
+// given MicroFrontend reference (which may be nil).
+func makeWebComponentRef(ref *polyfeav1alpha1.NamespacedReference) *polyfeav1alpha1.WebComponent {
+	return &polyfeav1alpha1.WebComponent{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "polyfea.github.io/v1alpha1",
+			Kind:       "WebComponent",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: WebComponentName, Namespace: WebComponentNamespace},
+		Spec: polyfeav1alpha1.WebComponentSpec{
+			MicroFrontend: ref,
+			Element:       &[]string{"my-menu-item"}[0],
+			DisplayRules: []polyfeav1alpha1.DisplayRules{{
+				AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}, {ContextName: "user"}},
+			}},
+		},
+	}
+}
+
 var _ = Describe("WebComponent Controller", func() {
 	const (
 		timeout  = time.Second * 10
@@ -69,7 +108,7 @@ var _ = Describe("WebComponent Controller", func() {
 				}
 			},
 			Entry("missing element", polyfeav1alpha1.WebComponentSpec{
-				MicroFrontend: &[]string{"test-microfrontend"}[0],
+				MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 				Attributes: []polyfeav1alpha1.Attribute{
 					{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
 				},
@@ -81,7 +120,7 @@ var _ = Describe("WebComponent Controller", func() {
 			}, false),
 			Entry("missing display rules", polyfeav1alpha1.WebComponentSpec{
 				Element:       &[]string{"my-menu-item"}[0],
-				MicroFrontend: &[]string{"test-microfrontend"}[0],
+				MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 				Attributes: []polyfeav1alpha1.Attribute{
 					{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
 				},
@@ -149,7 +188,7 @@ var _ = Describe("WebComponent Controller", func() {
 					Namespace: WebComponentNamespace,
 				},
 				Spec: polyfeav1alpha1.WebComponentSpec{
-					MicroFrontend: &[]string{"test-microfrontend"}[0],
+					MicroFrontend: &polyfeav1alpha1.NamespacedReference{Name: "test-microfrontend"},
 					Element:       &[]string{"my-menu-item"}[0],
 					Attributes: []polyfeav1alpha1.Attribute{
 						{Name: "label", Value: runtime.RawExtension{Raw: []byte(`"My Menu Item"`)}},
@@ -238,8 +277,11 @@ var _ = Describe("WebComponent Controller", func() {
 					Namespace: WebComponentNamespace,
 				},
 				Spec: polyfeav1alpha1.WebComponentSpec{
-					MicroFrontend: &microFrontendName,
-					Element:       &[]string{"my-menu-item"}[0],
+					MicroFrontend: &polyfeav1alpha1.NamespacedReference{
+						Name:      microFrontendName,
+						Namespace: &mfNamespace,
+					},
+					Element: &[]string{"my-menu-item"}[0],
 					DisplayRules: []polyfeav1alpha1.DisplayRules{{
 						AllOf: []polyfeav1alpha1.Matcher{{Path: "pathname"}, {ContextName: "user"}},
 					}},
@@ -283,6 +325,106 @@ var _ = Describe("WebComponent Controller", func() {
 			Expect(k8sClient.Delete(testCtx, createdWebComponent)).Should(Succeed())
 			Expect(k8sClient.Delete(testCtx, microFrontend)).Should(Succeed())
 			Expect(k8sClient.Delete(testCtx, namespaceObj)).Should(Succeed())
+		})
+
+		It("Should resolve a reference without a namespace within its own namespace", func() {
+			testCtx := context.Background()
+			ensureWebComponentDeleted(testCtx)
+
+			// MicroFrontend lives in the same namespace as the WebComponent.
+			mfName := "test-microfrontend-same-ns"
+			microFrontend := makeMicroFrontend(mfName, WebComponentNamespace)
+			Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+
+			// Reference omits namespace, so it must resolve in WebComponentNamespace.
+			webComponent := makeWebComponentRef(&polyfeav1alpha1.NamespacedReference{Name: mfName})
+			Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+			webComponentLookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+			createdWebComponent := &polyfeav1alpha1.WebComponent{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent); err != nil {
+					return false
+				}
+				return createdWebComponent.Status.MicroFrontendRef != nil &&
+					createdWebComponent.Status.MicroFrontendRef.Name == mfName &&
+					createdWebComponent.Status.MicroFrontendRef.Namespace == WebComponentNamespace &&
+					createdWebComponent.Status.MicroFrontendRef.Found
+			}, timeout, interval).Should(BeTrue())
+
+			Expect(k8sClient.Delete(testCtx, createdWebComponent)).Should(Succeed())
+			Expect(k8sClient.Delete(testCtx, microFrontend)).Should(Succeed())
+		})
+
+		It("Should not resolve a namespace-less reference to a MicroFrontend in another namespace", func() {
+			testCtx := context.Background()
+			ensureWebComponentDeleted(testCtx)
+
+			// MicroFrontend exists ONLY in a different namespace.
+			otherNamespace := "microfrontend-other-ns"
+			if err := k8sClient.Create(testCtx, &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: otherNamespace},
+			}); err != nil && !errors.IsAlreadyExists(err) {
+				Expect(err).ShouldNot(HaveOccurred())
+			}
+
+			mfName := "test-microfrontend-elsewhere"
+			microFrontend := makeMicroFrontend(mfName, otherNamespace)
+			Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+
+			// Reference omits namespace: it must look only in WebComponentNamespace and miss.
+			webComponent := makeWebComponentRef(&polyfeav1alpha1.NamespacedReference{Name: mfName})
+			Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+			webComponentLookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+			createdWebComponent := &polyfeav1alpha1.WebComponent{}
+			Eventually(func() bool {
+				if err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent); err != nil {
+					return false
+				}
+				return createdWebComponent.Status.Phase == polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound &&
+					createdWebComponent.Status.MicroFrontendRef != nil &&
+					!createdWebComponent.Status.MicroFrontendRef.Found
+			}, timeout, interval).Should(BeTrue())
+
+			Expect(k8sClient.Delete(testCtx, createdWebComponent)).Should(Succeed())
+			Expect(k8sClient.Delete(testCtx, microFrontend)).Should(Succeed())
+		})
+
+		It("Should re-reconcile a WebComponent when its referenced MicroFrontend appears later", func() {
+			testCtx := context.Background()
+			ensureWebComponentDeleted(testCtx)
+
+			// WebComponent is created BEFORE the MicroFrontend it references exists.
+			mfName := "test-microfrontend-late"
+			webComponent := makeWebComponentRef(&polyfeav1alpha1.NamespacedReference{Name: mfName})
+			Expect(k8sClient.Create(testCtx, webComponent)).Should(Succeed())
+
+			webComponentLookupKey := types.NamespacedName{Name: WebComponentName, Namespace: WebComponentNamespace}
+			createdWebComponent := &polyfeav1alpha1.WebComponent{}
+
+			// Initially the reference cannot be resolved.
+			Eventually(func() bool {
+				if err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent); err != nil {
+					return false
+				}
+				return createdWebComponent.Status.Phase == polyfeav1alpha1.WebComponentPhaseMicroFrontendNotFound
+			}, timeout, interval).Should(BeTrue())
+
+			// Now create the MicroFrontend; the watch must re-enqueue the WebComponent.
+			microFrontend := makeMicroFrontend(mfName, WebComponentNamespace)
+			Expect(k8sClient.Create(testCtx, microFrontend)).Should(Succeed())
+
+			Eventually(func() bool {
+				if err := k8sClient.Get(testCtx, webComponentLookupKey, createdWebComponent); err != nil {
+					return false
+				}
+				return createdWebComponent.Status.MicroFrontendRef != nil &&
+					createdWebComponent.Status.MicroFrontendRef.Found
+			}, timeout, interval).Should(BeTrue())
+
+			Expect(k8sClient.Delete(testCtx, createdWebComponent)).Should(Succeed())
+			Expect(k8sClient.Delete(testCtx, microFrontend)).Should(Succeed())
 		})
 
 		It("Should accept and round-trip nested matcher operators via the Kubernetes API", func() {

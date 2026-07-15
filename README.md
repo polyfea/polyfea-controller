@@ -200,7 +200,7 @@ These values ensure the controller knows where the microfrontend lives, which cl
 
 The **WebComponent** Custom Resource Definition (CRD) allows developers to define and manage individual web components within a Kubernetes-managed microfrontend environment. It specifies where a web component originates, how it should be configured, and under which conditions it should be displayed.
 
-A WebComponent may reference the **MicroFrontend** that provides its implementation. This field is optional—if omitted, the controller assumes the component is already available (for example, when it is a native browser element or when it was loaded by another microfrontend).
+A WebComponent may reference the **MicroFrontend** that provides its implementation. The reference is a structured object carrying a `name` and an optional `namespace`; when `namespace` is omitted, the WebComponent's own namespace is assumed, so a WebComponent can bind to a MicroFrontend owned by another team in a different namespace. This field is optional—if omitted, the controller assumes the component is already available (for example, when it is a native browser element or when it was loaded by another microfrontend).
 
 Display behavior is controlled through **displayRules**, which define when the component should be rendered. Each rule group in the top-level list represents an OR condition: if *any* DisplayRule matches, the component is included. Within a single DisplayRule, the sets `allOf`, `anyOf`, and `noneOf` are combined using AND semantics:
 
@@ -217,7 +217,7 @@ A WebComponent resource supports the following properties:
 * **attributes**: A list of attribute key/value pairs applied to the final HTML element. The value may contain any valid JSON type.
 * **displayRules**: Conditions that determine when the component should be loaded. The list is evaluated using OR semantics.
 * **element**: The HTML tag name for the component (e.g., `my-menu-item`).
-* **microFrontend**: (Optional) The MicroFrontend providing this component. If omitted, the controller assumes the component is already loaded or native.
+* **microFrontend**: (Optional) A reference to the MicroFrontend providing this component, given as `{name, namespace}`. `namespace` is optional and defaults to the WebComponent's own namespace. If the whole field is omitted, the controller assumes the component is already loaded or native.
 * **priority**: Controls ordering when multiple components match. Higher values indicate higher priority. Defaults to `0`.
 * **style**: Inline style definitions applied to the component.
 
