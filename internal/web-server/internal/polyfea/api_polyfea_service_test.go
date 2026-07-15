@@ -306,6 +306,51 @@ func TestPolyfeaApiServiceGetContextAreaReturnsElementWithoutMicrofrontendIfItHa
 	}
 }
 
+func TestPolyfeaApiServiceGetContextAreaResolvesMicrofrontendPathAttribute(t *testing.T) {
+	// Arrange: a WebComponent whose attribute is a microfrontendPath (defaulting to its own
+	// MicroFrontend), and a MicroFrontend with a cache-busting hash to resolve against.
+	displayRules := []v1alpha1.DisplayRules{{
+		AllOf: []v1alpha1.Matcher{{Path: "test*"}, {ContextName: "test-name"}},
+	}}
+	webComponent := createTestWebComponent("test-name", "test-mf", displayRules, &[]int32{1}[0])
+	webComponent.Spec.Attributes = []v1alpha1.Attribute{
+		{Name: "config-src", MicroFrontendPath: &v1alpha1.MicroFrontendPath{Path: "assets/config.json"}},
+	}
+
+	testWebComponentRepository := repository.NewInMemoryRepository[*v1alpha1.WebComponent]()
+	if err := testWebComponentRepository.Store(webComponent); err != nil {
+		t.Fatalf("Failed to store WebComponent in repository: %v", err)
+	}
+
+	microFrontend := createTestMicroFrontend("test-mf", []string{}, "test-frontend-class", true)
+	microFrontend.Spec.CacheBustingHash = "v1"
+	testMicroFrontendRepository := repository.NewInMemoryRepository[*v1alpha1.MicroFrontend]()
+	if err := testMicroFrontendRepository.Store(microFrontend); err != nil {
+		t.Fatalf("Failed to store MicroFrontend in repository: %v", err)
+	}
+
+	polyfeaApiService := NewPolyfeaAPIService(testWebComponentRepository, testMicroFrontendRepository, &logr.Logger{})
+
+	ctx := context.WithValue(context.TODO(), PolyfeaContextKeyBasePath, "/")
+	ctx = context.WithValue(ctx, PolyfeaContextKeyMicroFrontendClass, createTestMicroFrontendClass("test-frontend-class", "/"))
+
+	// Act
+	take := 10
+	statusCode, actualContextArea := callGetContextArea(t, polyfeaApiService, ctx, "test-path", &take, nil)
+
+	// Assert
+	if statusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %v", statusCode)
+	}
+	if len(actualContextArea.Elements) != 1 || actualContextArea.Elements[0].Attributes == nil {
+		t.Fatalf("Expected one element with attributes, got %+v", actualContextArea.Elements)
+	}
+	want := "./polyfea/proxy/default/test-mf/v1/assets/config.json"
+	if got := (*actualContextArea.Elements[0].Attributes)["config-src"]; got != want {
+		t.Errorf("Expected resolved config-src %q, got %q", want, got)
+	}
+}
+
 func TestPolyfeaApiServiceGetContextAreaDisplayRuleNotMatching(t *testing.T) {
 	roleHeaders := func() http.Header {
 		h := http.Header{}

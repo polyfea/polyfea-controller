@@ -91,7 +91,11 @@ func (r *WebComponentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	statusUpdated := false
 	originalStatus := webComponent.Status.DeepCopy()
 
-	statusUpdated = r.reconcileMicroFrontendReference(ctx, webComponent, logger)
+	if err := polyfeav1alpha1.ValidateAttributes(webComponent.Spec.Attributes); err != nil {
+		statusUpdated = r.handleInvalidAttributes(webComponent, err, logger)
+	} else {
+		statusUpdated = r.reconcileMicroFrontendReference(ctx, webComponent, logger)
+	}
 
 	if webComponent.Status.ObservedGeneration != webComponent.Generation {
 		webComponent.Status.ObservedGeneration = webComponent.Generation
@@ -139,6 +143,26 @@ func (r *WebComponentReconciler) reconcileMicroFrontendReference(ctx context.Con
 		statusUpdated = r.handleMicroFrontendNotFound(webComponent, mfName, logger) || statusUpdated
 	}
 
+	return statusUpdated
+}
+
+// handleInvalidAttributes marks a WebComponent whose attributes fail validation (an attribute
+// setting both value and microfrontendPath, or neither) as Failed and removes it from the
+// repository so it is not served.
+func (r *WebComponentReconciler) handleInvalidAttributes(webComponent *polyfeav1alpha1.WebComponent, err error, logger logr.Logger) bool {
+	logger.Info("WebComponent has invalid attributes", "webComponent", webComponent.Name, "error", err.Error())
+	polyfeav1alpha1.SetCondition(&webComponent.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, err.Error())
+
+	statusUpdated := false
+	if webComponent.Status.Phase != polyfeav1alpha1.WebComponentPhaseFailed {
+		webComponent.Status.Phase = polyfeav1alpha1.WebComponentPhaseFailed
+		statusUpdated = true
+	}
+
+	if delErr := r.Repository.Delete(webComponent); delErr != nil {
+		logger.Error(delErr, "Failed to remove invalid WebComponent from repository!")
+	}
 	return statusUpdated
 }
 

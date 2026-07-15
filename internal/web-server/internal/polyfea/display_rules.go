@@ -109,9 +109,34 @@ func selectMatchingWebComponents(webComponent *v1alpha1.WebComponent, name strin
 }
 
 // convertAttributes converts API attributes to a map for the response.
-func convertAttributes(attributes []v1alpha1.Attribute) *map[string]string {
+//
+// An attribute either carries a literal value or a microfrontendPath. A microfrontendPath is
+// resolved to a proxied URL: its MicroFrontend reference defaults to defaultMF (in ownerNamespace
+// when the reference omits a namespace), and resolveHash supplies the referenced MicroFrontend's
+// cache-busting hash (falling back to "nohash" when unknown).
+func convertAttributes(
+	attributes []v1alpha1.Attribute,
+	defaultMF *v1alpha1.NamespacedReference,
+	ownerNamespace string,
+	resolveHash func(namespace, name string) string,
+) *map[string]string {
 	result := make(map[string]string)
 	for _, webcomponentAttribute := range attributes {
+		if webcomponentAttribute.MicroFrontendPath != nil {
+			ref := webcomponentAttribute.MicroFrontendPath.MicroFrontend
+			if ref == nil {
+				ref = defaultMF
+			}
+			if ref == nil {
+				// Nothing to resolve the path against; skip the attribute.
+				continue
+			}
+			namespace := ref.NamespaceOr(ownerNamespace)
+			result[webcomponentAttribute.Name] = buildProxyPath(
+				namespace, ref.Name, resolveHash(namespace, ref.Name), webcomponentAttribute.MicroFrontendPath.Path)
+			continue
+		}
+
 		var value string
 		err := json.Unmarshal(webcomponentAttribute.Value.Raw, &value)
 		if err != nil {
@@ -135,15 +160,18 @@ func convertStyles(styles []v1alpha1.Style) *map[string]string {
 }
 
 // convertMicrofrontendResources converts API resources to the response format.
-func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference, cacheBustingHash string) *[]generated.MicrofrontendResource {
+func convertMicrofrontendResources(microFrontendNamespace string, microFrontendName string, resources []v1alpha1.StaticResources, service *v1alpha1.ServiceReference, cacheBustingHash string, resolveHash func(namespace, name string) string) *[]generated.MicrofrontendResource {
 	result := make([]generated.MicrofrontendResource, 0, len(resources))
+
+	// Static-resource attributes resolve microfrontendPath against the owning MicroFrontend by default.
+	defaultMF := &v1alpha1.NamespacedReference{Name: microFrontendName, Namespace: &microFrontendNamespace}
 
 	for _, resource := range resources {
 		kind := generated.MicrofrontendResourceKind(resource.Kind)
 		result = append(result, generated.MicrofrontendResource{
 			Kind:       &kind,
 			Href:       buildModulePath(microFrontendNamespace, microFrontendName, resource.Path, cacheBustingHash, *resource.Proxy, service),
-			Attributes: convertAttributes(resource.Attributes),
+			Attributes: convertAttributes(resource.Attributes, defaultMF, microFrontendNamespace, resolveHash),
 			WaitOnLoad: &resource.WaitOnLoad,
 		})
 	}

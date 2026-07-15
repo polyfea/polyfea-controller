@@ -214,7 +214,9 @@ Only when all conditions within a DisplayRule evaluate to true is that rule cons
 
 A WebComponent resource supports the following properties:
 
-* **attributes**: A list of attribute key/value pairs applied to the final HTML element. The value may contain any valid JSON type.
+* **attributes**: A list of attributes applied to the final HTML element. Each attribute carries exactly one of two mutually exclusive fields:
+  * **value**: A literal value (any valid JSON type).
+  * **microfrontendPath**: A reference to a resource served by a MicroFrontend's proxy, which the controller resolves to a URL of the form `./polyfea/proxy/<namespace>/<microfrontend>/<hash>/<path>` (including the current cache-busting hash) when serving the context area. It has a `path` and an optional `microfrontend` reference (`{name, namespace}`); when `microfrontend` is omitted it defaults to the WebComponent's own `microFrontend`, and when its `namespace` is omitted it defaults to the WebComponent's namespace. This lets authors reference a backend resource without hardcoding the internal proxy path.
 * **displayRules**: Conditions that determine when the component should be loaded. The list is evaluated using OR semantics.
 * **element**: The HTML tag name for the component (e.g., `my-menu-item`).
 * **microFrontend**: (Optional) A reference to the MicroFrontend providing this component, given as `{name, namespace}`. `namespace` is optional and defaults to the WebComponent's own namespace. If the whole field is omitted, the controller assumes the component is already loaded or native.

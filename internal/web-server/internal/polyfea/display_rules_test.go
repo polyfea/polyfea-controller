@@ -8,17 +8,81 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// noHashResolver reports every MicroFrontend as unknown, so buildProxyPath uses "nohash".
+func noHashResolver(namespace, name string) string { return "" }
+
 func TestConvertAttributesWithNonJSONValue(t *testing.T) {
 	attrs := []v1alpha1.Attribute{
 		{Name: "valid", Value: runtime.RawExtension{Raw: []byte(`"hello"`)}},
 		{Name: "non-json", Value: runtime.RawExtension{Raw: []byte(`not-json`)}},
 	}
-	result := convertAttributes(attrs)
+	result := convertAttributes(attrs, nil, "default", noHashResolver)
 	if (*result)["valid"] != "hello" {
 		t.Errorf("expected 'hello', got %q", (*result)["valid"])
 	}
 	if (*result)["non-json"] != "not-json" {
 		t.Errorf("expected raw fallback 'not-json', got %q", (*result)["non-json"])
+	}
+}
+
+func TestConvertAttributesMicroFrontendPath(t *testing.T) {
+	ptr := func(s string) *string { return &s }
+	defaultMF := &v1alpha1.NamespacedReference{Name: "own-mf"}
+	resolveHash := func(namespace, name string) string {
+		if namespace == "team-a" && name == "shared-mf" {
+			return "abc123"
+		}
+		if namespace == "default" && name == "own-mf" {
+			return "ownhash"
+		}
+		return ""
+	}
+
+	attrs := []v1alpha1.Attribute{
+		// Explicit microfrontend + namespace.
+		{Name: "explicit", MicroFrontendPath: &v1alpha1.MicroFrontendPath{
+			MicroFrontend: &v1alpha1.NamespacedReference{Name: "shared-mf", Namespace: ptr("team-a")},
+			Path:          "assets/config.json",
+		}},
+		// microfrontend omitted -> defaults to defaultMF; namespace omitted -> ownerNamespace.
+		{Name: "defaulted", MicroFrontendPath: &v1alpha1.MicroFrontendPath{
+			Path: "/icons/set.svg",
+		}},
+		// microfrontend present but namespace omitted -> ownerNamespace.
+		{Name: "ns-defaulted", MicroFrontendPath: &v1alpha1.MicroFrontendPath{
+			MicroFrontend: &v1alpha1.NamespacedReference{Name: "own-mf"},
+			Path:          "data",
+		}},
+		// Unknown microfrontend -> "nohash" fallback.
+		{Name: "unknown", MicroFrontendPath: &v1alpha1.MicroFrontendPath{
+			MicroFrontend: &v1alpha1.NamespacedReference{Name: "missing", Namespace: ptr("elsewhere")},
+			Path:          "x.json",
+		}},
+	}
+
+	result := convertAttributes(attrs, defaultMF, "default", resolveHash)
+
+	expected := map[string]string{
+		"explicit":     "./polyfea/proxy/team-a/shared-mf/abc123/assets/config.json",
+		"defaulted":    "./polyfea/proxy/default/own-mf/ownhash/icons/set.svg",
+		"ns-defaulted": "./polyfea/proxy/default/own-mf/ownhash/data",
+		"unknown":      "./polyfea/proxy/elsewhere/missing/nohash/x.json",
+	}
+	for name, want := range expected {
+		if got := (*result)[name]; got != want {
+			t.Errorf("attribute %q: expected %q, got %q", name, want, got)
+		}
+	}
+}
+
+func TestConvertAttributesMicroFrontendPathNoDefaultSkipped(t *testing.T) {
+	// microfrontendPath with no reference and no default MicroFrontend cannot be resolved.
+	attrs := []v1alpha1.Attribute{
+		{Name: "orphan", MicroFrontendPath: &v1alpha1.MicroFrontendPath{Path: "x.json"}},
+	}
+	result := convertAttributes(attrs, nil, "default", noHashResolver)
+	if _, ok := (*result)["orphan"]; ok {
+		t.Errorf("expected orphan attribute to be skipped, got %q", (*result)["orphan"])
 	}
 }
 

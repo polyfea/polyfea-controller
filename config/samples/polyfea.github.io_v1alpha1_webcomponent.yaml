@@ -14,10 +14,16 @@ spec:
   # The HTML element tag name
   element: "my-web-component"
   
-  # Attributes for the web component
+  # Attributes for the web component. Each attribute carries either a literal `value`
+  # or a `microfrontendPath` that the controller resolves to a proxied URL.
   attributes:
     - name: "title"
       value: "Sample Component"
+    # microfrontendPath resolves to ./polyfea/proxy/<namespace>/<microfrontend>/<hash>/<path>.
+    # microfrontend (and its namespace) default to this WebComponent's microFrontend.
+    - name: "config-src"
+      microfrontendPath:
+        path: "assets/config.json"
   
   # Display rules that determine when this component should be loaded
   displayRules:

@@ -73,8 +73,12 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	statusUpdated := false
 	originalStatus := mf.Status.DeepCopy()
 
-	statusUpdated = r.resolveServiceURL(mf) || statusUpdated
-	statusUpdated = r.processFrontendClass(ctx, mf) || statusUpdated
+	if err := polyfeav1alpha1.ValidateAttributes(staticResourceAttributes(mf)); err != nil {
+		statusUpdated = r.handleInvalidAttributes(mf, err, logger)
+	} else {
+		statusUpdated = r.resolveServiceURL(mf) || statusUpdated
+		statusUpdated = r.processFrontendClass(ctx, mf) || statusUpdated
+	}
 
 	if mf.Status.ObservedGeneration != mf.Generation {
 		mf.Status.ObservedGeneration = mf.Generation
@@ -92,6 +96,35 @@ func (r *MicroFrontendReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Periodic reconciliation to re-check conditions
 	return ctrl.Result{RequeueAfter: time.Minute * 5}, nil
+}
+
+// staticResourceAttributes flattens the attributes across all of a MicroFrontend's static resources.
+func staticResourceAttributes(mf *polyfeav1alpha1.MicroFrontend) []polyfeav1alpha1.Attribute {
+	var attrs []polyfeav1alpha1.Attribute
+	for i := range mf.Spec.StaticResources {
+		attrs = append(attrs, mf.Spec.StaticResources[i].Attributes...)
+	}
+	return attrs
+}
+
+// handleInvalidAttributes marks a MicroFrontend whose static-resource attributes fail validation
+// (an attribute setting both value and microfrontendPath, or neither) as Failed and removes it
+// from the repository so it is not served.
+func (r *MicroFrontendReconciler) handleInvalidAttributes(mf *polyfeav1alpha1.MicroFrontend, err error, logger logr.Logger) bool {
+	logger.Info("MicroFrontend has invalid static resource attributes", "microFrontend", mf.Name, "error", err.Error())
+	polyfeav1alpha1.SetCondition(&mf.Status.Conditions, polyfeav1alpha1.ConditionTypeReady,
+		metav1.ConditionFalse, polyfeav1alpha1.ReasonInvalidConfiguration, err.Error())
+
+	statusUpdated := false
+	if mf.Status.Phase != polyfeav1alpha1.MicroFrontendPhaseFailed {
+		mf.Status.Phase = polyfeav1alpha1.MicroFrontendPhaseFailed
+		statusUpdated = true
+	}
+
+	if delErr := r.Repository.Delete(mf); delErr != nil {
+		logger.Error(delErr, "Failed to remove invalid MicroFrontend from repository")
+	}
+	return statusUpdated
 }
 
 // handleFinalizer adds finalizer if not present.
